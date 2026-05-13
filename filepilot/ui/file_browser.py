@@ -397,11 +397,11 @@ class FileBrowserPanel(BasePanel):
     @Slot()
     def _on_file_double_click(self, row: int, column: int):
         """Handle file double-click — try to open externally"""
+        import subprocess
         path_item = self.file_table.item(row, 0)
         if path_item:
             file_path = Path(path_item.data(Qt.UserRole))
             if file_path.exists():
-import subprocess
                 try:
                     fp = str(file_path)
                     if sys.platform == "win32":

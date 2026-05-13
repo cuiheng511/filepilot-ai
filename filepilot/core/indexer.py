@@ -1,6 +1,7 @@
 """文件索引器 — 基于 Whoosh 的全文搜索引擎"""
 
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,8 @@ from whoosh.qparser import MultifieldParser, FuzzyTermPlugin
 
 from filepilot.core.file_scanner import FileInfo
 from filepilot.utils.file_utils import get_file_category
+
+logger = logging.getLogger("filepilot.indexer")
 
 
 class FileIndexer:
@@ -106,6 +109,7 @@ class FileIndexer:
                     progress_callback(i + 1, f"索引 {file_info.name} ({i + 1}/{total})")
 
             except (OSError, PermissionError, ValueError) as e:
+                logger.debug("Skipped indexing %s: %s", file_info.name, e)
                 continue
 
         writer.commit()

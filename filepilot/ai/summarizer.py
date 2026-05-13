@@ -108,19 +108,30 @@ class Summarizer:
         ext = file_path.suffix.lower()
 
         if ext == ".pdf":
-            extractor = PDFExtractor()
-            return extractor.extract_text(file_path)
+            from filepilot.extractors.pdf_extractor import PDFExtractor
+            return PDFExtractor().extract_text(file_path)
 
         elif ext in (".md", ".markdown", ".mdx"):
-            extractor = MarkdownExtractor()
-            return extractor.extract_text(file_path)
+            from filepilot.extractors.markdown_extractor import MarkdownExtractor
+            return MarkdownExtractor().extract_text(file_path)
+
+        elif ext == ".docx":
+            from filepilot.extractors.docx_extractor import DocxExtractor
+            return DocxExtractor().extract_text(file_path)
+
+        elif ext in (".xlsx", ".xls"):
+            from filepilot.extractors.xlsx_extractor import XlsxExtractor
+            return XlsxExtractor().extract_text(file_path)
+
+        elif ext in (".pptx", ".ppt"):
+            from filepilot.extractors.pptx_extractor import PptxExtractor
+            return PptxExtractor().extract_text(file_path)
 
         elif ext in (".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs", ".go"):
             from filepilot.extractors.code_extractor import CodeExtractor
             extractor = CodeExtractor()
             meta = extractor.extract_metadata(file_path)
             code = extractor.extract_text(file_path)
-            # 对代码文件，附加上下文信息
             context_parts = [f"语言: {meta.get('language', '未知')}"]
             defs = meta.get("definitions", [])
             if defs:
@@ -129,7 +140,6 @@ class Summarizer:
             return f"{' | '.join(context_parts)}\n\n{code[:6000]}"
 
         else:
-            # 通用文本文件
             try:
                 return file_path.read_text(encoding="utf-8", errors="replace")
             except Exception:

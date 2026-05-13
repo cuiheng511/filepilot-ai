@@ -2,26 +2,26 @@
 """FilePilot AI — 智能文件管家 启动入口"""
 
 import sys
+from pathlib import Path
 
-from filepilot.app import create_app, create_services, load_settings
-from filepilot.ui.main_window import MainWindow
+from filepilot.log import setup_logging
 
 
 def main():
     """主函数"""
+    # 设置日志
+    log_dir = Path.home() / ".filepilot" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    setup_logging(log_file=str(log_dir / "filepilot.log"))
+
+    from filepilot.app import create_app, create_services, load_settings
+    from filepilot.ui.main_window import MainWindow
+
     app = create_app()
-
-    # 加载设置
     settings = load_settings()
-
-    # 创建服务
     services = create_services(settings)
-
-    # 创建主窗口（注入服务实例）
     window = MainWindow(services=services)
     window.show()
-
-    # 运行事件循环
     sys.exit(app.exec())
 
 

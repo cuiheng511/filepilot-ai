@@ -1,11 +1,14 @@
 """云端 AI 引擎 — 支持 OpenAI / Anthropic / Google Gemini / DeepSeek"""
 
 import json
+import logging
 from typing import Callable
 
 import requests
 
 from filepilot.ai.base import AIProvider
+
+logger = logging.getLogger("filepilot.ai.cloud")
 
 
 class OpenAIProvider(AIProvider):

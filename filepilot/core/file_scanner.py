@@ -1,5 +1,6 @@
 """文件扫描器 — 递归扫描目录、识别文件类型"""
 
+import logging
 import mimetypes
 import os
 from dataclasses import dataclass, field
@@ -15,6 +16,8 @@ from filepilot.utils.file_utils import (
     get_file_modified_time,
     get_file_size_str,
 )
+
+logger = logging.getLogger("filepilot.scanner")
 
 
 @dataclass
@@ -109,7 +112,8 @@ class FileScanner:
 
                 if progress_callback:
                     progress_callback(self._scanned_count, str(file_path))
-            except (OSError, PermissionError):
+            except (OSError, PermissionError) as e:
+                logger.debug("Skipped %s: %s", file_path, e)
                 continue
 
         return results

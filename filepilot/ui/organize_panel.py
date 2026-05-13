@@ -306,7 +306,10 @@ class OrganizePanel(BasePanel):
     @Slot()
     def _on_cancel(self):
         """取消操作"""
+        if self._cancelling:
+            return
         self._cancelled = True
+        self._cancelling = True
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
         self.btn_preview.setEnabled(True)
@@ -320,6 +323,7 @@ class OrganizePanel(BasePanel):
             return
 
         self._cancelled = False
+        self._cancelling = False
         self.btn_preview.setEnabled(False)
         self.btn_execute.setEnabled(False)
         self.progress_bar.setVisible(True)
@@ -402,6 +406,9 @@ class OrganizePanel(BasePanel):
     @Slot()
     def _on_cancel_done(self):
         """取消后恢复按钮状态"""
+        if not self._cancelling:
+            return
+        self._cancelling = False
         self.btn_preview.setEnabled(True)
         self.btn_execute.setEnabled(False)
         self.progress_bar.setVisible(False)
@@ -426,6 +433,7 @@ class OrganizePanel(BasePanel):
             return
 
         self._cancelled = False
+        self._cancelling = False
         self.btn_execute.setEnabled(False)
         self.btn_preview.setEnabled(False)
         self.progress_bar.setVisible(True)

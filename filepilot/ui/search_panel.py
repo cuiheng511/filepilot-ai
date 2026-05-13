@@ -184,7 +184,10 @@ class SearchPanel(BasePanel):
     @Slot()
     def _on_cancel(self):
         """取消当前操作"""
+        if self._cancelling:
+            return
         self._cancelled = True
+        self._cancelling = True
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
         self.search_btn.setEnabled(True)
@@ -207,6 +210,7 @@ class SearchPanel(BasePanel):
             return
 
         self._cancelled = False
+        self._cancelling = False
         self.status_message.emit(f"正在搜索: {query} ...")
         self.search_btn.setEnabled(False)
         self.btn_cancel.setVisible(True)
@@ -293,6 +297,7 @@ class SearchPanel(BasePanel):
     def _index_async(self, dir_path: str | Path):
         """异步建立索引"""
         self._cancelled = False
+        self._cancelling = False
         self.index_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
@@ -333,8 +338,11 @@ class SearchPanel(BasePanel):
     @Slot()
     def _on_cancel_done(self):
         """取消索引"""
-        self._cancelled = True
+        if not self._cancelling:
+            return
+        self._cancelling = False
         self.index_btn.setEnabled(True)
+        self.search_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
         self.status_message.emit("⏹️ 索引已取消")

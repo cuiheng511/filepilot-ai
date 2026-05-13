@@ -231,7 +231,10 @@ class DuplicatesPanel(BasePanel):
     @Slot()
     def _on_cancel(self):
         """取消扫描"""
+        if self._cancelling:
+            return
         self._cancelled = True
+        self._cancelling = True
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
         self.btn_scan.setEnabled(True)
@@ -244,6 +247,7 @@ class DuplicatesPanel(BasePanel):
             return
 
         self._cancelled = False
+        self._cancelling = False
         self.btn_scan.setEnabled(False)
         self.btn_delete.setEnabled(False)
         self.btn_select_all_dup.setEnabled(False)

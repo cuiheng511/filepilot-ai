@@ -59,10 +59,14 @@ def create_services(settings: dict) -> dict:
     ai_mode = settings.get("ai_mode", "local")
 
     # AI 引擎
-    local_ai = LocalAI(model=settings.get("ollama_model", "qwen2.5:7b"))
+    local_ai = LocalAI(
+        model=settings.get("ollama_model", "qwen2.5:7b"),
+        api_base=settings.get("ollama_url", "http://localhost:11434"),
+    )
     cloud_ai = CloudAI(
         api_key=settings.get("openai_key", ""),
         model=settings.get("openai_model", "gpt-4o-mini"),
+        api_base=settings.get("openai_url", "https://api.openai.com/v1"),
     )
 
     # 摘要器

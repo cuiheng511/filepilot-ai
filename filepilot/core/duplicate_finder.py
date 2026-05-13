@@ -124,15 +124,22 @@ class DuplicateFinder:
         return groups
 
     def _partial_hash(self, file_path: Path, sample_size: int = 65536) -> str:
-        """计算文件部分哈希（头尾各 sample_size 字节）"""
+        """计算文件部分哈希（头尾各 sample_size 字节）
+
+        当文件大小 <= 2 * sample_size 时，head 和 tail 会重叠，
+        因此用长度前缀区分，避免不同大小文件产生相同 hash。
+        """
         hasher = hashlib.sha256()
         try:
+            file_size = file_path.stat().st_size
+            hasher.update(file_size.to_bytes(8, 'big'))  # 长度前缀
             with open(file_path, "rb") as f:
                 head = f.read(sample_size)
                 hasher.update(head)
-                f.seek(-min(sample_size, f.tell()), 2)
-                tail = f.read(sample_size)
-                hasher.update(tail)
+                if file_size > sample_size:
+                    f.seek(-sample_size, 2)
+                    tail = f.read(sample_size)
+                    hasher.update(tail)
         except (OSError, PermissionError):
             pass
         return hasher.hexdigest()

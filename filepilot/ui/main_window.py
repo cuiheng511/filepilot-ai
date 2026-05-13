@@ -326,21 +326,12 @@ class MainWindow(QMainWindow):
         self.nav_list.setCurrentRow(index)
 
     def _load_settings(self) -> dict:
-        """加载设置"""
-        import json
-        settings_path = Path.home() / ".filepilot" / "settings.json"
-        if settings_path.exists():
-            try:
-                return json.loads(settings_path.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-        return {
-            "ai_mode": "local",
-            "ollama_model": "qwen2.5:7b",
-            "openai_key": "",
-            "openai_model": "gpt-4o-mini",
-            "recent_dirs": [],
-        }
+        """加载设置（统一使用 app.load_settings）"""
+        from filepilot.app import load_settings as _load
+        settings = _load()
+        # 补充 MainWindow 所需的默认值
+        settings.setdefault("recent_dirs", [])
+        return settings
 
     def _save_settings(self):
         """保存设置"""

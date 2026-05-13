@@ -38,12 +38,20 @@ def create_app() -> QApplication:
 def load_settings() -> dict:
     """加载用户设置"""
     settings_path = Path.home() / ".filepilot" / "settings.json"
+    defaults = {
+        "ai_mode": "local",
+        "ollama_model": "qwen2.5:7b",
+        "openai_key": "",
+        "openai_model": "gpt-4o-mini",
+        "index_dir": "~/.filepilot/index",
+    }
     if settings_path.exists():
         try:
-            return json.loads(settings_path.read_text(encoding="utf-8"))
+            user = json.loads(settings_path.read_text(encoding="utf-8"))
+            defaults.update(user)
         except Exception:
             pass
-    return {}
+    return defaults
 
 
 def create_services(settings: dict) -> dict:

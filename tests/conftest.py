@@ -6,7 +6,6 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-@pytest.fixture(scope="session")
 def qapp_class():
     """为 pytest-qt 提供 QApplication 子类"""
     from PySide6.QtWidgets import QApplication

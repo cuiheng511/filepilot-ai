@@ -37,10 +37,8 @@ class TestFileOrganizer:
 
     def test_category_rule(self):
         """测试分类规则"""
-        scanner = FileScanner()
-        files = scanner.scan(Path(tempfile.mkdtemp()), recursive=False)
-        # 创建临时文件来测试
         import tempfile, pathlib
+        scanner = FileScanner()
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(b"%PDF")
             path = pathlib.Path(f.name)

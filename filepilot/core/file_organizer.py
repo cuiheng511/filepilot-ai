@@ -24,7 +24,7 @@ class OrganizeRule:
 
 class CategoryRule(OrganizeRule):
     """按文件分类归类"""
-    category_map: dict[FileCategory, str] = field(default_factory=lambda: {
+    category_map: dict[FileCategory, str] = {
         FileCategory.DOCUMENT: "文档",
         FileCategory.IMAGE: "图片",
         FileCategory.VIDEO: "视频",
@@ -39,7 +39,7 @@ class CategoryRule(OrganizeRule):
         FileCategory.EXECUTABLE: "可执行文件",
         FileCategory.FONT: "字体",
         FileCategory.UNKNOWN: "其他",
-    })
+    }
 
     def __init__(self):
         super().__init__("按类型归类")

@@ -19,23 +19,14 @@ The project is designed for practical local workflows: cleaning download folders
 | Full-text search | Builds a local Whoosh index for fast filename and content search. |
 | Duplicate detection | Uses file hashing to identify duplicate files and reduce storage waste. |
 | Content extraction | Extracts text and metadata from code, Markdown, PDFs, images, and more. |
-| AI summaries | Supports local Ollama models and optional cloud AI providers. |
-| Smart organization | Suggests file organization actions based on type, content, and context. |
-| Desktop interface | Provides a multi-panel PySide6 UI for non-command-line workflows. |
-
-## Product Preview
-
-The application is organized around focused desktop panels:
-
-- File Browser
-- Search
-- Index Management
-- Duplicate Finder
-- Smart Organizer
-- AI Summary
-- Settings
-
-Screenshots and packaged release assets will be added after the first stable build.
+| AI summaries | Supports Ollama, llama.cpp, OpenAI, Anthropic, and any OpenAI-compatible API. |
+| Smart organization | Suggests and applies file organization actions with one-click undo. |
+| Drag-and-drop | Drop folders onto the file browser to navigate instantly. |
+| File preview | Select a file to preview its content in the bottom panel. |
+| Export | Export scan results as CSV or JSON for downstream processing. |
+| Disk usage | Category size breakdown with bar chart visualization. |
+| Theme toggle | Dark/light theme switch from the toolbar. |
+| CLI interface | Power users can scan, search, organize, and export from the command line. |
 
 ## Quick Start
 
@@ -43,8 +34,8 @@ Screenshots and packaged release assets will be added after the first stable bui
 
 - Python 3.10 or newer
 - Windows, macOS, or Linux
-- Optional: Ollama for local AI summaries
-- Optional: OpenAI API key for cloud AI summaries
+- Optional: Ollama, llama.cpp, or any OpenAI-compatible server for local AI
+- Optional: OpenAI / Anthropic API key for cloud AI
 
 ### Installation
 
@@ -52,19 +43,7 @@ Screenshots and packaged release assets will be added after the first stable bui
 git clone https://github.com/cuiheng511/filepilot-ai.git
 cd filepilot-ai
 python -m venv .venv
-```
-
-Windows PowerShell:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-macOS / Linux:
-
-```bash
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -74,97 +53,62 @@ pip install -r requirements.txt
 python -m filepilot.main
 ```
 
+### Run the CLI
+
+```bash
+python -m filepilot.cli scan /path/to/dir
+python -m filepilot.cli duplicates /path/to/dir
+python -m filepilot.cli export /path/to/dir --format csv -o results.csv
+python -m filepilot.cli disk-usage /path/to/dir
+```
+
 ## AI Configuration
 
-FilePilot AI can work with local AI models or cloud AI APIs.
+FilePilot AI supports 5 AI providers through a unified interface:
 
-### Local AI with Ollama
+| Provider | Type | Use Case |
+|----------|------|----------|
+| **Ollama** | Local | qwen, llama, mistral and other Ollama models |
+| **llama.cpp / LM Studio** | Local | Any model served via llama.cpp server or LM Studio |
+| **OpenAI** | Cloud | GPT-4o, GPT-4o-mini, and any OpenAI-compatible API (DeepSeek, Moonshot, etc.) |
+| **Anthropic** | Cloud | Claude Sonnet, Opus, Haiku |
+| **Custom** | Cloud | Any endpoint that implements the OpenAI chat completions API |
 
-Install Ollama from [ollama.com](https://ollama.com), then pull a model:
-
-```bash
-ollama pull qwen2.5:7b
-```
-
-After that, open FilePilot AI settings and select the local AI mode.
-
-### Cloud AI with OpenAI
-
-Set your API key as an environment variable.
-
-macOS / Linux:
-
-```bash
-export OPENAI_API_KEY="your_api_key"
-```
-
-Windows PowerShell:
-
-```powershell
-$env:OPENAI_API_KEY="your_api_key"
-```
-
-Then select the cloud AI mode in the application settings.
+Open Settings → AI Provider to select and configure your preferred provider.
 
 ## Project Structure
 
 ```text
 filepilot-ai/
 |-- filepilot/
-|   |-- ai/           # Local and cloud AI adapters
+|   |-- ai/           # AI providers (base class + Ollama/llama.cpp/OpenAI/Anthropic)
 |   |-- core/         # Scanner, indexer, organizer, duplicate finder
 |   |-- extractors/   # Text and metadata extraction modules
 |   |-- ui/           # PySide6 desktop interface
+|   |-- cli.py        # CLI entry point
 |   `-- utils/        # Shared utilities
-|-- scripts/          # Helper scripts
 |-- tests/            # Test suite
-|-- check_syntax.py   # Syntax validation helper
 |-- pyproject.toml    # Project metadata
 |-- requirements.txt  # Runtime dependencies
 `-- README.md
 ```
 
-## Core Modules
-
-| Module | Purpose |
-| --- | --- |
-| `filepilot.core.file_scanner` | Scans folders and records file metadata. |
-| `filepilot.core.indexer` | Builds and queries the local search index. |
-| `filepilot.core.duplicate_finder` | Detects duplicate files using content hashes. |
-| `filepilot.core.file_organizer` | Suggests and applies file organization actions. |
-| `filepilot.extractors.*` | Extracts text and metadata from supported file formats. |
-| `filepilot.ai.*` | Connects local and cloud AI providers for summaries. |
-| `filepilot.ui.*` | Implements the desktop panels and main window. |
-
 ## Development
-
-Install the project in editable mode:
 
 ```bash
 pip install -e ".[test]"
-```
-
-Run tests:
-
-```bash
 pytest
-```
-
-Run a syntax check:
-
-```bash
-python check_syntax.py
 ```
 
 ## Roadmap
 
-- [ ] Add a packaged Windows installer
+- [ ] Add a packaged Windows/macOS installer
 - [ ] Add application screenshots and demo GIFs
 - [ ] Improve large-folder indexing performance
-- [ ] Add a safer preview workflow before moving files
 - [ ] Add persistent AI summary caching
-- [ ] Expand document extractor coverage
+- [ ] Expand document extractor coverage (DOCX, XLSX, PPTX)
 - [ ] Add multilingual UI support
+- [ ] Add file watching for auto-organization
 
 ## Security and Privacy
 
@@ -172,15 +116,15 @@ FilePilot AI is built around local file workflows. Folder scanning, indexing, du
 
 Cloud AI features are optional. If you enable a cloud provider, review which selected file content may be sent to that provider. For sensitive folders, use local AI mode or disable AI summaries.
 
-Do not commit API keys, passwords, or personal access tokens. Use environment variables such as `OPENAI_API_KEY` and `GITHUB_TOKEN` instead.
+Do not commit API keys, passwords, or personal access tokens.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE).
 
 ## Acknowledgements
 
-- [PySide6](https://pypi.org/project/PySide6/) for the desktop interface
-- [Whoosh](https://whoosh.readthedocs.io/) for local full-text search
-- [Ollama](https://ollama.com/) for local model execution
-- [OpenAI](https://openai.com/) for optional cloud AI capabilities
+- [PySide6](https://pypi.org/project/PySide6/) — Desktop interface
+- [Whoosh](https://whoosh.readthedocs.io/) — Full-text search
+- [Ollama](https://ollama.com/) — Local model execution
+- [PyMuPDF](https://pymupdf.readthedocs.io/) — PDF extraction

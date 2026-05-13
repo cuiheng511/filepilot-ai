@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from filepilot.i18n import t
+
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -64,7 +66,7 @@ class SettingsDialog(QDialog):
         layout.setSpacing(16)
 
         # AI Provider selection
-        provider_group = QGroupBox("AI Provider")
+        provider_group = QGroupBox(t("settings_provider"))
         provider_layout = QVBoxLayout()
         self.provider_combo = QComboBox()
         self.provider_combo.addItems([
@@ -80,7 +82,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(provider_group)
 
         # Common settings (shared across all Providers)
-        common_group = QGroupBox("Model Settings")
+        common_group = QGroupBox(t("settings_model"))
         common_layout = QFormLayout()
         self.model_input = QComboBox()
         self.model_input.setEditable(True)

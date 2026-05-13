@@ -14,6 +14,10 @@ def main():
     log_dir.mkdir(parents=True, exist_ok=True)
     setup_logging(log_file=str(log_dir / "filepilot.log"))
 
+    # Load language settings
+    from filepilot.i18n import load_language_from_settings
+    load_language_from_settings()
+
     from filepilot.app import create_app, create_services, load_settings
     from filepilot.ui.main_window import MainWindow
 

@@ -3,6 +3,8 @@
 from pathlib import Path
 from threading import Thread
 
+from filepilot.i18n import t
+
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -150,11 +152,11 @@ class OrganizePanel(BasePanel):
 
         # ── Action Buttons ──
         action_layout = QHBoxLayout()
-        self.btn_preview = QPushButton("\U0001f441\ufe0f Preview")
+        self.btn_preview = QPushButton(t("organize_preview"))
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_preview.setEnabled(False)
 
-        self.btn_execute = QPushButton("\U0001f680 Execute")
+        self.btn_execute = QPushButton(t("organize_execute"))
         self.btn_execute.setObjectName("btnSuccess")
         self.btn_execute.clicked.connect(self._on_execute)
         self.btn_execute.setEnabled(False)
@@ -162,7 +164,7 @@ class OrganizePanel(BasePanel):
         self.btn_clear = QPushButton("Clear Results")
         self.btn_clear.clicked.connect(self._clear_results)
 
-        self.btn_undo = QPushButton("\u21a9\ufe0f Undo")
+        self.btn_undo = QPushButton(t("organize_undo"))
         self.btn_undo.setObjectName("btnWarning")
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_undo.setEnabled(False)

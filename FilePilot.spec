@@ -7,9 +7,7 @@ a = Analysis(
     ['filepilot/main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('filepilot/ui/*.qss', 'filepilot/ui'),
-    ],
+    datas=[],
     hiddenimports=[
         'filepilot.ai.base',
         'filepilot.ai.local_ai',

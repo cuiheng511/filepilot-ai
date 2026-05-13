@@ -198,7 +198,7 @@ class SettingsDialog(QDialog):
             "qwen2.5:7b", "qwen2.5:3b", "llama3.1:8b", "mistral:7b",
             "gpt-4o-mini", "gpt-4o", "claude-sonnet-4-20250514",
         ])
-        self.model_input.setCurrentText(self._settings.get("ollama_model", "qwen2.5:7b"))
+        self.model_input.setCurrentText(self._settings.get("ai_model", "qwen2.5:7b"))
         self.api_base_input = QLineEdit("http://localhost:11434")
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.Password)
@@ -212,11 +212,10 @@ class SettingsDialog(QDialog):
         layout.addStretch()
 
         # 初始化默认值
-        mode = self._settings.get("ai_mode", "local")
         provider = self._settings.get("ai_provider", "ollama")
         provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
         self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
-        self.api_key_input.setText(self._settings.get("openai_key", ""))
+        self.api_key_input.setText(self._settings.get("ai_api_key", ""))
 
         return widget
 
@@ -266,9 +265,9 @@ class SettingsDialog(QDialog):
         provider = self._settings.get("ai_provider", "ollama")
         provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
         self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
-        self.model_input.setCurrentText(self._settings.get("ollama_model", "qwen2.5:7b"))
-        self.api_base_input.setText(self._settings.get("ollama_url", "http://localhost:11434"))
-        self.api_key_input.setText(self._settings.get("openai_key", ""))
+        self.model_input.setCurrentText(self._settings.get("ai_model", "qwen2.5:7b"))
+        self.api_base_input.setText(self._settings.get("ai_api_base", "http://localhost:11434"))
+        self.api_key_input.setText(self._settings.get("ai_api_key", ""))
         self.index_dir.setText(self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index")))
 
     def get_settings(self) -> dict:

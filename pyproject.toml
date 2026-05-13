@@ -5,7 +5,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 [project]
 name = "filepilot-ai"
 version = "0.1.0"
-description = "智能文件管家 — 自动整理、归类、搜索你的本地文件"
+description = "Smart File Manager — Automatically organize, categorize, and search your local files"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

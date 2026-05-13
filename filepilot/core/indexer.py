@@ -1,4 +1,4 @@
-"""文件索引器 — 基于 Whoosh 的全文搜索引擎"""
+"""File Indexer — Whoosh-based full-text search engine"""
 
 import json
 import logging
@@ -20,10 +20,10 @@ logger = logging.getLogger("filepilot.indexer")
 
 
 class FileIndexer:
-    """文件索引器
+    """File Indexer
 
-    使用 Whoosh 对文件元数据和内容建立全文搜索索引。
-    支持按文件名、路径、内容、类型、日期等字段搜索。
+    Builds a full-text search index on file metadata and content using Whoosh.
+    Supports search by filename, path, content, type, date, etc.
     """
 
     SCHEMA = fields.Schema(
@@ -46,7 +46,7 @@ class FileIndexer:
         self._total_indexed = 0
 
     def _open_or_create_index(self) -> index.Index:
-        """打开或创建索引"""
+        """Open or create index"""
         storage = FileStorage(str(self.index_dir))
         if index.exists_in(storage):
             return storage.open_index()
@@ -59,16 +59,16 @@ class FileIndexer:
         summary_extractor: Callable[[FileInfo], str] | None = None,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> int:
-        """将文件列表加入索引
+        """Add file list to index
 
         Args:
-            files: 文件列表
-            content_extractor: 自定义内容提取函数
-            summary_extractor: 自定义摘要提取函数
-            progress_callback: 进度回调
+            files: List of files
+            content_extractor: Custom content extraction function
+            summary_extractor: Custom summary extraction function
+            progress_callback: Progress callback
 
         Returns:
-            索引的文件数量
+            Number of indexed files
         """
         writer = self._ix.writer()
         indexed = 0
@@ -76,21 +76,21 @@ class FileIndexer:
 
         for i, file_info in enumerate(files):
             try:
-                # 跳过目录
+                # Skip directories
                 if file_info.is_directory:
                     continue
 
-                # 提取内容
+                # Extract content
                 content = ""
                 if content_extractor:
                     content = content_extractor(file_info) or ""
 
-                # 提取摘要
+                # Extract summary
                 summary = ""
                 if summary_extractor:
                     summary = summary_extractor(file_info) or ""
 
-                # 写入索引
+                # Write to index
                 writer.update_document(
                     path=str(file_info.path),
                     filename=file_info.name,
@@ -123,16 +123,16 @@ class FileIndexer:
         limit: int = 50,
         fuzzy: bool = True,
     ) -> list[dict]:
-        """搜索索引
+        """Search index
 
         Args:
-            query_str: 搜索关键词
-            fields: 搜索字段列表，默认搜索所有文本字段
-            limit: 最大返回结果数
-            fuzzy: 是否启用模糊搜索
+            query_str: Search query
+            fields: Fields to search, defaults to all text fields
+            limit: Maximum results
+            fuzzy: Whether to enable fuzzy search
 
         Returns:
-            搜索结果列表
+            List of search results
         """
         fields = fields or ["filename", "content", "summary", "category"]
         parser = MultifieldParser(fields, schema=self._ix.schema)
@@ -140,7 +140,7 @@ class FileIndexer:
         if fuzzy:
             parser.add_plugin(FuzzyTermPlugin())
 
-        # 支持自然语言查询：自动添加模糊匹配
+        # Support natural language queries: auto-add fuzzy matching
         parsed_query = parser.parse(query_str)
 
         with self._ix.searcher() as searcher:
@@ -161,11 +161,11 @@ class FileIndexer:
             ]
 
     def search_by_category(self, category: str, limit: int = 100) -> list[dict]:
-        """按文件类别搜索"""
+        """Search by file category"""
         return self.search(f"category:{category}", fields=["category"], fuzzy=False, limit=limit)
 
     def search_by_extension(self, extension: str, limit: int = 100) -> list[dict]:
-        """按扩展名搜索"""
+        """Search by file extension"""
         ext = extension if extension.startswith(".") else f".{extension}"
         return self.search(f"extension:{ext}", fields=["extension"], fuzzy=False, limit=limit)
 
@@ -175,7 +175,7 @@ class FileIndexer:
         end: datetime | None = None,
         limit: int = 100,
     ) -> list[dict]:
-        """按日期范围搜索"""
+        """Search by date range"""
         from whoosh.query import DateRange
 
         start = start or datetime(2000, 1, 1)
@@ -196,7 +196,7 @@ class FileIndexer:
             ]
 
     def get_all_indexed(self, limit: int = 1000) -> list[dict]:
-        """获取所有已索引文件"""
+        """Get all indexed files"""
         with self._ix.searcher() as searcher:
             results = searcher.search(Every(), limit=limit)
             return [
@@ -211,18 +211,18 @@ class FileIndexer:
             ]
 
     def remove_from_index(self, file_path: str | Path) -> None:
-        """从索引中移除文件"""
+        """Remove file from index"""
         writer = self._ix.writer()
         writer.delete_by_term("path", str(file_path))
         writer.commit()
 
     def clear_index(self) -> None:
-        """清空索引"""
+        """Clear index"""
         writer = self._ix.writer()
         writer.commit(mergetype=index.CLEAR)
 
     def get_stats(self) -> dict:
-        """获取索引统计信息"""
+        """Get index statistics"""
         with self._ix.searcher() as searcher:
             doc_count = searcher.doc_count()
             return {
@@ -232,7 +232,7 @@ class FileIndexer:
             }
 
     def _get_highlights(self, result, query_str: str) -> str:
-        """生成搜索结果高亮片段"""
+        """Generate search result highlight snippets"""
         try:
             for field_name in ["content", "summary", "filename"]:
                 fragment = result.highlights(field_name, top=2)
@@ -243,13 +243,13 @@ class FileIndexer:
         return ""
 
     def _format_dt(self, dt: datetime | None) -> str:
-        """格式化日期时间"""
+        """Format datetime"""
         if dt is None:
             return ""
         return dt.strftime("%Y-%m-%d %H:%M")
 
     def _get_index_size(self) -> str:
-        """获取索引目录大小"""
+        """Get index directory size"""
         total = 0
         for f in self.index_dir.rglob("*"):
             if f.is_file():

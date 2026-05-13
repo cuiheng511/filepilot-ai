@@ -1,4 +1,4 @@
-"""本地 AI 引擎 — 支持 Ollama / llama.cpp / vLLM / LM Studio"""
+"""Local AI Engine — Supports Ollama / llama.cpp / vLLM / LM Studio"""
 
 import json
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger("filepilot.ai.local")
 
 
 class OllamaProvider(AIProvider):
-    """Ollama 本地模型"""
+    """Ollama local model"""
 
     def __init__(self, model: str = "qwen2.5:7b", api_base: str = "http://localhost:11434"):
         self.model = model
@@ -116,7 +116,7 @@ class OllamaProvider(AIProvider):
 
 
 class LlamaCppProvider(AIProvider):
-    """llama.cpp server / LM Studio / vLLM（OpenAI 兼容接口）"""
+    """llama.cpp server / LM Studio / vLLM (OpenAI-compatible API)"""
 
     def __init__(self, model: str = "default", api_base: str = "http://localhost:8080"):
         self.model = model
@@ -201,5 +201,5 @@ class LlamaCppProvider(AIProvider):
         return []
 
 
-# 向后兼容：LocalAI = OllamaProvider
+# Backward compatibility: LocalAI = OllamaProvider
 LocalAI = OllamaProvider

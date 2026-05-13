@@ -1,4 +1,4 @@
-"""FileOrganizer 单元测试"""
+"""FileOrganizer unit tests"""
 
 import tempfile
 from pathlib import Path
@@ -16,11 +16,11 @@ from filepilot.core.file_scanner import FileScanner
 
 
 class TestFileOrganizer:
-    """FileOrganizer 测试"""
+    """FileOrganizer test suite"""
 
     @pytest.fixture
     def source_dir(self):
-        """创建源目录"""
+        """Create source directory with test files"""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "report.pdf").write_bytes(b"%PDF-1.4")
@@ -31,12 +31,12 @@ class TestFileOrganizer:
 
     @pytest.fixture
     def target_dir(self):
-        """创建目标目录"""
+        """Create target directory"""
         with tempfile.TemporaryDirectory() as tmp:
             yield Path(tmp)
 
     def test_category_rule(self):
-        """测试分类规则"""
+        """Test category classification rule"""
         import tempfile, pathlib
         scanner = FileScanner()
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -53,7 +53,7 @@ class TestFileOrganizer:
             path.unlink()
 
     def test_date_rule(self):
-        """测试日期规则"""
+        """Test date-based classification rule"""
         import tempfile, pathlib
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"test")
@@ -65,14 +65,14 @@ class TestFileOrganizer:
             rule = DateRule()
             txt_file = next(f for f in files if f.name == path.name)
             target = rule.apply(txt_file)
-            # 格式: YYYY/MM月
+            # Format: YYYY/MM
             import re
-            assert re.match(r"\d{4}/\d{2}月", target)
+            assert re.match(r"\d{4}/\d{2}", target)
         finally:
             path.unlink()
 
     def test_extension_rule(self):
-        """测试扩展名规则"""
+        """Test extension-based classification rule"""
         rule = ExtensionRule()
 
         import tempfile, pathlib
@@ -90,7 +90,7 @@ class TestFileOrganizer:
             path.unlink()
 
     def test_size_rule(self):
-        """测试大小规则"""
+        """Test size-based classification rule"""
         import tempfile, pathlib
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"x" * 100)

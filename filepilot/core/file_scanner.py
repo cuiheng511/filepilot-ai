@@ -1,4 +1,4 @@
-"""文件扫描器 — 递归扫描目录、识别文件类型"""
+"""File Scanner — Recursively scan directories, identify file types"""
 
 import logging
 import mimetypes
@@ -22,7 +22,7 @@ logger = logging.getLogger("filepilot.scanner")
 
 @dataclass
 class FileInfo:
-    """文件的元数据信息"""
+    """File metadata information"""
     path: Path
     name: str
     extension: str
@@ -37,7 +37,7 @@ class FileInfo:
 
     @property
     def relative_path(self, base_path: Path | None = None) -> str:
-        """获取相对路径"""
+        """Get relative path"""
         if base_path:
             try:
                 return str(self.path.relative_to(base_path))
@@ -47,7 +47,7 @@ class FileInfo:
 
 
 class FileScanner:
-    """递归文件扫描器"""
+    """Recursive file scanner"""
 
     IGNORED_DIRS: set[str] = {
         "__pycache__", ".git", ".svn", ".hg",
@@ -57,7 +57,7 @@ class FileScanner:
     IGNORED_EXTENSIONS: set[str] = {
         ".pyc", ".pyo", ".DS_Store", ".lnk",
     }
-    MAX_FILE_SIZE: int = 500 * 1024 * 1024  # 500MB
+    MAX_FILE_SIZE: int = 500 * 1024 * 1024  # 500 MB
 
     def __init__(self, follow_symlinks: bool = False):
         self.follow_symlinks = follow_symlinks
@@ -73,21 +73,21 @@ class FileScanner:
         include_hidden: bool = False,
         max_depth: int = -1,
     ) -> list[FileInfo]:
-        """扫描目录，返回文件列表
+        """Scan directory and return file list
 
         Args:
-            root_path: 根目录路径
-            recursive: 是否递归扫描子目录
-            progress_callback: 进度回调 (当前文件数, 当前文件路径)
-            include_dirs: 是否包含目录本身
-            include_hidden: 是否包含隐藏文件/目录
-            max_depth: 最大递归深度，-1 表示不限
+            root_path: Root directory path
+            recursive: Whether to scan subdirectories recursively
+            progress_callback: Progress callback (current count, current file path)
+            include_dirs: Whether to include directories themselves
+            include_hidden: Whether to include hidden files/directories
+            max_depth: Maximum recursion depth, -1 for unlimited
         """
         root = Path(root_path).resolve()
         if not root.exists():
-            raise FileNotFoundError(f"路径不存在: {root}")
+            raise FileNotFoundError(f"Path does not exist: {root}")
         if not root.is_dir():
-            raise NotADirectoryError(f"不是目录: {root}")
+            raise NotADirectoryError(f"Not a directory: {root}")
 
         results: list[FileInfo] = []
         self._scanned_count = 0
@@ -100,7 +100,7 @@ class FileScanner:
                     results.append(info)
                 continue
 
-            # 跳过忽略的扩展名
+            # Skip ignored extensions
             if file_path.suffix.lower() in self.IGNORED_EXTENSIONS:
                 continue
 
@@ -126,7 +126,7 @@ class FileScanner:
         max_depth: int,
         current_depth: int = 0,
     ) -> Iterator[Path]:
-        """遍历目录树"""
+        """Walk directory tree"""
         if max_depth >= 0 and current_depth > max_depth:
             return
 
@@ -138,11 +138,11 @@ class FileScanner:
         entries.sort(key=lambda p: (not p.is_dir(), p.name.lower()))
 
         for entry in entries:
-            # 跳过隐藏文件/目录
+            # Skip hidden files/directories
             if not include_hidden and entry.name.startswith("."):
                 continue
 
-            # 跳过忽略的目录
+            # Skip ignored directories
             if entry.is_dir() and entry.name in self.IGNORED_DIRS:
                 continue
 
@@ -154,7 +154,7 @@ class FileScanner:
                 )
 
     def _create_file_info(self, file_path: Path) -> FileInfo:
-        """根据文件路径创建 FileInfo"""
+        """Create FileInfo from file path"""
         stat = file_path.stat()
         extension = file_path.suffix.lower()
         category = get_file_category(file_path)
@@ -179,12 +179,12 @@ class FileScanner:
         max_files: int = 100,
         file_types: list[str] | None = None,
     ) -> list[FileInfo]:
-        """快速扫描（限制文件数量），支持按类型过滤
+        """Quick scan (limited file count), supports type filtering
 
         Args:
-            root_path: 根目录
-            max_files: 最大文件数
-            file_types: 文件扩展名列表，如 ['.pdf', '.md']
+            root_path: Root directory
+            max_files: Maximum file count
+            file_types: File extension list, e.g. ['.pdf', '.md']
         """
         root = Path(root_path).resolve()
         results: list[FileInfo] = []
@@ -199,14 +199,14 @@ class FileScanner:
         return results
 
     def compute_hash(self, file_info: FileInfo) -> str:
-        """计算文件哈希（惰性计算）"""
+        """Compute file hash (lazy evaluation)"""
         if file_info.hash_sha256 is None:
             file_info.hash_sha256 = compute_file_hash(file_info.path)
         return file_info.hash_sha256
 
     @property
     def stats(self) -> dict:
-        """返回扫描统计信息"""
+        """Return scan statistics"""
         return {
             "scanned_count": self._scanned_count,
             "total_size": self._total_size,

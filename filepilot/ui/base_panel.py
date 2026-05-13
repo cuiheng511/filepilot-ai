@@ -1,6 +1,6 @@
-"""BasePanel — 所有功能面板的基类
+"""BasePanel — Base class for all feature panels
 
-提供共享信号、取消操作支持和统计卡片方法。
+Provides shared signals, cancel operation support, and stat card methods.
 """
 from __future__ import annotations
 
@@ -18,43 +18,43 @@ from PySide6.QtWidgets import (
 
 
 class BasePanel(QWidget):
-    """所有功能面板的基类，提供共享信号和通用方法。"""
+    """Base class for all feature panels, providing shared signals and common methods."""
 
-    # === 共享信号 ===
+    # === Shared Signals ===
     status_message = Signal(str)
     progress_updated = Signal(int)
     progress_text = Signal(str)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        # 取消操作支持
+        # Cancel operation support
         self._cancelled: bool = False
 
-        # 取消按钮（由子类添加到各自布局中）
-        self.btn_cancel = QPushButton("✕ 取消")
+        # Cancel button (added by subclasses to their layouts)
+        self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.setVisible(False)
         self.btn_cancel.clicked.connect(self._on_cancel)
 
-        # 统计卡片字典（仅使用 _make_stat_card 的面板需要初始化）
+        # Stat card dict (only panels using _make_stat_card need to initialize)
         self.stat_cards: dict[str, QLabel] = {}
 
-    # ── 取消操作 ──────────────────────────────────────────────
+    # ── Cancel Operations ──────────────────────────────────────────────
 
     def reset_cancel(self) -> None:
-        """启动新操作前调用，清空取消标志。"""
+        """Call before starting a new operation to clear the cancel flag."""
         self._cancelled = False
 
     @Slot()
     def _on_cancel(self) -> None:
-        """取消当前操作（设置标志，由子类增强）。"""
+        """Cancel the current operation (sets flag, overridden by subclasses)."""
         self._cancelled = True
-        self.status_message.emit("⏹️ 正在取消...")
+        self.status_message.emit("⏹️ Cancelling...")
 
     @Slot()
     def _on_cancel_done(self) -> None:
-        """取消完成后恢复 UI（由子类覆写以处理各自的控件）。"""
+        """Restore UI after cancellation (overridden by subclasses for their controls)."""
         self.btn_cancel.setVisible(False)
-        # 安全地隐藏进度条（如果有）
+        # Safely hide progress bar (if exists)
         progress_bar = getattr(self, "progress_bar", None)
         if progress_bar is not None:
             progress_bar.setVisible(False)
@@ -62,10 +62,10 @@ class BasePanel(QWidget):
         if progress_label is not None:
             progress_label.setVisible(False)
 
-    # ── 统计卡片 ──────────────────────────────────────────────
+    # ── Stat Cards ─────────────────────────────────────────────────────
 
     def _make_stat_card(self, title: str, value: str) -> QFrame:
-        """创建统一样式的统计卡片。"""
+        """Create a uniformly styled stat card."""
         card = QFrame()
         card.setObjectName("statCard")
         card.setStyleSheet("""
@@ -97,6 +97,6 @@ class BasePanel(QWidget):
         return card
 
     def _update_stat(self, title: str, value: str) -> None:
-        """更新统计卡片的值。"""
+        """Update the value of a stat card."""
         if title in self.stat_cards:
             self.stat_cards[title].setText(str(value))

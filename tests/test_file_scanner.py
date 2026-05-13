@@ -1,4 +1,4 @@
-"""FileScanner 单元测试"""
+"""FileScanner Unit Tests"""
 
 import os
 import tempfile
@@ -11,15 +11,15 @@ from filepilot.utils.file_utils import FileCategory
 
 
 class TestFileScanner:
-    """FileScanner 测试"""
+    """FileScanner test suite"""
 
     @pytest.fixture
     def temp_dir(self):
-        """创建临时目录结构"""
+        """Create temporary directory structure"""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
 
-            # 创建一些测试文件
+            # Create some test files
             (root / "test.txt").write_text("hello world")
             (root / "test.py").write_text("print('hello')")
             (root / "test.md").write_text("# Title\ncontent")
@@ -31,7 +31,7 @@ class TestFileScanner:
             yield root
 
     def test_scan_basic(self, temp_dir):
-        """测试基本扫描"""
+        """Test basic scan"""
         scanner = FileScanner()
         files = scanner.scan(temp_dir)
 
@@ -42,17 +42,17 @@ class TestFileScanner:
         assert "test.md" in paths
 
     def test_scan_non_recursive(self, temp_dir):
-        """测试非递归扫描"""
+        """Test non-recursive scan"""
         scanner = FileScanner()
         files = scanner.scan(temp_dir, recursive=False)
 
         names = [f.name for f in files]
         assert "test.txt" in names
-        # 子目录的文件不应出现
+        # Files in subdirectory should not appear
         assert "nested.txt" not in names
 
     def test_file_info_fields(self, temp_dir):
-        """测试 FileInfo 字段正确性"""
+        """Test FileInfo field correctness"""
         scanner = FileScanner()
         files = scanner.scan(temp_dir)
         txt_file = next(f for f in files if f.name == "test.txt")
@@ -65,7 +65,7 @@ class TestFileScanner:
         assert txt_file.modified_time is not None
 
     def test_category_detection(self, temp_dir):
-        """测试文件类型识别"""
+        """Test file type detection"""
         scanner = FileScanner()
         files = scanner.scan(temp_dir)
 
@@ -80,19 +80,19 @@ class TestFileScanner:
                 assert f.category == FileCategory.IMAGE
 
     def test_quick_scan_limit(self, temp_dir):
-        """测试快速扫描限制"""
+        """Test quick scan limit"""
         scanner = FileScanner()
         files = scanner.quick_scan(temp_dir, max_files=2)
         assert len(files) <= 2
 
     def test_scan_nonexistent(self):
-        """测试扫描不存在的路径"""
+        """Test scanning non-existent path"""
         scanner = FileScanner()
         with pytest.raises(FileNotFoundError):
             scanner.scan("/nonexistent/path")
 
     def test_progress_callback(self, temp_dir):
-        """测试进度回调"""
+        """Test progress callback"""
         scanner = FileScanner()
         progress_updates = []
 
@@ -104,7 +104,7 @@ class TestFileScanner:
         assert progress_updates[-1][0] > 0
 
     def test_stats(self, temp_dir):
-        """测试统计信息"""
+        """Test statistics"""
         scanner = FileScanner()
         scanner.scan(temp_dir)
         stats = scanner.stats

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FilePilot AI — 智能文件管家 启动入口"""
+"""FilePilot AI — Intelligent File Manager Entry Point"""
 
 import sys
 from pathlib import Path
@@ -8,8 +8,8 @@ from filepilot.log import setup_logging
 
 
 def main():
-    """主函数"""
-    # 设置日志
+    """Main function"""
+    # Setup logging
     log_dir = Path.home() / ".filepilot" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     setup_logging(log_file=str(log_dir / "filepilot.log"))

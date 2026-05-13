@@ -1,4 +1,4 @@
-"""设置对话框 — AI 引擎和应用配置"""
+"""Settings dialog — AI engine and application configuration"""
 
 from pathlib import Path
 
@@ -22,11 +22,11 @@ from PySide6.QtWidgets import (
 
 
 class SettingsDialog(QDialog):
-    """设置对话框"""
+    """Settings dialog"""
 
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("⚙️ 设置 — FilePilot AI")
+        self.setWindowTitle("⚙️ Settings — FilePilot AI")
         self.setMinimumSize(600, 450)
         self.resize(650, 500)
 
@@ -34,7 +34,7 @@ class SettingsDialog(QDialog):
         self._setup_ui()
         self._load_settings()
 
-        # 样式
+        # Styling
         self.setStyleSheet("""
             QDialog {
                 background-color: #1e1e2e;
@@ -127,25 +127,25 @@ class SettingsDialog(QDialog):
         """)
 
     def _setup_ui(self):
-        """构建界面"""
+        """Build the UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
 
-        # 标签页
+        # Tabs
         tabs = QTabWidget()
 
-        # AI 设置页
+        # AI settings tab
         ai_tab = self._create_ai_tab()
-        tabs.addTab(ai_tab, "🤖 AI 引擎")
+        tabs.addTab(ai_tab, "🤖 AI Engine")
 
-        # 通用设置页
+        # General settings tab
         general_tab = self._create_general_tab()
-        tabs.addTab(general_tab, "⚙️ 通用")
+        tabs.addTab(general_tab, "⚙️ General")
 
         layout.addWidget(tabs)
 
-        # 按钮
+        # Buttons
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
@@ -168,29 +168,29 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _create_ai_tab(self) -> QWidget:
-        """创建 AI 设置页（支持多 Provider）"""
+        """Create AI settings tab (supports multiple Providers)"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(16)
 
-        # AI Provider 选择
+        # AI Provider selection
         provider_group = QGroupBox("AI Provider")
         provider_layout = QVBoxLayout()
         self.provider_combo = QComboBox()
         self.provider_combo.addItems([
-            "Ollama (本地)",
-            "llama.cpp / LM Studio (本地)",
-            "OpenAI (云端)",
-            "Anthropic Claude (云端)",
-            "自定义 OpenAI 兼容",
+            "Ollama (Local)",
+            "llama.cpp / LM Studio (Local)",
+            "OpenAI (Cloud)",
+            "Anthropic Claude (Cloud)",
+            "Custom OpenAI Compatible",
         ])
         self.provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         provider_layout.addWidget(self.provider_combo)
         provider_group.setLayout(provider_layout)
         layout.addWidget(provider_group)
 
-        # 通用设置（所有 Provider 共用）
-        common_group = QGroupBox("模型设置")
+        # Common settings (shared across all Providers)
+        common_group = QGroupBox("Model Settings")
         common_layout = QFormLayout()
         self.model_input = QComboBox()
         self.model_input.setEditable(True)
@@ -203,15 +203,15 @@ class SettingsDialog(QDialog):
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.setPlaceholderText("sk-...")
-        common_layout.addRow("模型:", self.model_input)
-        common_layout.addRow("API 地址:", self.api_base_input)
+        common_layout.addRow("Model:", self.model_input)
+        common_layout.addRow("API Base URL:", self.api_base_input)
         common_layout.addRow("API Key:", self.api_key_input)
         common_group.setLayout(common_layout)
         layout.addWidget(common_group)
 
         layout.addStretch()
 
-        # 初始化默认值
+        # Initialize default values
         provider = self._settings.get("ai_provider", "ollama")
         provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
         self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
@@ -220,7 +220,7 @@ class SettingsDialog(QDialog):
         return widget
 
     def _on_provider_changed(self, index: int):
-        """Provider 切换时更新默认值"""
+        """Update default values when provider changes"""
         defaults = [
             ("http://localhost:11434", "qwen2.5:7b", False),
             ("http://localhost:8080", "default", False),
@@ -235,25 +235,25 @@ class SettingsDialog(QDialog):
         self.api_key_input.parent().findChild(QLabel).setVisible(need_key) if self.api_key_input.parent() else None
 
     def _create_general_tab(self) -> QWidget:
-        """创建通用设置页"""
+        """Create general settings tab"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(16)
 
-        # 索引设置
-        index_group = QGroupBox("索引设置")
+        # Index settings
+        index_group = QGroupBox("Index Settings")
         index_layout = QFormLayout()
         self.index_dir = QLineEdit(str(Path.home() / ".filepilot" / "index"))
-        index_layout.addRow("索引存储路径:", self.index_dir)
+        index_layout.addRow("Index storage path:", self.index_dir)
         index_group.setLayout(index_layout)
         layout.addWidget(index_group)
 
-        # 文件扫描设置
-        scan_group = QGroupBox("文件扫描")
+        # File scan settings
+        scan_group = QGroupBox("File Scanning")
         scan_layout = QFormLayout()
         self.max_file_size = QLineEdit("500")
-        self.max_file_size.setPlaceholderText("单位: MB")
-        scan_layout.addRow("最大文件大小 (MB):", self.max_file_size)
+        self.max_file_size.setPlaceholderText("Unit: MB")
+        scan_layout.addRow("Max file size (MB):", self.max_file_size)
         scan_group.setLayout(scan_layout)
         layout.addWidget(scan_group)
 
@@ -261,7 +261,7 @@ class SettingsDialog(QDialog):
         return widget
 
     def _load_settings(self):
-        """加载现有设置"""
+        """Load existing settings"""
         provider = self._settings.get("ai_provider", "ollama")
         provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
         self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
@@ -271,7 +271,7 @@ class SettingsDialog(QDialog):
         self.index_dir.setText(self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index")))
 
     def get_settings(self) -> dict:
-        """获取设置值"""
+        """Get settings values"""
         provider_names = ["ollama", "llamacpp", "openai", "anthropic", "custom"]
         provider = provider_names[self.provider_combo.currentIndex()]
         return {

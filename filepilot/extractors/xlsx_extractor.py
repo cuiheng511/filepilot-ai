@@ -1,20 +1,20 @@
-"""XLSX 内容提取器"""
+"""XLSX Content Extractor"""
 
+import csv
 from pathlib import Path
 
 
 class XlsxExtractor:
-    """Excel 文档内容提取"""
+    """Excel document content extraction"""
 
     SUPPORTED_EXTENSIONS = {".xlsx", ".xls"}
 
     def extract_text(self, file_path: str | Path) -> str:
-        """提取 XLSX 中的文本内容（所有 sheet）"""
+        """Extract text content from an XLSX file (all sheets)"""
         try:
             from openpyxl import load_workbook
         except ImportError:
             return self._fallback_extract(file_path)
-
         try:
             wb = load_workbook(str(file_path), read_only=True, data_only=True)
             parts = []
@@ -31,9 +31,8 @@ class XlsxExtractor:
             return self._fallback_extract(file_path)
 
     def _fallback_extract(self, file_path: str | Path) -> str:
-        """无 openpyxl 时的降级方案：用 csv 读取"""
+        """Fallback extraction method without openpyxl: use csv reader"""
         try:
-            import csv
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 reader = csv.reader(f)
                 return "\n".join(" | ".join(row) for row in reader if any(cell.strip() for cell in row))
@@ -41,12 +40,11 @@ class XlsxExtractor:
             return ""
 
     def extract_metadata(self, file_path: str | Path) -> dict:
-        """提取 XLSX 元数据"""
+        """Extract XLSX metadata"""
         try:
             from openpyxl import load_workbook
         except ImportError:
             return {}
-
         try:
             wb = load_workbook(str(file_path), read_only=True)
             meta = {

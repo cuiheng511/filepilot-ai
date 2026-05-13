@@ -1,4 +1,4 @@
-"""FilePilot AI 应用配置"""
+"""FilePilot AI Application Configuration"""
 
 import json
 import sys
@@ -15,24 +15,24 @@ from filepilot.core.indexer import FileIndexer
 
 
 def create_app() -> QApplication:
-    """创建 QApplication 实例"""
+    """Create a QApplication instance"""
     app = QApplication(sys.argv)
     app.setApplicationName("FilePilot AI")
     app.setApplicationVersion("0.1.0")
     app.setOrganizationName("FilePilot")
 
-    # 设置全局字体
-    font = QFont("Microsoft YaHei UI", 10)
+    # Set global font
+    font = QFont("Segoe UI", 10)
     app.setFont(font)
 
-    # 全局样式
+    # Global style
     app.setStyle("Fusion")
 
     return app
 
 
 def load_settings() -> dict:
-    """加载用户设置"""
+    """Load user settings"""
     settings_path = Path.home() / ".filepilot" / "settings.json"
     defaults = {
         "ai_mode": "local",
@@ -53,7 +53,7 @@ def load_settings() -> dict:
 
 
 def create_services(settings: dict) -> dict:
-    """创建各服务模块实例"""
+    """Create service module instances"""
     from filepilot.ai.local_ai import OllamaProvider, LlamaCppProvider
     from filepilot.ai.cloud_ai import OpenAIProvider, AnthropicProvider
 
@@ -62,7 +62,7 @@ def create_services(settings: dict) -> dict:
     api_base = settings.get("ai_api_base", "http://localhost:11434")
     api_key = settings.get("ai_api_key", "")
 
-    # 根据 provider 创建对应的 AI 引擎
+    # Create the appropriate AI engine based on provider
     provider_map = {
         "ollama": lambda: OllamaProvider(model=model, api_base=api_base),
         "llamacpp": lambda: LlamaCppProvider(model=model, api_base=api_base),
@@ -72,11 +72,11 @@ def create_services(settings: dict) -> dict:
     }
     primary_ai = provider_map.get(provider, provider_map["ollama"])()
 
-    # 本地和云端 AI 都保留（向后兼容 + 混合模式）
+    # Keep both local and cloud AI (backward compatibility + hybrid mode)
     local_ai = primary_ai if provider in ("ollama", "llamacpp") else OllamaProvider()
     cloud_ai = primary_ai if provider in ("openai", "anthropic", "custom") else OpenAIProvider(api_key=api_key)
 
-    # 摘要器
+    # Summarizer
     summarizer = Summarizer(
         local_ai=local_ai,
         cloud_ai=cloud_ai,

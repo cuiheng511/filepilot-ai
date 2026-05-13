@@ -1,4 +1,4 @@
-"""搜索面板 — 自然语言文件搜索"""
+"""Search panel — natural language file search"""
 
 from pathlib import Path
 from threading import Thread
@@ -23,7 +23,7 @@ from filepilot.ui.base_panel import BasePanel
 
 
 class SearchPanel(BasePanel):
-    """搜索面板"""
+    """Search panel for natural language file search"""
 
     indexing_finished = Signal(int, str)
 
@@ -37,28 +37,28 @@ class SearchPanel(BasePanel):
         self._connect_signals()
 
     def _setup_ui(self):
-        """构建界面"""
+        """Build the UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        # 标题
-        title = QLabel("🔍 文件搜索")
+        # Title
+        title = QLabel("🔍 File Search")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         desc = QLabel(
-            "自然语言搜索本地文件。支持按文件名、内容、类型、日期搜索。\n"
-            "例如：「上周修改的PDF文件」「找关于机器学习的文档」"
+            "Natural language search for local files. Supports search by file name, content, type, and date.\n"
+            'Example: "PDF files modified last week" or "find documents about machine learning"'
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # 搜索栏
+        # Search bar
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("输入搜索关键词，如：找关于深度学习的PDF...")
+        self.search_input.setPlaceholderText("Enter search keywords, e.g.: find PDFs about deep learning...")
         self.search_input.setStyleSheet("""
             QLineEdit {
                 background-color: #181825;
@@ -74,7 +74,7 @@ class SearchPanel(BasePanel):
         """)
         self.search_input.returnPressed.connect(self._on_search)
 
-        self.search_btn = QPushButton("🔍 搜索")
+        self.search_btn = QPushButton("🔍 Search")
         self.search_btn.setStyleSheet("""
             QPushButton {
                 background-color: #cba6f7;
@@ -95,37 +95,37 @@ class SearchPanel(BasePanel):
         search_layout.addWidget(self.search_btn)
         layout.addLayout(search_layout)
 
-        # 搜索选项
+        # Search options
         options_layout = QHBoxLayout()
-        self.fuzzy_cb = QCheckBox("模糊搜索")
+        self.fuzzy_cb = QCheckBox("Fuzzy search")
         self.fuzzy_cb.setChecked(True)
         self.fuzzy_cb.setStyleSheet("color: #a6adc8;")
         options_layout.addWidget(self.fuzzy_cb)
 
-        self.content_cb = QCheckBox("搜索内容")
+        self.content_cb = QCheckBox("Search content")
         self.content_cb.setChecked(True)
         self.content_cb.setStyleSheet("color: #a6adc8;")
         options_layout.addWidget(self.content_cb)
 
         options_layout.addStretch()
 
-        self.index_btn = QPushButton("🗂️ 建立索引")
+        self.index_btn = QPushButton("🗂️ Build Index")
         self.index_btn.clicked.connect(self._on_index)
         options_layout.addWidget(self.index_btn)
 
-        self.clear_btn = QPushButton("清空结果")
+        self.clear_btn = QPushButton("Clear Results")
         self.clear_btn.clicked.connect(self._clear_results)
         options_layout.addWidget(self.clear_btn)
 
         layout.addLayout(options_layout)
 
-        # 进度条 + 取消按钮
+        # Progress bar + cancel button
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
 
-        self.btn_cancel = QPushButton("✕ 取消")
+        self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet("""
@@ -139,7 +139,7 @@ class SearchPanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # 搜索结果
+        # Search results
         self.result_list = QListWidget()
         self.result_list.setStyleSheet("""
             QListWidget {
@@ -165,25 +165,25 @@ class SearchPanel(BasePanel):
         """)
         layout.addWidget(self.result_list, 1)
 
-        # 状态
-        self.stats_label = QLabel("请先打开文件夹并建立索引")
+        # Status
+        self.stats_label = QLabel("Please open a folder and build the index first")
         self.stats_label.setStyleSheet("color: #585b70; font-size: 12px;")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
-        """连接信号"""
+        """Connect signals"""
         self.status_message.connect(self._on_status_message)
         self.progress_updated.connect(self.progress_bar.setValue)
         self.indexing_finished.connect(self._on_indexing_finished)
 
     def index_directory(self, dir_path: str | Path):
-        """索引目录"""
+        """Index a directory"""
         self.current_dir = Path(dir_path)
         self._index_async(dir_path)
 
     @Slot()
     def _on_cancel(self):
-        """取消当前操作"""
+        """Cancel current operation"""
         if self._cancelling:
             return
         self._cancelled = True
@@ -192,33 +192,33 @@ class SearchPanel(BasePanel):
         self.progress_bar.setVisible(False)
         self.search_btn.setEnabled(True)
         self.index_btn.setEnabled(True)
-        self.status_message.emit("⏹️ 操作已取消")
+        self.status_message.emit("⏹️ Operation cancelled")
 
     @Slot()
     def _on_search(self):
-        """执行搜索"""
+        """Execute search"""
         query = self.search_input.text().strip()
         if not query:
             return
 
-        # 检查索引状态
+        # Check index status
         stats = self.indexer.get_stats()
         if stats["indexed_files"] == 0:
             self.result_list.addItem(
-                "⚠️ 索引为空，请先建立索引后再搜索"
+                "⚠️ Index is empty. Please build the index first before searching."
             )
             return
 
         self._cancelled = False
         self._cancelling = False
-        self.status_message.emit(f"正在搜索: {query} ...")
+        self.status_message.emit(f"Searching: {query} ...")
         self.search_btn.setEnabled(False)
         self.btn_cancel.setVisible(True)
 
         def search_worker():
             if self._cancelled:
                 return
-            # 执行搜索
+            # Execute search
             results = self.indexer.search(
                 query,
                 fuzzy=self.fuzzy_cb.isChecked(),
@@ -228,7 +228,7 @@ class SearchPanel(BasePanel):
             if self._cancelled:
                 return
 
-            # 显示结果（在主线程）
+            # Display results on main thread
             from PySide6.QtCore import QMetaObject, Qt, Q_ARG
             QMetaObject.invokeMethod(
                 self,
@@ -242,70 +242,70 @@ class SearchPanel(BasePanel):
 
     @Slot()
     def _display_results(self, results: list[dict], query: str):
-        """显示搜索结果"""
+        """Display search results"""
         self.result_list.clear()
         self.search_btn.setEnabled(True)
 
         if not results:
-            item = QListWidgetItem(f"没有找到与「{query}」相关的结果")
+            item = QListWidgetItem(f"No results found for \"{query}\"")
             item.setForeground(Qt.gray)
             self.result_list.addItem(item)
-            self.stats_label.setText("未找到匹配结果")
+            self.stats_label.setText("No matching results")
             return
 
         for r in results:
             score = r.get("score", 0)
-            category = r.get("category", "其他")
-            filename = r.get("filename", "未知")
+            category = r.get("category", "Other")
+            filename = r.get("filename", "Unknown")
             filepath = r.get("path", "")
             modified = r.get("modified", "")
             size_str = r.get("size_str", "")
             highlights = r.get("highlights", "")
 
-            # 图标映射
+            # Icon mapping
             icon_map = {
                 "PDF": "📕",
                 "Markdown": "📝",
-                "代码": "💻",
-                "图片": "🖼️",
-                "文档": "📄",
-                "其他": "📁",
+                "Code": "💻",
+                "Image": "🖼️",
+                "Document": "📄",
+                "Other": "📁",
             }
             icon = icon_map.get(category, "📁")
 
             display_text = f"{icon}  {filename}"
             if highlights:
                 display_text += f"\n   📌 {highlights[:100]}"
-            display_text += f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  匹配度: {score:.0%}"
+            display_text += f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  Match: {score:.0%}"
 
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, filepath)
-            item.setToolTip(f"路径: {filepath}\n匹配度: {score:.0%}")
+            item.setToolTip(f"Path: {filepath}\nMatch: {score:.0%}")
             self.result_list.addItem(item)
 
-        self.stats_label.setText(f"找到 {len(results)} 个结果，搜索词: {query}")
+        self.stats_label.setText(f"Found {len(results)} results for: {query}")
 
     @Slot()
     def _on_index(self):
-        """建立索引"""
+        """Build index"""
         if not self.current_dir:
-            self.result_list.addItem("⚠️ 请先在「文件浏览」中打开一个文件夹")
+            self.result_list.addItem("⚠️ Please open a folder first in the File Browser")
             return
 
         self._index_async(self.current_dir)
 
     def _index_async(self, dir_path: str | Path):
-        """异步建立索引"""
+        """Build index asynchronously"""
         self._cancelled = False
         self._cancelling = False
         self.index_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.btn_cancel.setVisible(True)
-        self.status_message.emit("正在扫描并建立索引...")
+        self.status_message.emit("Scanning and building index...")
 
         def index_worker():
-            # 一次扫描，结果复用
+            # Single scan, reuse results
             files = []
             for f in self.scanner.scan(
                 str(dir_path),
@@ -322,7 +322,7 @@ class SearchPanel(BasePanel):
 
             total = len(files)
 
-            # 建立索引
+            # Build index
             indexed = self.indexer.index_files(
                 files,
                 progress_callback=lambda i, msg: self.progress_updated.emit(
@@ -337,7 +337,7 @@ class SearchPanel(BasePanel):
 
     @Slot()
     def _on_cancel_done(self):
-        """取消索引"""
+        """Cancel indexing"""
         if not self._cancelling:
             return
         self._cancelling = False
@@ -345,29 +345,29 @@ class SearchPanel(BasePanel):
         self.search_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
-        self.status_message.emit("⏹️ 索引已取消")
+        self.status_message.emit("⏹️ Indexing cancelled")
 
     @Slot()
     def _on_indexing_finished(self, indexed: int, dir_path: str):
-        """索引完成回调（主线程）"""
-        status_msg = f"索引完成: 共 {indexed} 个文件已加入索引"
+        """Indexing finished callback (main thread)"""
+        status_msg = f"Indexing complete: {indexed} files indexed"
         self.status_message.emit(status_msg)
         self.index_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
 
         stats = self.indexer.get_stats()
         self.stats_label.setText(
-            f"📊 索引统计: {stats['indexed_files']} 个文件, "
-            f"索引大小: {stats['index_size']}"
+            f"📊 Index stats: {stats['indexed_files']} files, "
+            f"index size: {stats['index_size']}"
         )
 
     def _clear_results(self):
-        """清空搜索结果"""
+        """Clear search results"""
         self.result_list.clear()
         self.search_input.clear()
-        self.stats_label.setText("就绪")
+        self.stats_label.setText("Ready")
 
     @Slot()
     def _on_status_message(self, msg: str):
-        """更新状态"""
+        """Update status"""
         self.stats_label.setText(msg)

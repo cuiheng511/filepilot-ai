@@ -1,6 +1,6 @@
 """
-FilePilot AI — 智能文件管家
-自动整理、归类、搜索你的本地文件。
+FilePilot AI — Intelligent File Manager
+Automatically organize, classify, and search your local files.
 """
 
 __version__ = "0.1.0"

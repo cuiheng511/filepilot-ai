@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""FilePilot AI — CLI 入口
+"""FilePilot AI — CLI Entry Point
 
-用法:
+Usage:
     python -m filepilot.cli scan /path/to/dir
     python -m filepilot.cli search /path/to/dir "keyword"
     python -m filepilot.cli duplicates /path/to/dir
@@ -18,15 +18,15 @@ from pathlib import Path
 
 
 def cmd_scan(args):
-    """扫描目录"""
+    """Scan directory"""
     from filepilot.core.file_scanner import FileScanner
     scanner = FileScanner()
     files = scanner.scan(
         args.path,
         recursive=not args.no_recursive,
-        progress_callback=lambda i, p: print(f"\r  扫描中... {i} 个文件", end="", file=sys.stderr),
+        progress_callback=lambda i, p: print(f"\r  Scanning... {i} files", end="", file=sys.stderr),
     )
-    print(f"\r  扫描完成: {len(files)} 个文件, {scanner.stats['total_size_str']}", file=sys.stderr)
+    print(f"\r  Scan complete: {len(files)} files, {scanner.stats['total_size_str']}", file=sys.stderr)
 
     for f in files:
         print(json.dumps({
@@ -41,29 +41,29 @@ def cmd_scan(args):
 
 
 def cmd_search(args):
-    """搜索文件"""
+    """Search files"""
     from filepilot.core.indexer import FileIndexer
     indexer = FileIndexer(index_dir=str(Path.home() / ".filepilot" / "index"))
     results = indexer.search(args.query, limit=args.limit)
     if not results:
-        print("未找到匹配结果", file=sys.stderr)
+        print("No matching results found", file=sys.stderr)
         return
     for r in results:
         print(json.dumps(r, ensure_ascii=False, default=str))
 
 
 def cmd_duplicates(args):
-    """查找重复文件"""
+    """Find duplicate files"""
     from filepilot.core.file_scanner import FileScanner
     from filepilot.core.duplicate_finder import DuplicateFinder
     scanner = FileScanner()
     files = scanner.scan(args.path)
-    print(f"扫描完成: {len(files)} 个文件", file=sys.stderr)
+    print(f"Scan complete: {len(files)} files", file=sys.stderr)
 
     finder = DuplicateFinder()
     groups = finder.find_duplicates(files)
     stats = finder.get_duplicate_stats(groups)
-    print(f"发现 {stats['groups']} 组重复, 浪费 {stats['wasted_space_str']}", file=sys.stderr)
+    print(f"Found {stats['groups']} groups of duplicates, wasted {stats['wasted_space_str']}", file=sys.stderr)
 
     for group in groups:
         paths = [str(f.path) for f in group]
@@ -71,7 +71,7 @@ def cmd_duplicates(args):
 
 
 def cmd_organize(args):
-    """整理文件"""
+    """Organize files"""
     from filepilot.core.file_scanner import FileScanner
     from filepilot.core.file_organizer import FileOrganizer, CategoryRule, DateRule, SizeRule
     scanner = FileScanner()
@@ -93,11 +93,11 @@ def cmd_organize(args):
 
 
 def cmd_export(args):
-    """导出扫描结果"""
+    """Export scan results"""
     from filepilot.core.file_scanner import FileScanner
     scanner = FileScanner()
     files = scanner.scan(args.path)
-    print(f"扫描完成: {len(files)} 个文件", file=sys.stderr)
+    print(f"Scan complete: {len(files)} files", file=sys.stderr)
 
     rows = []
     for f in files:
@@ -119,21 +119,21 @@ def cmd_export(args):
         writer.writerows(rows)
         if args.output:
             out.close()
-            print(f"已导出 {len(rows)} 条到 {args.output}", file=sys.stderr)
+            print(f"Exported {len(rows)} records to {args.output}", file=sys.stderr)
     else:
         output = json.dumps(rows, ensure_ascii=False, indent=2)
         if args.output:
             Path(args.output).write_text(output, encoding="utf-8")
-            print(f"已导出 {len(rows)} 条到 {args.output}", file=sys.stderr)
+            print(f"Exported {len(rows)} records to {args.output}", file=sys.stderr)
         else:
             print(output)
 
 
 def cmd_disk_usage(args):
-    """磁盘占用分析"""
+    """Disk usage analysis"""
     root = Path(args.path)
     if not root.exists():
-        print(f"路径不存在: {root}", file=sys.stderr)
+        print(f"Path does not exist: {root}", file=sys.stderr)
         return
 
     dirs = {}
@@ -145,7 +145,7 @@ def cmd_disk_usage(args):
             parent = str(f.parent.relative_to(root))
             dirs[parent] = dirs.get(parent, 0) + size
 
-    # 按大小排序
+    # Sort by size
     sorted_dirs = sorted(dirs.items(), key=lambda x: x[1], reverse=True)
 
     print(json.dumps({
@@ -168,37 +168,37 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     # scan
-    p_scan = sub.add_parser("scan", help="扫描目录")
-    p_scan.add_argument("path", help="目录路径")
+    p_scan = sub.add_parser("scan", help="Scan a directory")
+    p_scan.add_argument("path", help="Directory path")
     p_scan.add_argument("--no-recursive", action="store_true")
 
     # search
-    p_search = sub.add_parser("search", help="搜索文件")
-    p_search.add_argument("path", help="目录路径")
-    p_search.add_argument("query", help="搜索关键词")
+    p_search = sub.add_parser("search", help="Search files")
+    p_search.add_argument("path", help="Directory path")
+    p_search.add_argument("query", help="Search keywords")
     p_search.add_argument("--limit", type=int, default=50)
 
     # duplicates
-    p_dup = sub.add_parser("duplicates", help="查找重复文件")
-    p_dup.add_argument("path", help="目录路径")
+    p_dup = sub.add_parser("duplicates", help="Find duplicate files")
+    p_dup.add_argument("path", help="Directory path")
 
     # organize
-    p_org = sub.add_parser("organize", help="整理文件")
-    p_org.add_argument("path", help="源目录")
-    p_org.add_argument("target", help="目标目录")
+    p_org = sub.add_parser("organize", help="Organize files")
+    p_org.add_argument("path", help="Source directory")
+    p_org.add_argument("target", help="Target directory")
     p_org.add_argument("--rules", nargs="+", default=["category"])
     p_org.add_argument("--dry-run", action="store_true")
-    p_org.add_argument("--rename", help="重命名模板")
+    p_org.add_argument("--rename", help="Rename template")
 
     # export
-    p_exp = sub.add_parser("export", help="导出扫描结果")
-    p_exp.add_argument("path", help="目录路径")
+    p_exp = sub.add_parser("export", help="Export scan results")
+    p_exp.add_argument("path", help="Directory path")
     p_exp.add_argument("--format", choices=["csv", "json"], default="json")
-    p_exp.add_argument("--output", "-o", help="输出文件路径")
+    p_exp.add_argument("--output", "-o", help="Output file path")
 
     # disk-usage
-    p_du = sub.add_parser("disk-usage", help="磁盘占用分析")
-    p_du.add_argument("path", help="目录路径")
+    p_du = sub.add_parser("disk-usage", help="Disk usage analysis")
+    p_du.add_argument("path", help="Directory path")
 
     args = parser.parse_args()
     cmd_map = {

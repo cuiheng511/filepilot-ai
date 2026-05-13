@@ -1,4 +1,4 @@
-"""文件整理面板 — 自动归类、智能重命名"""
+"""Organize Panel — Auto-classify, smart rename"""
 
 from pathlib import Path
 from threading import Thread
@@ -31,7 +31,7 @@ from filepilot.ui.base_panel import BasePanel
 
 
 class OrganizePanel(BasePanel):
-    """文件整理面板"""
+    """File Organize Panel"""
 
     RULE_MAP = {
         "category": CategoryRule,
@@ -56,43 +56,43 @@ class OrganizePanel(BasePanel):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── 标题 ──
-        title = QLabel("📋 文件整理")
+        # ── Title ──
+        title = QLabel("\U0001f4cb File Organizer")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         desc = QLabel(
-            "选择源文件夹和目标文件夹，配置规则后一键整理文件。\n"
-            "支持按类型、日期、扩展名、大小自动归类，以及智能重命名。"
+            "Select source and target folders, configure rules, and organize files.\n"
+            "Supports auto-classification by type, date, extension, size, and smart renaming."
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── 文件夹选择 ──
-        dir_group = QGroupBox("文件夹")
+        # ── Directory Selection ──
+        dir_group = QGroupBox("Folders")
         dir_layout = QVBoxLayout()
         dir_layout.setSpacing(8)
 
-        # 源文件夹
+        # Source folder
         src_layout = QHBoxLayout()
-        src_layout.addWidget(QLabel("📂 源文件夹:"))
-        self.src_path_label = QLabel("未选择")
+        src_layout.addWidget(QLabel("\U0001f4c2 Source Folder:"))
+        self.src_path_label = QLabel("Not selected")
         self.src_path_label.setStyleSheet("color: #585b70; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
         self.src_path_label.setWordWrap(True)
-        self.btn_src = QPushButton("浏览...")
+        self.btn_src = QPushButton("Browse...")
         self.btn_src.clicked.connect(self._on_select_source)
         src_layout.addWidget(self.src_path_label, 1)
         src_layout.addWidget(self.btn_src)
         dir_layout.addLayout(src_layout)
 
-        # 目标文件夹
+        # Target folder
         dst_layout = QHBoxLayout()
-        dst_layout.addWidget(QLabel("🎯 目标文件夹:"))
-        self.dst_path_label = QLabel("未选择（默认: 源文件夹/_organized）")
+        dst_layout.addWidget(QLabel("\U0001f3af Target Folder:"))
+        self.dst_path_label = QLabel("Not selected (default: source_folder/_organized)")
         self.dst_path_label.setStyleSheet("color: #585b70; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
         self.dst_path_label.setWordWrap(True)
-        self.btn_dst = QPushButton("浏览...")
+        self.btn_dst = QPushButton("Browse...")
         self.btn_dst.clicked.connect(self._on_select_target)
         dst_layout.addWidget(self.dst_path_label, 1)
         dst_layout.addWidget(self.btn_dst)
@@ -101,16 +101,16 @@ class OrganizePanel(BasePanel):
         dir_group.setLayout(dir_layout)
         layout.addWidget(dir_group)
 
-        # ── 整理规则 ──
-        rule_group = QGroupBox("整理规则")
+        # ── Organize Rules ──
+        rule_group = QGroupBox("Organize Rules")
         rule_layout = QHBoxLayout()
         rule_layout.setSpacing(16)
 
-        self.cb_category = QCheckBox("📂 按文件类型归类")
+        self.cb_category = QCheckBox("\U0001f4c2 By File Type")
         self.cb_category.setChecked(True)
-        self.cb_date = QCheckBox("📅 按日期归类 (年/月)")
-        self.cb_extension = QCheckBox("📎 按扩展名归类")
-        self.cb_size = QCheckBox("📏 按文件大小归类")
+        self.cb_date = QCheckBox("\U0001f4c5 By Date (Year/Month)")
+        self.cb_extension = QCheckBox("\U0001f4ce By Extension")
+        self.cb_size = QCheckBox("\U0001f4cf By File Size")
 
         for cb in [self.cb_category, self.cb_date, self.cb_extension, self.cb_size]:
             cb.setStyleSheet("color: #cdd6f4; spacing: 8px;")
@@ -123,11 +123,11 @@ class OrganizePanel(BasePanel):
         rule_group.setLayout(rule_layout)
         layout.addWidget(rule_group)
 
-        # ── 重命名设置 ──
+        # ── Rename Settings ──
         rename_layout = QHBoxLayout()
-        rename_layout.addWidget(QLabel("✏️ 重命名模板:"))
+        rename_layout.addWidget(QLabel("\u270f\ufe0f Rename Template:"))
         self.rename_input = QLineEdit()
-        self.rename_input.setPlaceholderText("留空不重命名。支持: {name} {date} {time} {ext} {category}")
+        self.rename_input.setPlaceholderText("Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}")
         self.rename_input.setStyleSheet("""
             QLineEdit {
                 background-color: #181825;
@@ -141,27 +141,27 @@ class OrganizePanel(BasePanel):
         """)
         rename_layout.addWidget(self.rename_input, 1)
 
-        self.template_btn = QPushButton("模板示例")
+        self.template_btn = QPushButton("Template Help")
         self.template_btn.setToolTip(
-            "可用变量:\n"
-            "  {name}     — 原文件名\n"
-            "  {date}     — 修改日期 (2024-01-15)\n"
-            "  {time}     — 修改时间 (143022)\n"
-            "  {ext}      — 扩展名 (pdf)\n"
-            "  {category} — 文件类别 (文档)"
+            "Available variables:\n"
+            "  {name}     \u2014 Original filename\n"
+            "  {date}     \u2014 Modified date (2024-01-15)\n"
+            "  {time}     \u2014 Modified time (143022)\n"
+            "  {ext}      \u2014 Extension (pdf)\n"
+            "  {category} \u2014 File category (Document)"
         )
         self.template_btn.clicked.connect(self._on_template_help)
         rename_layout.addWidget(self.template_btn)
 
         layout.addLayout(rename_layout)
 
-        # ── 操作按钮 ──
+        # ── Action Buttons ──
         action_layout = QHBoxLayout()
-        self.btn_preview = QPushButton("👁️ 预览整理")
+        self.btn_preview = QPushButton("\U0001f441\ufe0f Preview")
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_preview.setEnabled(False)
 
-        self.btn_execute = QPushButton("🚀 执行整理")
+        self.btn_execute = QPushButton("\U0001f680 Execute")
         self.btn_execute.clicked.connect(self._on_execute)
         self.btn_execute.setEnabled(False)
         self.btn_execute.setStyleSheet("""
@@ -178,10 +178,10 @@ class OrganizePanel(BasePanel):
             QPushButton:disabled { background-color: #313244; color: #585b70; }
         """)
 
-        self.btn_clear = QPushButton("清空结果")
+        self.btn_clear = QPushButton("Clear Results")
         self.btn_clear.clicked.connect(self._clear_results)
 
-        self.btn_undo = QPushButton("↩️ 撤销整理")
+        self.btn_undo = QPushButton("\u21a9\ufe0f Undo")
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_undo.setEnabled(False)
         self.btn_undo.setStyleSheet("""
@@ -201,13 +201,13 @@ class OrganizePanel(BasePanel):
         action_layout.addStretch()
         layout.addLayout(action_layout)
 
-        # 进度条 + 取消按钮
+        # Progress bar + cancel button
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
 
-        self.btn_cancel = QPushButton("✕ 取消")
+        self.btn_cancel = QPushButton("\u2715 Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet("""
@@ -221,10 +221,10 @@ class OrganizePanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # ── 结果表格 ──
+        # ── Results Table ──
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(5)
-        self.result_table.setHorizontalHeaderLabels(["源路径", "目标路径", "类别", "大小", "状态"])
+        self.result_table.setHorizontalHeaderLabels(["Source Path", "Target Path", "Category", "Size", "Status"])
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setAlternatingRowColors(True)
         self.result_table.horizontalHeader().setStretchLastSection(True)
@@ -247,8 +247,8 @@ class OrganizePanel(BasePanel):
         """)
         layout.addWidget(self.result_table, 1)
 
-        # ── 状态栏 ──
-        self.stats_label = QLabel("选择源文件夹后开始预览")
+        # ── Status Bar ──
+        self.stats_label = QLabel("Select a source folder to start preview")
         self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
         layout.addWidget(self.stats_label)
 
@@ -256,31 +256,31 @@ class OrganizePanel(BasePanel):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.status_message.connect(self.stats_label.setText)
 
-    # ── 文件夹选择 ──
+    # ── Directory Selection ──
 
     @Slot()
     def _on_select_source(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "选择源文件夹")
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Source Folder")
         if dir_path:
             self.source_dir = Path(dir_path)
-            self.src_path_label.setText(f"📂 {dir_path}")
+            self.src_path_label.setText(f"\U0001f4c2 {dir_path}")
             self.src_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
 
-            # 默认目标 = 源文件夹/_organized
+            # Default target = source folder/_organized
             if not self.target_dir:
                 default_target = self.source_dir / "_organized"
                 self.target_dir = default_target
-                self.dst_path_label.setText(f"🎯 {default_target}")
+                self.dst_path_label.setText(f"\U0001f3af {default_target}")
                 self.dst_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
 
             self.btn_preview.setEnabled(True)
 
     @Slot()
     def _on_select_target(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "选择目标文件夹", str(self.target_dir or Path.home()))
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Target Folder", str(self.target_dir or Path.home()))
         if dir_path:
             self.target_dir = Path(dir_path)
-            self.dst_path_label.setText(f"🎯 {dir_path}")
+            self.dst_path_label.setText(f"\U0001f3af {dir_path}")
             self.dst_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
 
     @Slot()
@@ -288,20 +288,20 @@ class OrganizePanel(BasePanel):
         from PySide6.QtWidgets import QMessageBox
         QMessageBox.information(
             self,
-            "重命名模板变量",
-            "<b>可用变量:</b><br>"
-            "<code>{name}</code>     — 原文件名<br>"
-            "<code>{date}</code>     — 修改日期 (2024-01-15)<br>"
-            "<code>{time}</code>     — 修改时间 (143022)<br>"
-            "<code>{ext}</code>      — 扩展名 (pdf)<br>"
-            "<code>{category}</code> — 文件类别 (文档)<br><br>"
-            "<b>示例:</b><br>"
-            "<code>{date}_{name}</code> → 2024-01-15_报告<br>"
-            "<code>{category}/{name}</code> → 文档/报告<br>"
-            "<code>{date}_{category}_{name}</code> → 2024-01-15_文档_报告"
+            "Rename Template Variables",
+            "<b>Available variables:</b><br>"
+            "<code>{name}</code>     \u2014 Original filename<br>"
+            "<code>{date}</code>     \u2014 Modified date (2024-01-15)<br>"
+            "<code>{time}</code>     \u2014 Modified time (143022)<br>"
+            "<code>{ext}</code>      \u2014 Extension (pdf)<br>"
+            "<code>{category}</code> \u2014 File category (Document)<br><br>"
+            "<b>Examples:</b><br>"
+            "<code>{date}_{name}</code> \u2192 2024-01-15_report<br>"
+            "<code>{category}/{name}</code> \u2192 Document/report<br>"
+            "<code>{date}_{category}_{name}</code> \u2192 2024-01-15_Document_report"
         )
 
-    # ── 获取选中的规则 ──
+    # ── Get Selected Rules ──
 
     def _get_selected_rules(self):
         rules = []
@@ -315,11 +315,11 @@ class OrganizePanel(BasePanel):
             rules.append(SizeRule())
         return rules if rules else [CategoryRule()]
 
-    # ── 预览整理 ──
+    # ── Preview ──
 
     @Slot()
     def _on_cancel(self):
-        """取消操作"""
+        """Cancel operation"""
         if self._cancelling:
             return
         self._cancelled = True
@@ -328,12 +328,12 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setVisible(False)
         self.btn_preview.setEnabled(True)
         self.btn_execute.setEnabled(False)
-        self.status_message.emit("⏹️ 操作已取消")
+        self.status_message.emit("\u23f9\ufe0f Operation cancelled")
 
     @Slot()
     def _on_preview(self):
         if not self.source_dir:
-            self.status_message.emit("⚠️ 请先选择源文件夹")
+            self.status_message.emit("\u26a0\ufe0f Please select a source folder first")
             return
 
         self._cancelled = False
@@ -344,10 +344,10 @@ class OrganizePanel(BasePanel):
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
         self.result_table.setRowCount(0)
-        self.status_message.emit("正在扫描文件...")
+        self.status_message.emit("Scanning files...")
 
         def worker():
-            # 扫描文件（可取消）
+            # Scan files (cancellable)
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
@@ -362,7 +362,7 @@ class OrganizePanel(BasePanel):
             if self._cancelled:
                 return
 
-            # 生成预览
+            # Generate preview
             rules = self._get_selected_rules()
             rename = bool(self.rename_input.text().strip())
             pattern = self.rename_input.text().strip()
@@ -388,7 +388,7 @@ class OrganizePanel(BasePanel):
 
     @Slot()
     def _display_preview(self, operations: list[dict], files: list = None):
-        """显示预览结果"""
+        """Display preview results"""
         if files is not None:
             self.files = files
         self.result_table.setSortingEnabled(False)
@@ -400,7 +400,7 @@ class OrganizePanel(BasePanel):
             self.result_table.setItem(row, 2, QTableWidgetItem(op["category"]))
             self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
 
-            status = QTableWidgetItem("📋 预览")
+            status = QTableWidgetItem("\U0001f4cb Preview")
             status.setTextAlignment(Qt.AlignCenter)
             status.setForeground(Qt.gray)
             self.result_table.setItem(row, 4, status)
@@ -411,15 +411,15 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setVisible(False)
 
         self.stats_label.setText(
-            f"👁️ 预览: {len(operations)} 个文件将被整理，"
-            f"目标: {self.target_dir or self.source_dir / '_organized'}"
+            f"\U0001f441\ufe0f Preview: {len(operations)} files will be organized, "
+            f"target: {self.target_dir or self.source_dir / '_organized'}"
         )
 
-    # ── 执行整理 ──
+    # ── Execute ──
 
     @Slot()
     def _on_cancel_done(self):
-        """取消后恢复按钮状态"""
+        """Restore button state after cancel"""
         if not self._cancelling:
             return
         self._cancelling = False
@@ -436,10 +436,10 @@ class OrganizePanel(BasePanel):
         from PySide6.QtWidgets import QMessageBox
         reply = QMessageBox.question(
             self,
-            "确认整理",
-            f"确定要整理 {len(self.files)} 个文件到\n"
-            f"{self.target_dir or self.source_dir / '_organized'} 吗？\n\n"
-            "此操作将移动文件，建议先备份。",
+            "Confirm Organization",
+            f"Organize {len(self.files)} files into\n"
+            f"{self.target_dir or self.source_dir / '_organized'}?\n\n"
+            "This will move files. Backup recommended.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -453,14 +453,13 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setVisible(True)
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
-        self.status_message.emit("正在执行整理...")
+        self.status_message.emit("Organizing files...")
 
         def worker():
             rules = self._get_selected_rules()
             rename = bool(self.rename_input.text().strip())
             pattern = self.rename_input.text().strip()
 
-            # 检查是否已取消（仅能在实际整理开始前取消）
             if self._cancelled:
                 from PySide6.QtCore import QMetaObject, Qt
                 QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
@@ -490,7 +489,7 @@ class OrganizePanel(BasePanel):
 
     @Slot()
     def _display_execution(self, operations: list[dict]):
-        """显示执行结果"""
+        """Display execution results"""
         self.result_table.setSortingEnabled(False)
         self.result_table.setRowCount(len(operations))
 
@@ -502,7 +501,7 @@ class OrganizePanel(BasePanel):
             self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
 
             is_dry = op.get("dry_run", False)
-            status_text = "✅ 已移动" if not is_dry else "📋 预览"
+            status_text = "\u2705 Moved" if not is_dry else "\U0001f4cb Preview"
             status_item = QTableWidgetItem(status_text)
             status_item.setTextAlignment(Qt.AlignCenter)
             if not is_dry:
@@ -516,7 +515,7 @@ class OrganizePanel(BasePanel):
         self.btn_undo.setEnabled(done > 0)
         self.progress_bar.setVisible(False)
 
-        # 保存撤销日志
+        # Save undo log
         if done > 0:
             import json as _json
             undo_path = Path.home() / ".filepilot" / "last_undo.json"
@@ -525,22 +524,22 @@ class OrganizePanel(BasePanel):
 
         stats = self.organizer.stats
         self.stats_label.setText(
-            f"✅ 整理完成: {stats['organized_count']} 个文件已移动"
-            + (f", {stats['errors']} 个错误" if stats["errors"] else "")
+            f"\u2705 Organization complete: {stats['organized_count']} files moved"
+            + (f", {stats['errors']} errors" if stats["errors"] else "")
         )
 
     @Slot()
     def _on_undo(self):
-        """撤销上次整理操作"""
+        """Undo last organize operation"""
         from PySide6.QtWidgets import QMessageBox
         undo_path = Path.home() / ".filepilot" / "last_undo.json"
         if not undo_path.exists():
-            QMessageBox.warning(self, "撤销失败", "没有找到撤销日志")
+            QMessageBox.warning(self, "Undo Failed", "No undo log found")
             return
 
         reply = QMessageBox.question(
-            self, "确认撤销",
-            "确定要撤销上次整理操作吗？文件将移回原始位置。",
+            self, "Confirm Undo",
+            "Undo the last organize operation? Files will be moved back to their original locations.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -548,15 +547,15 @@ class OrganizePanel(BasePanel):
 
         result = self.organizer.undo(undo_path)
         self.stats_label.setText(
-            f"↩️ 撤销完成: 恢复 {result['restored']} 个文件"
-            + (f", {result['errors']} 个失败" if result['errors'] else "")
+            f"\u21a9\ufe0f Undo complete: restored {result['restored']} files"
+            + (f", {result['errors']} failed" if result['errors'] else "")
         )
         self.btn_undo.setEnabled(False)
         self.result_table.setRowCount(0)
 
     @Slot()
     def _clear_results(self):
-        """清空结果"""
+        """Clear results"""
         self.result_table.setRowCount(0)
         self.btn_execute.setEnabled(False)
-        self.stats_label.setText("就绪")
+        self.stats_label.setText("Ready")

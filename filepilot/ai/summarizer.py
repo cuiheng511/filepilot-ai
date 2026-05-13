@@ -1,4 +1,4 @@
-"""内容摘要生成器 — 支持本地和云端 AI"""
+"""Content Summarizer — Supports local and cloud AI"""
 
 from pathlib import Path
 from typing import Callable
@@ -11,10 +11,10 @@ from filepilot.utils.file_utils import get_file_category
 
 
 class Summarizer:
-    """智能摘要生成器
+    """Intelligent summary generator
 
-    自动检测文件类型，提取内容，并用 AI 生成摘要。
-    优先使用本地模型，可选云端模型。
+    Automatically detects file type, extracts content, and generates
+    summary using AI. Prefers local models with cloud fallback.
     """
 
     def __init__(
@@ -33,15 +33,15 @@ class Summarizer:
         max_length: int = 200,
         on_progress: Callable[[str], None] | None = None,
     ) -> dict:
-        """生成文件摘要
+        """Generate file summary
 
         Args:
-            file_path: 文件路径
-            max_length: 摘要最大字数
-            on_progress: 进度回调
+            file_path: Path to the file
+            max_length: Maximum summary length in characters
+            on_progress: Progress callback
 
         Returns:
-            摘要结果字典
+            Summary result dictionary
         """
         path = Path(file_path)
         ext = path.suffix.lower()
@@ -54,30 +54,30 @@ class Summarizer:
             "error": "",
         }
 
-        # 1. 提取文本内容
+        # 1. Extract text content
         if on_progress:
-            on_progress("正在提取文件内容...")
+            on_progress("Extracting file content...")
 
         content = self._extract_content(path)
         if not content.strip():
-            result["error"] = "无法提取文件内容"
+            result["error"] = "Unable to extract file content"
             return result
 
-        # 2. 内容裁剪
-        content = content[:8000]  # 限制输入长度
+        # 2. Crop content length
+        content = content[:8000]  # Limit input length
 
-        # 3. 生成摘要
+        # 3. Generate summary
         if on_progress:
-            on_progress("AI 正在生成摘要...")
+            on_progress("AI is generating summary...")
 
         summary = self._generate_summary(content, max_length)
         if not summary:
-            result["error"] = "AI 生成摘要失败，请检查 AI 配置"
+            result["error"] = "AI summary generation failed, please check AI configuration"
             return result
 
-        # 4. 提取关键词
+        # 4. Extract keywords
         if on_progress:
-            on_progress("正在提取关键词...")
+            on_progress("Extracting keywords...")
 
         keywords = self._extract_keywords(content)
 
@@ -92,11 +92,11 @@ class Summarizer:
         max_length: int = 200,
         on_progress: Callable[[int, str], None] | None = None,
     ) -> list[dict]:
-        """批量生成文件摘要"""
+        """Batch generate file summaries"""
         results = []
         for i, file_path in enumerate(files):
             if on_progress:
-                on_progress(i + 1, f"正在处理 ({i + 1}/{len(files)}): {file_path.name}")
+                on_progress(i + 1, f"Processing ({i + 1}/{len(files)}): {file_path.name}")
 
             result = self.summarize(file_path, max_length)
             results.append(result)
@@ -104,7 +104,7 @@ class Summarizer:
         return results
 
     def _extract_content(self, file_path: Path) -> str:
-        """根据文件类型提取文本内容"""
+        """Extract text content based on file type"""
         ext = file_path.suffix.lower()
 
         if ext == ".pdf":
@@ -132,11 +132,11 @@ class Summarizer:
             extractor = CodeExtractor()
             meta = extractor.extract_metadata(file_path)
             code = extractor.extract_text(file_path)
-            context_parts = [f"语言: {meta.get('language', '未知')}"]
+            context_parts = [f"Language: {meta.get('language', 'unknown')}"]
             defs = meta.get("definitions", [])
             if defs:
                 def_names = [d["name"] for d in defs[:20]]
-                context_parts.append(f"函数/类: {', '.join(def_names)}")
+                context_parts.append(f"Functions/Classes: {', '.join(def_names)}")
             return f"{' | '.join(context_parts)}\n\n{code[:6000]}"
 
         else:
@@ -146,15 +146,16 @@ class Summarizer:
                 return ""
 
     def _generate_summary(self, content: str, max_length: int) -> str:
-        """用 AI 生成内容摘要"""
+        """Generate content summary using AI"""
         system_prompt = (
-            "你是一个文件摘要助手。请用简洁的语言总结以下文件内容的核心要点。"
-            f"控制在 {max_length} 字以内。"
+            "You are a file summary assistant. Please summarize the key points of "
+            "the following file content concisely. "
+            f"Keep it within {max_length} characters."
         )
 
-        user_prompt = f"请总结以下内容：\n\n{content}"
+        user_prompt = f"Please summarize the following content:\n\n{content}"
 
-        # 优先使用本地 AI
+        # Prefer local AI
         if self.prefer_local and self.local_ai.is_available:
             return self.local_ai.generate(
                 prompt=user_prompt,
@@ -163,7 +164,7 @@ class Summarizer:
                 max_tokens=max_length * 2,
             )
 
-        # 回退到云端 AI
+        # Fall back to cloud AI
         if self.cloud_ai.is_available:
             return self.cloud_ai.generate(
                 prompt=user_prompt,
@@ -175,13 +176,13 @@ class Summarizer:
         return ""
 
     def _extract_keywords(self, content: str, top_n: int = 10) -> list[str]:
-        """提取关键词（简单 TF 统计）"""
+        """Extract keywords (simple TF statistics)"""
         import re
         from collections import Counter
 
-        # 中文分词
+        # Tokenize content
         words = re.findall(r'[\u4e00-\u9fff\w]+', content.lower())
-        # 过滤常见停用词
+        # Filter common stop words
         stop_words = {
             "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都",
             "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你",

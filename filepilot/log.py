@@ -1,4 +1,4 @@
-"""FilePilot AI — 日志配置"""
+"""FilePilot AI — Logging Configuration"""
 
 import logging
 import sys
@@ -6,11 +6,11 @@ from pathlib import Path
 
 
 def setup_logging(level: str = "INFO", log_file: str | None = None) -> logging.Logger:
-    """配置全局日志
+    """Configure global logging
 
     Args:
-        level: 日志级别 (DEBUG, INFO, WARNING, ERROR)
-        log_file: 可选的日志文件路径
+        level: Log level (DEBUG, INFO, WARNING, ERROR)
+        log_file: Optional log file path
 
     Returns:
         root logger
@@ -32,7 +32,7 @@ def setup_logging(level: str = "INFO", log_file: str | None = None) -> logging.L
         force=True,
     )
 
-    # 降低第三方库的日志级别
+    # Lower log level for third-party libraries
     for name in ("urllib3", "requests", "whoosh", "PIL"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
@@ -40,5 +40,5 @@ def setup_logging(level: str = "INFO", log_file: str | None = None) -> logging.L
 
 
 def get_logger(name: str) -> logging.Logger:
-    """获取模块日志器"""
+    """Get a module logger"""
     return logging.getLogger(f"filepilot.{name}")

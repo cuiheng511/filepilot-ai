@@ -1,41 +1,47 @@
-"""Check Python syntax of all new panel and core files."""
+"""Check syntax of all Python files in the project"""
+
 import ast
-import os
+import sys
+from pathlib import Path
 
-files = [
-    'filepilot-ai/filepilot/ui/summary_panel.py',
-    'filepilot-ai/filepilot/ui/index_panel.py',
-    'filepilot-ai/filepilot/ui/organize_panel.py',
-    'filepilot-ai/filepilot/ui/duplicates_panel.py',
-    'filepilot-ai/filepilot/ui/main_window.py',
-    'filepilot-ai/filepilot/ui/file_browser.py',
-    'filepilot-ai/filepilot/ui/search_panel.py',
-    'filepilot-ai/filepilot/ui/settings_dialog.py',
-    'filepilot-ai/filepilot/core/indexer.py',
-    'filepilot-ai/filepilot/core/file_scanner.py',
-    'filepilot-ai/filepilot/core/file_organizer.py',
-    'filepilot-ai/filepilot/core/duplicate_finder.py',
-    'filepilot-ai/filepilot/ai/summarizer.py',
-    'filepilot-ai/filepilot/app.py',
-    'filepilot-ai/filepilot/main.py',
-]
 
-errors = []
-for f in files:
-    if not os.path.exists(f):
-        print(f'❌ {f} - FILE NOT FOUND')
-        errors.append(f)
-        continue
+def check_syntax(filepath: Path) -> tuple[bool, str | None]:
+    """Check Python file syntax. Returns (is_valid, error_message)."""
     try:
-        with open(f, encoding='utf-8') as fh:
-            ast.parse(fh.read())
-        print(f'✅ {f}')
+        source = filepath.read_text(encoding="utf-8")
+        ast.parse(source)
+        return True, None
     except SyntaxError as e:
-        print(f'❌ {f} - line {e.lineno}: {e.msg}')
-        errors.append(f)
+        return False, f"Syntax error in {filepath.name}: line {e.lineno}: {e.msg}"
+    except UnicodeDecodeError as e:
+        return False, f"Encoding error in {filepath.name}: {e}"
+    except Exception as e:
+        return False, f"Error reading {filepath.name}: {e}"
 
-print(f'\n结果: {len(files) - len(errors)}/{len(files)} 通过')
-if errors:
-    print(f'失败: {len(errors)} 个文件')
-else:
-    print('全部通过! 🎉')
+
+def main():
+    """Run syntax check on entire project"""
+    project_root = Path(__file__).resolve().parent
+    errors = []
+
+    for py_file in sorted(project_root.rglob("*.py")):
+        # Skip files in .git or __pycache__ directories
+        if any(part.startswith(".") for part in py_file.parts):
+            if part.name == ".git" or part.name == "__pycache__":
+                continue
+        valid, error = check_syntax(py_file)
+        if not valid:
+            errors.append(error)
+            print(f"❌ {error}", file=sys.stderr)
+        else:
+            print(f"✅ {py_file.relative_to(project_root)}")
+
+    if errors:
+        print(f"\n❌ Found {len(errors)} syntax error(s)", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print(f"\n✅ All files passed syntax check")
+
+
+if __name__ == "__main__":
+    main()

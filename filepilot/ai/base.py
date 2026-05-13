@@ -1,26 +1,27 @@
-"""AI Provider 抽象基类 — 统一本地/云端/第三方模型接口"""
+"""AI Provider Abstract Base Class — unified interface for local/cloud/third-party models"""
 
 from abc import ABC, abstractmethod
 from typing import Callable
 
 
 class AIProvider(ABC):
-    """AI Provider 统一接口
+    """AI Provider unified interface
 
-    所有 AI 引擎（Ollama、OpenAI、Anthropic、Gemini、llama.cpp 等）
-    都实现此接口，上层代码无需关心底层协议差异。
+    All AI engines (Ollama, OpenAI, Anthropic, Gemini, llama.cpp, etc.)
+    implement this interface; upper-level code doesn't need to care about
+    underlying protocol differences.
     """
 
     @property
     @abstractmethod
     def is_available(self) -> bool:
-        """AI 引擎是否可用"""
+        """Whether the AI engine is available"""
         ...
 
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """提供商名称"""
+        """Provider name"""
         ...
 
     @abstractmethod
@@ -33,7 +34,7 @@ class AIProvider(ABC):
         stream: bool = False,
         on_token: Callable[[str], None] | None = None,
     ) -> str:
-        """生成文本"""
+        """Generate text"""
         ...
 
     def chat(
@@ -42,7 +43,7 @@ class AIProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> str:
-        """对话接口（默认实现：拼接为 prompt）"""
+        """Chat interface (default implementation: concatenate into prompt)"""
         parts = []
         for m in messages:
             role = m.get("role", "user")
@@ -54,9 +55,9 @@ class AIProvider(ABC):
         return self.generate("\n".join(parts), temperature=temperature, max_tokens=max_tokens)
 
     def embed(self, text: str) -> list[float]:
-        """生成嵌入向量（默认实现：返回空）"""
+        """Generate embedding vectors (default implementation: returns empty)"""
         return []
 
     def get_available_models(self) -> list[str]:
-        """获取可用模型列表（默认实现：返回空）"""
+        """Get available models list (default implementation: returns empty)"""
         return []

@@ -1,12 +1,14 @@
-"""AI 摘要生成面板 — 单文件 / 批量摘要、关键词提取"""
+"""AI summary generation panel"""
 
+import mimetypes
 from pathlib import Path
 from threading import Thread
+from typing import Any
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QApplication,
+    QCheckBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -18,678 +20,409 @@ from PySide6.QtWidgets import (
     QSplitter,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
-from filepilot.ai.summarizer import Summarizer
-from filepilot.ai.local_ai import LocalAI
-from filepilot.ai.cloud_ai import CloudAI
 from filepilot.ui.base_panel import BasePanel
 
 
+SUPPORTED_EXTS = {
+    ".pdf", ".md", ".markdown", ".mdx", ".txt", ".rst",
+    ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c", ".h",
+    ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt",
+    ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua",
+}
+
+
 class SummaryPanel(BasePanel):
-    """AI 摘要生成面板"""
+    """AI summary generation panel — extracts summaries and keywords from files"""
 
-    # 支持的文件扩展名
-    SUPPORTED_EXTS = {
-        ".pdf", ".md", ".markdown", ".mdx",
-        ".py", ".js", ".ts", ".tsx", ".jsx",
-        ".java", ".cpp", ".c", ".h", ".hpp",
-        ".cs", ".go", ".rs", ".rb", ".php",
-        ".swift", ".kt", ".scala", ".sql",
-        ".sh", ".bash", ".ps1", ".lua",
-        ".txt", ".rst",
-    }
+    summary_ready = Signal(str)
+    keyword_ready = Signal(str)
 
-    def __init__(
-        self,
-        summarizer: Summarizer | None = None,
-        local_ai: LocalAI | None = None,
-        cloud_ai: CloudAI | None = None,
-        parent=None,
-    ):
+    def __init__(self, summarizer=None, local_ai=None, cloud_ai=None, parent=None):
         super().__init__(parent)
-        self._files: list[Path] = []
-        self._processing = False
-
-        # 如果注入了服务，直接使用；否则惰性初始化
+        self._summarizer = summarizer
         self._local_ai = local_ai
         self._cloud_ai = cloud_ai
-        self._summarizer = summarizer
-        self._ai_initialized = (
-            summarizer is not None
-            and local_ai is not None
-            and cloud_ai is not None
-        )
+        self._lazy_init_done = False
+
+        self.selected_files: list[Path] = []
+        self.current_dir: Path | None = None
 
         self._setup_ui()
         self._connect_signals()
 
-    def _init_ai(self):
-        """惰性初始化 AI 引擎（仅在未注入服务时使用）"""
-        if self._summarizer is not None:
-            self._update_ai_status()
+    def _ensure_ai_init(self):
+        """Lazy initialization of AI engines (imported late to avoid circular imports)"""
+        if self._lazy_init_done:
             return
+        self._lazy_init_done = True
 
-        from filepilot.app import load_settings
-        settings = load_settings()
-        ai_mode = settings.get("ai_mode", "local")
+        if self._summarizer is None:
+            from filepilot.ai.summarizer import Summarizer
+            self._summarizer = Summarizer()
 
-        self._local_ai = LocalAI(
-            model=settings.get("ollama_model", "qwen2.5:7b"),
-            api_base=settings.get("ollama_url", "http://localhost:11434"),
-        )
-        self._cloud_ai = CloudAI(
-            api_key=settings.get("openai_key", ""),
-            model=settings.get("openai_model", "gpt-4o-mini"),
-            api_base=settings.get("openai_url", "https://api.openai.com/v1"),
-        )
-        self._summarizer = Summarizer(
-            local_ai=self._local_ai,
-            cloud_ai=self._cloud_ai,
-            prefer_local=(ai_mode in ("local", "hybrid")),
-        )
-        self._update_ai_status()
+        if self._local_ai is None:
+            from filepilot.ai.local_ai import LocalAI
+            self._local_ai = LocalAI()
 
-    def _update_ai_status(self):
-        """更新 AI 状态指示"""
-        local_ok = self._local_ai and self._local_ai.is_available
-        cloud_ok = self._cloud_ai and self._cloud_ai.is_available
-
-        if local_ok and cloud_ok:
-            status = "✅ Ollama + OpenAI 均可用"
-        elif local_ok:
-            status = "✅ Ollama 本地模型可用（推荐）"
-        elif cloud_ok:
-            status = "✅ OpenAI API 可用"
-        else:
-            status = "⚠️ 无可用的 AI 引擎，请在设置中配置"
-
-        self.ai_status_label.setText(status)
+        if self._cloud_ai is None:
+            from filepilot.ai.cloud_ai import CloudAI
+            self._cloud_ai = CloudAI()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── 标题 ──
-        title = QLabel("📝 AI 摘要生成")
+        # ── Title ──
+        title = QLabel("📝 AI Summary Generation")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         desc = QLabel(
-            "使用 AI 自动提取 PDF、Markdown、代码文件的摘要和关键词。\n"
-            "支持单个文件和批量处理。需要配置 Ollama 或 OpenAI API。"
+            "Extract summaries and keywords from PDF, Markdown, and code files. "
+            "Supports both local (Ollama) and cloud (OpenAI) AI engines."
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── AI 状态指示 ──
-        self.ai_status_label = QLabel("正在检测 AI 引擎...")
-        self.ai_status_label.setStyleSheet(
-            "color: #a6adc8; font-size: 12px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 6px; padding: 8px 12px;"
-        )
-        layout.addWidget(self.ai_status_label)
-
-        # ── 文件选择 ──
+        # ── File selection area ──
         file_sel_layout = QHBoxLayout()
-        file_sel_layout.addWidget(QLabel("📂 选择文件:"))
 
-        self.file_path_label = QLabel("未选择")
-        self.file_path_label.setStyleSheet(
-            "color: #585b70; padding: 6px 10px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 4px;"
-        )
-        self.file_path_label.setWordWrap(True)
+        # Left: file list
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_select_file = QPushButton("选择文件...")
-        self.btn_select_file.clicked.connect(self._on_select_file)
+        left_layout.addWidget(QLabel("📂 Selected Files:"))
 
-        self.btn_select_folder = QPushButton("选择文件夹（批量）...")
-        self.btn_select_folder.clicked.connect(self._on_select_folder)
-
-        file_sel_layout.addWidget(self.file_path_label, 1)
-        file_sel_layout.addWidget(self.btn_select_file)
-        file_sel_layout.addWidget(self.btn_select_folder)
-        layout.addLayout(file_sel_layout)
-
-        # ── 批量文件列表 ──
         self.file_list = QListWidget()
-        self.file_list.setVisible(False)
-        self.file_list.setMaximumHeight(120)
         self.file_list.setStyleSheet("""
             QListWidget {
                 background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 6px;
-                font-size: 12px;
+                border: 1px solid #313244; border-radius: 8px;
+                padding: 8px; font-size: 13px;
             }
-            QListWidget::item { padding: 4px 8px; }
+            QListWidget::item { padding: 6px 12px; border-radius: 4px; }
             QListWidget::item:selected { background-color: #313244; color: #cba6f7; }
         """)
-        layout.addWidget(self.file_list)
+        left_layout.addWidget(self.file_list, 1)
 
-        # ── 操作按钮 ──
-        action_layout = QHBoxLayout()
+        btn_layout = QHBoxLayout()
+        self.btn_add_files = QPushButton("➕ Add Files")
+        self.btn_add_files.clicked.connect(self._on_add_files)
+        self.btn_add_folder = QPushButton("📁 Add Folder")
+        self.btn_add_folder.clicked.connect(self._on_add_folder)
+        self.btn_clear_files = QPushButton("Clear")
+        self.btn_clear_files.clicked.connect(self.file_list.clear)
+        btn_layout.addWidget(self.btn_add_files)
+        btn_layout.addWidget(self.btn_add_folder)
+        btn_layout.addWidget(self.btn_clear_files)
+        left_layout.addLayout(btn_layout)
 
-        self.btn_summarize = QPushButton("🤖 生成摘要")
-        self.btn_summarize.clicked.connect(self._on_summarize)
-        self.btn_summarize.setEnabled(False)
-        self.btn_summarize.setStyleSheet("""
+        # Right: AI settings & actions
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        right_layout.addWidget(QLabel("🤖 AI Settings:"))
+
+        self.ai_status_label = QLabel("AI status: checking...")
+        self.ai_status_label.setStyleSheet("color: #f9e2af; font-size: 12px; padding: 8px;")
+        self.ai_status_label.setWordWrap(True)
+        right_layout.addWidget(self.ai_status_label)
+
+        self.cb_local_first = QCheckBox("Prefer local AI (Ollama)")
+        self.cb_local_first.setChecked(True)
+        self.cb_local_first.setStyleSheet("color: #cdd6f4;")
+        right_layout.addWidget(self.cb_local_first)
+
+        self.cb_include_code = QCheckBox("Include code snippets in summary")
+        self.cb_include_code.setChecked(True)
+        self.cb_include_code.setStyleSheet("color: #cdd6f4;")
+        right_layout.addWidget(self.cb_include_code)
+
+        right_layout.addStretch()
+
+        self.btn_generate = QPushButton("🚀 Generate Summary")
+        self.btn_generate.clicked.connect(self._on_generate)
+        self.btn_generate.setEnabled(False)
+        self.btn_generate.setStyleSheet("""
             QPushButton {
-                background-color: #89b4fa; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 10px 24px; font-size: 14px; font-weight: bold;
+                background-color: #a6e3a1; color: #1e1e2e;
+                border: none; border-radius: 8px;
+                padding: 14px 28px; font-size: 15px; font-weight: bold;
             }
-            QPushButton:hover { background-color: #74c7ec; }
+            QPushButton:hover { background-color: #94e2d5; }
             QPushButton:disabled { background-color: #313244; color: #585b70; }
         """)
+        right_layout.addWidget(self.btn_generate)
 
-        self.btn_batch = QPushButton("📦 批量处理")
-        self.btn_batch.clicked.connect(self._on_batch_summarize)
-        self.btn_batch.setEnabled(False)
+        self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel.clicked.connect(self._on_cancel)
+        self.btn_cancel.setVisible(False)
+        right_layout.addWidget(self.btn_cancel)
 
-        self.btn_clear = QPushButton("清空")
-        self.btn_clear.clicked.connect(self._on_clear)
-        self.btn_clear.setEnabled(False)
+        file_sel_layout.addWidget(left_panel, 3)
+        file_sel_layout.addWidget(right_panel, 2)
+        layout.addLayout(file_sel_layout, 1)
 
-        action_layout.addWidget(self.btn_summarize)
-        action_layout.addWidget(self.btn_batch)
-        action_layout.addWidget(self.btn_clear)
-        action_layout.addStretch()
-        layout.addLayout(action_layout)
-
-        # 进度条 + 进度文字 + 取消按钮
+        # ── Progress bar ──
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        progress_layout.addWidget(self.progress_bar, 1)
-
-        self.progress_label = QLabel("")
-        self.progress_label.setStyleSheet("color: #a6adc8; font-size: 12px;")
-        self.progress_label.setVisible(False)
-        progress_layout.addWidget(self.progress_label)
-
-        self.btn_cancel = QPushButton("✕ 取消")
-        self.btn_cancel.clicked.connect(self._on_cancel_processing)
-        self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: #313244; border: none; border-radius: 4px;
+                height: 8px; text-align: center; color: transparent;
             }
-            QPushButton:hover { background-color: #eba0ac; }
+            QProgressBar::chunk { background-color: #a6e3a1; border-radius: 4px; }
         """)
-        progress_layout.addWidget(self.btn_cancel)
-
+        progress_layout.addWidget(self.progress_bar, 1)
         layout.addLayout(progress_layout)
 
-        # ── 分割器：内容预览 + 摘要结果 ──
-        splitter = QSplitter(Qt.Vertical)
+        # ── Results splitter ──
+        result_splitter = QSplitter(Qt.Vertical)
 
-        # 上方：原始内容预览
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(4)
-        content_label = QLabel("📄 原始内容")
-        content_label.setStyleSheet("color: #a6adc8; font-size: 12px; font-weight: bold;")
-        content_layout.addWidget(content_label)
-
-        self.content_preview = QTextEdit()
-        self.content_preview.setReadOnly(True)
-        self.content_preview.setPlaceholderText("选择文件后将显示提取的文本内容...")
-        self.content_preview.setStyleSheet("""
+        # Summary area
+        summary_widget = QWidget()
+        summary_layout = QVBoxLayout(summary_widget)
+        summary_layout.setContentsMargins(0, 8, 0, 0)
+        summary_layout.addWidget(QLabel("📋 Summary:"))
+        self.summary_output = QTextEdit()
+        self.summary_output.setReadOnly(True)
+        self.summary_output.setPlaceholderText("Click \"Generate Summary\" to start...")
+        self.summary_output.setStyleSheet("""
             QTextEdit {
                 background-color: #181825; color: #cdd6f4;
                 border: 1px solid #313244; border-radius: 8px;
-                padding: 12px; font-size: 12px;
-            }
-        """)
-        content_layout.addWidget(self.content_preview, 1)
-        splitter.addWidget(content_widget)
-
-        # 下方：摘要结果 + 关键词
-        result_widget = QWidget()
-        result_layout = QVBoxLayout(result_widget)
-        result_layout.setContentsMargins(0, 0, 0, 0)
-        result_layout.setSpacing(4)
-
-        result_header = QHBoxLayout()
-        result_title = QLabel("🤖 AI 摘要")
-        result_title.setStyleSheet("color: #a6adc8; font-size: 12px; font-weight: bold;")
-        result_header.addWidget(result_title)
-        result_header.addStretch()
-
-        self.btn_copy = QPushButton("📋 复制摘要")
-        self.btn_copy.clicked.connect(self._on_copy_summary)
-        self.btn_copy.setEnabled(False)
-        self.btn_copy.setStyleSheet(
-            "QPushButton { padding: 4px 12px; font-size: 11px; }"
-        )
-        result_header.addWidget(self.btn_copy)
-        result_layout.addLayout(result_header)
-
-        self.summary_preview = QTextEdit()
-        self.summary_preview.setReadOnly(True)
-        self.summary_preview.setPlaceholderText("点击「生成摘要」查看结果...")
-        self.summary_preview.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e2e; color: #cdd6f4;
-                border: 1px solid #45475a; border-radius: 8px;
                 padding: 12px; font-size: 13px;
             }
         """)
-        result_layout.addWidget(self.summary_preview, 1)
+        summary_layout.addWidget(self.summary_output, 1)
+        result_splitter.addWidget(summary_widget)
 
-        # 关键词区域
-        kw_layout = QHBoxLayout()
-        kw_label = QLabel("🏷️ 关键词:")
-        kw_label.setStyleSheet("color: #a6adc8; font-size: 12px; font-weight: bold;")
-        kw_layout.addWidget(kw_label)
-
-        self.keywords_widget = QWidget()
-        self.keywords_widget.setStyleSheet("background: transparent;")
-        self.keywords_layout = QHBoxLayout(self.keywords_widget)
-        self.keywords_layout.setContentsMargins(0, 0, 0, 0)
-        self.keywords_layout.setSpacing(6)
-        kw_layout.addWidget(self.keywords_widget, 1)
-        result_layout.addLayout(kw_layout)
-
-        splitter.addWidget(result_widget)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
-
-        layout.addWidget(splitter, 1)
-
-        # ── 底部状态 ──
-        self.stats_label = QLabel("选择 PDF、Markdown 或代码文件后生成 AI 摘要")
-        self.stats_label.setStyleSheet(
-            "color: #585b70; font-size: 12px; padding: 4px 0;"
-        )
-        layout.addWidget(self.stats_label)
-
-    def _make_keyword_tag(self, word: str) -> QLabel:
-        """创建一个关键词标签"""
-        tag = QLabel(f"  {word}  ")
-        tag.setStyleSheet("""
-            QLabel {
-                background-color: #313244; color: #cba6f7;
-                border: 1px solid #45475a; border-radius: 12px;
-                padding: 3px 6px; font-size: 11px;
+        # Keywords area
+        keyword_widget = QWidget()
+        keyword_layout = QVBoxLayout(keyword_widget)
+        keyword_layout.setContentsMargins(0, 8, 0, 0)
+        keyword_layout.addWidget(QLabel("🔑 Keywords:"))
+        self.keyword_output = QTextEdit()
+        self.keyword_output.setReadOnly(True)
+        self.keyword_output.setPlaceholderText("Keywords will appear here...")
+        self.keyword_output.setStyleSheet("""
+            QTextEdit {
+                background-color: #181825; color: #cdd6f4;
+                border: 1px solid #313244; border-radius: 8px;
+                padding: 12px; font-size: 13px;
             }
         """)
-        return tag
+        keyword_layout.addWidget(self.keyword_output, 1)
+        result_splitter.addWidget(keyword_widget)
+
+        result_splitter.setStretchFactor(0, 3)
+        result_splitter.setStretchFactor(1, 1)
+        layout.addWidget(result_splitter, 2)
+
+        # ── Status bar ──
+        self.stats_label = QLabel("Add files and click \"Generate Summary\"")
+        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
+        layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
         self.progress_updated.connect(self.progress_bar.setValue)
-        self.progress_text.connect(self.progress_label.setText)
         self.status_message.connect(self.stats_label.setText)
+        self.summary_ready.connect(self.summary_output.setPlainText)
+        self.keyword_ready.connect(self.keyword_output.setPlainText)
 
-    def showEvent(self, event):
-        """面板可见时初始化 AI（仅首次，避免启动时阻塞）"""
-        super().showEvent(event)
-        if not self._ai_initialized:
-            self._ai_initialized = True
-            Thread(target=self._init_ai, daemon=True).start()
+    def _is_supported(self, path: Path) -> bool:
+        """Check if the file extension is supported"""
+        return path.suffix.lower() in SUPPORTED_EXTS
 
-    # ── 文件选择 ──
+    # ── File selection ──
 
     @Slot()
-    def _on_select_file(self):
-        """选择单个文件"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "选择文件",
-            str(Path.home()),
-            "支持的文件 (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.go *.rs);;"
-            "所有文件 (*)",
+    def _on_add_files(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "Select files for summarization", str(self.current_dir or str(Path.home())),
+            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt);;All files (*.*)"
         )
-        if not file_path:
-            return
+        for fp in files:
+            path = Path(fp)
+            if path.suffix.lower() not in SUPPORTED_EXTS:
+                continue
+            existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
+            if str(path) not in existing:
+                item = QListWidgetItem(f"{path.name} ({path.suffix})")
+                item.setData(Qt.UserRole, str(path))
+                item.setToolTip(str(path))
+                self.file_list.addItem(item)
 
-        p = Path(file_path)
-        self._files = [p]
-        self._update_file_display()
-        self._load_content_preview(p)
-        self.btn_summarize.setEnabled(True)
-        self.btn_batch.setEnabled(False)
-        self.btn_clear.setEnabled(True)
-        self.status_message.emit(f"已选择: {p.name}")
+        self.btn_generate.setEnabled(self.file_list.count() > 0)
 
     @Slot()
-    def _on_select_folder(self):
-        """选择文件夹（批量处理）"""
+    def _on_add_folder(self):
         dir_path = QFileDialog.getExistingDirectory(
-            self, "选择文件夹（批量处理）", str(Path.home())
+            self, "Select folder to scan", str(self.current_dir or Path.home())
         )
         if not dir_path:
             return
 
-        root = Path(dir_path)
-        supported = []
-        for f in root.rglob("*"):
-            if f.is_file() and f.suffix.lower() in self.SUPPORTED_EXTS:
-                supported.append(f)
+        self.current_dir = Path(dir_path)
+        self.status_message.emit(f"Scanning folder: {dir_path}")
 
-        if not supported:
-            self.status_message.emit("⚠️ 文件夹中没有找到支持的文件类型")
-            return
+        def scan_worker():
+            from filepilot.core.file_scanner import FileScanner
+            scanner = FileScanner()
+            count = 0
+            for f in scanner.scan(dir_path):
+                path = Path(f.path)
+                if not self._is_supported(path):
+                    continue
+                existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
+                if str(path) not in existing:
+                    from PySide6.QtCore import QMetaObject, Qt
+                    QMetaObject.invokeMethod(
+                        self, "_add_file_item", Qt.QueuedConnection,
+                        str(path.name), str(path.suffix), str(path)
+                    )
+                    count += 1
+            if count > 0:
+                self.status_message.emit(f"✅ Added {count} supported files")
+            else:
+                self.status_message.emit("No supported files found in the selected folder")
 
-        self._files = sorted(supported)
-        self._update_file_display()
-        self._show_batch_list()
-        self.btn_summarize.setEnabled(False)  # 批量模式用 btn_batch
-        self.btn_batch.setEnabled(len(self._files) > 0)
-        self.btn_clear.setEnabled(True)
-        self.status_message.emit(f"📦 找到 {len(self._files)} 个支持的文件")
-
-    def _update_file_display(self):
-        """更新文件路径显示"""
-        if len(self._files) == 1:
-            self.file_path_label.setText(f"📄 {self._files[0]}")
-            self.file_path_label.setStyleSheet(
-                "color: #cdd6f4; padding: 6px 10px; background: #181825; "
-                "border: 1px solid #313244; border-radius: 4px;"
-            )
-        elif len(self._files) > 1:
-            self.file_path_label.setText(f"📂 {len(self._files)} 个文件")
-            self.file_path_label.setStyleSheet(
-                "color: #cdd6f4; padding: 6px 10px; background: #181825; "
-                "border: 1px solid #313244; border-radius: 4px;"
-            )
-        else:
-            self.file_path_label.setText("未选择")
-            self.file_path_label.setStyleSheet(
-                "color: #585b70; padding: 6px 10px; background: #181825; "
-                "border: 1px solid #313244; border-radius: 4px;"
-            )
-
-    def _show_batch_list(self):
-        """显示批量文件列表"""
-        self.file_list.setVisible(True)
-        self.file_list.clear()
-        for f in self._files:
-            item = QListWidgetItem(f"{f.name} — {f.parent.name}")
-            item.setToolTip(str(f))
-            self.file_list.addItem(item)
-
-    def _load_content_preview(self, file_path: Path):
-        """加载文件内容预览"""
-        try:
-            content = file_path.read_text(encoding="utf-8", errors="replace")
-            if len(content) > 10000:
-                content = content[:10000] + "\n\n... (内容过长，已截断)"
-            self.content_preview.setPlainText(content)
-        except Exception:
-            self.content_preview.setPlainText("(无法预览二进制文件内容)")
-
-    # ── 生成摘要 ──
+        Thread(target=scan_worker, daemon=True).start()
 
     @Slot()
-    def _on_summarize(self):
-        """生成单文件摘要"""
-        if not self._files or self._processing:
-            return
-        self._init_ai()
-        self._start_summarize(self._files[0])
+    def _add_file_item(self, name: str, suffix: str, path_str: str):
+        item = QListWidgetItem(f"{name} ({suffix})")
+        item.setData(Qt.UserRole, path_str)
+        item.setToolTip(path_str)
+        self.file_list.addItem(item)
+        self.btn_generate.setEnabled(self.file_list.count() > 0)
+
+    # ── Generate summary ──
 
     @Slot()
-    def _on_batch_summarize(self):
-        """批量生成摘要"""
-        if not self._files or self._processing:
+    def _on_cancel(self):
+        """Cancel current operation"""
+        if self._cancelling:
             return
-        self._init_ai()
-        self._start_batch_summarize(self._files)
-
-    @Slot()
-    def _on_cancel_processing(self):
-        """取消摘要处理"""
         self._cancelled = True
-        self._processing = False
+        self._cancelling = True
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
-        self.progress_label.setVisible(False)
-        self._set_buttons_enabled(True)
-        self.status_message.emit("⏹️ 处理已取消")
+        self.btn_generate.setEnabled(True)
+        self.status_message.emit("⏹️ Operation cancelled")
 
-    def _start_summarize(self, file_path: Path):
-        """启动单文件摘要线程"""
+    @Slot()
+    def _on_generate(self):
+        """Start summary generation"""
+        if self.file_list.count() == 0:
+            self.status_message.emit("⚠️ Please add files first")
+            return
+
+        self._ensure_ai_init()
+
         self._cancelled = False
-        self._processing = True
-        self._set_buttons_enabled(False)
-        self.progress_bar.setVisible(True)
-        self.progress_label.setVisible(True)
+        self._cancelling = False
+        self.btn_generate.setEnabled(False)
         self.btn_cancel.setVisible(True)
+        self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        self.progress_text.emit("正在准备...")
-        self.status_message.emit(f"正在分析: {file_path.name}")
+        self.summary_output.clear()
+        self.keyword_output.clear()
+        self.status_message.emit("Generating summary, please wait...")
 
-        summarizer = self._summarizer
+        files = []
+        for i in range(self.file_list.count()):
+            path_str = self.file_list.item(i).data(Qt.UserRole)
+            if path_str:
+                files.append(Path(path_str))
+
+        prefer_local = self.cb_local_first.isChecked()
 
         def worker():
-            try:
+            # Read file contents
+            contents = []
+            total = len(files)
+            for i, fp in enumerate(files):
                 if self._cancelled:
                     return
-
-                # 加载内容预览
-                self._load_content_preview(file_path)
-
-                def on_progress(msg: str):
-                    if self._cancelled:
-                        return
-                    self.progress_text.emit(msg)
-
-                result = summarizer.summarize(
-                    file_path,
-                    max_length=300,
-                    on_progress=on_progress,
-                )
-
-                if not self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt, Q_ARG
-
-                    QMetaObject.invokeMethod(
-                        self,
-                        "_display_summary_result",
-                        Qt.QueuedConnection,
-                        Q_ARG(object, result),
-                    )
-            except Exception as e:
-                if not self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt, Q_ARG
-
-                    QMetaObject.invokeMethod(
-                        self,
-                        "_on_summarize_error",
-                        Qt.QueuedConnection,
-                        Q_ARG(str, str(e)),
-                    )
-
-        Thread(target=worker, daemon=True).start()
-
-    def _start_batch_summarize(self, files: list[Path]):
-        """启动批量摘要线程"""
-        self._cancelled = False
-        self._processing = True
-        self._set_buttons_enabled(False)
-        self.progress_bar.setVisible(True)
-        self.progress_label.setVisible(True)
-        self.btn_cancel.setVisible(True)
-        self.progress_bar.setValue(0)
-
-        total = len(files)
-        results: list[str] = []
-        errors = 0
-        summarizer = self._summarizer
-
-        def worker():
-            nonlocal errors
-            for i, file_path in enumerate(files):
-                if self._cancelled:
-                    break
-
-                progress_pct = int((i + 1) / total * 100)
-                self.progress_updated.emit(progress_pct)
-                self.progress_text.emit(f"({i + 1}/{total}) {file_path.name}")
-                self.status_message.emit(f"正在处理 ({i + 1}/{total}): {file_path.name}")
-
-                if self._cancelled:
-                    break
-
                 try:
-                    result = summarizer.summarize(file_path, max_length=200)
-                    if result.get("success"):
-                        summary = result["summary"]
-                        results.append(
-                            f"## 📄 {file_path.name}\n\n"
-                            f"> 路径: {file_path}\n\n"
-                            f"{summary}\n\n"
-                            f"关键词: {' · '.join(result.get('keywords', []))}\n"
-                            "---\n"
-                        )
-                    else:
-                        results.append(
-                            f"## ❌ {file_path.name}\n\n"
-                            f"{result.get('error', '处理失败')}\n\n---\n"
-                        )
-                        errors += 1
-                except Exception as e:
-                    results.append(
-                        f"## ❌ {file_path.name}\n\n{str(e)}\n\n---\n"
-                    )
-                    errors += 1
+                    text = fp.read_text(encoding="utf-8", errors="replace")
+                    contents.append((fp.name, text))
+                except Exception:
+                    contents.append((fp.name, f"[Error reading file]"))
+                self.progress_updated.emit(int((i + 1) / total * 40))
 
             if self._cancelled:
-                from PySide6.QtCore import QMetaObject, Qt
-                QMetaObject.invokeMethod(
-                    self, "_on_cancel_processing", Qt.QueuedConnection
-                )
                 return
 
-            combined = "\n".join(results)
+            # Generate summary
+            combined_text = ""
+            for name, text in contents:
+                combined_text += f"\n\n# File: {name}\n{text[:2000]}"
 
-            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+            max_len = 8000
+            if len(combined_text) > max_len:
+                combined_text = combined_text[:max_len] + "\n\n[...content truncated...]"
 
-            QMetaObject.invokeMethod(
-                self,
-                "_display_batch_result",
-                Qt.QueuedConnection,
-                Q_ARG(str, combined),
-                Q_ARG(int, total),
-                Q_ARG(int, errors),
-            )
+            self.progress_updated.emit(45)
+
+            summary = ""
+            keywords_text = ""
+
+            try:
+                if prefer_local and self._local_ai:
+                    summary = self._local_ai.generate(
+                        f"Please generate a concise summary of the following content:\n\n{combined_text}"
+                    )
+                    self.progress_updated.emit(70)
+
+                    keywords_text = self._local_ai.generate(
+                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}"
+                    )
+                elif self._cloud_ai:
+                    summary = self._cloud_ai.generate(
+                        f"Please generate a concise summary of the following content:\n\n{combined_text}"
+                    )
+                    self.progress_updated.emit(70)
+
+                    keywords_text = self._cloud_ai.generate(
+                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}"
+                    )
+                else:
+                    # Fallback: use summarizer
+                    summary = "Summary: "
+                    for name, text in contents:
+                        s = self._summarizer.summarize(text, max_sentences=3)
+                        if s:
+                            summary += f"\n\n### {name}\n{s}"
+                    self.progress_updated.emit(70)
+
+                    keywords_text = "Keywords: "
+                    kw_set = set()
+                    for name, text in contents:
+                        kw = self._summarizer.extract_keywords(text, top_k=5)
+                        kw_set.update(kw)
+                    keywords_text += ", ".join(list(kw_set)[:15])
+            except Exception as e:
+                summary = f"[AI generation failed: {e}]"
+                keywords_text = ""
+
+            self.progress_updated.emit(90)
+
+            if not self._cancelled:
+                self.summary_ready.emit(summary if summary else "No summary generated")
+                self.keyword_ready.emit(keywords_text if keywords_text else "No keywords extracted")
+                self.status_message.emit(f"✅ Summary complete — processed {len(files)} files")
+                self.btn_generate.setEnabled(True)
+                self.progress_bar.setVisible(False)
+                self.btn_cancel.setVisible(False)
 
         Thread(target=worker, daemon=True).start()
-
-    @Slot(object)
-    def _display_summary_result(self, result: dict):
-        """显示单文件摘要结果"""
-        self._processing = False
-        self.progress_bar.setVisible(False)
-        self.progress_label.setVisible(False)
-        self._set_buttons_enabled(True)
-
-        if result.get("success"):
-            summary = result["summary"]
-            keywords = result.get("keywords", [])
-
-            self.summary_preview.setPlainText(summary)
-            self.btn_copy.setEnabled(True)
-
-            # 显示关键词标签
-            self._clear_keywords()
-            for word in keywords:
-                self.keywords_layout.addWidget(self._make_keyword_tag(word))
-            self.keywords_layout.addStretch()
-
-            file_name = result.get("filename", "")
-            self.status_message.emit(
-                f"✅ 摘要生成完成: {file_name} | "
-                f"{len(summary)} 字摘要 | {len(keywords)} 个关键词"
-            )
-        else:
-            self.summary_preview.setPlainText(
-                f"❌ 生成失败\n\n{result.get('error', '未知错误')}"
-            )
-            self.status_message.emit(f"❌ {result.get('error', '生成失败')}")
-
-    @Slot()
-    def _display_batch_result(self, combined: str, total: int, errors: int):
-        """显示批量摘要结果"""
-        self._processing = False
-        self.progress_bar.setVisible(False)
-        self.progress_label.setVisible(False)
-        self._set_buttons_enabled(True)
-
-        self.summary_preview.setPlainText(combined)
-        self.btn_copy.setEnabled(True)
-        self._clear_keywords()
-
-        success = total - errors
-        self.status_message.emit(
-            f"📦 批量处理完成: {success}/{total} 成功"
-            + (f", {errors} 个失败" if errors else "")
-        )
-
-    @Slot()
-    def _on_summarize_error(self, error_msg: str):
-        """摘要出错"""
-        self._processing = False
-        self.progress_bar.setVisible(False)
-        self.progress_label.setVisible(False)
-        self._set_buttons_enabled(True)
-        self.summary_preview.setPlainText(f"❌ 处理出错\n\n{error_msg}")
-        self.status_message.emit(f"❌ {error_msg}")
-
-    # ── 辅助方法 ──
-
-    def _set_buttons_enabled(self, enabled: bool):
-        """设置按钮可用状态"""
-        self.btn_summarize.setEnabled(enabled and len(self._files) == 1)
-        self.btn_batch.setEnabled(enabled and len(self._files) > 1)
-        self.btn_select_file.setEnabled(enabled)
-        self.btn_select_folder.setEnabled(enabled)
-
-    def _clear_keywords(self):
-        """清空关键词标签"""
-        while self.keywords_layout.count() > 0:
-            item = self.keywords_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-    @Slot()
-    def _on_clear(self):
-        """清空所有结果"""
-        self._files = []
-        self._processing = False
-        self.file_path_label.setText("未选择")
-        self.file_path_label.setStyleSheet(
-            "color: #585b70; padding: 6px 10px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 4px;"
-        )
-        self.file_list.setVisible(False)
-        self.file_list.clear()
-        self.content_preview.clear()
-        self.summary_preview.clear()
-        self._clear_keywords()
-        self.btn_summarize.setEnabled(False)
-        self.btn_batch.setEnabled(False)
-        self.btn_copy.setEnabled(False)
-        self.btn_clear.setEnabled(False)
-        self.progress_bar.setVisible(False)
-        self.progress_label.setVisible(False)
-        self.status_message.emit("就绪")
-
-    @Slot()
-    def _on_copy_summary(self):
-        """复制摘要到剪贴板"""
-        text = self.summary_preview.toPlainText()
-        if text:
-            QApplication.clipboard().setText(text)
-            self.status_message.emit("📋 摘要已复制到剪贴板")
-
-    def refresh_ai_status(self):
-        """刷新 AI 状态（外部调用）"""
-        Thread(target=self._init_ai, daemon=True).start()

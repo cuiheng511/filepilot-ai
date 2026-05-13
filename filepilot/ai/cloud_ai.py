@@ -1,4 +1,4 @@
-"""云端 AI 引擎 — 支持 OpenAI / Anthropic / Google Gemini / DeepSeek"""
+"""Cloud AI Engine — Supports OpenAI / Anthropic / Google Gemini / DeepSeek"""
 
 import json
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger("filepilot.ai.cloud")
 
 
 class OpenAIProvider(AIProvider):
-    """OpenAI 及兼容接口（DeepSeek、Moonshot、通义千问等）"""
+    """OpenAI and compatible APIs (DeepSeek, Moonshot, etc.)"""
 
     def __init__(self, api_key: str = "", model: str = "gpt-4o-mini",
                  api_base: str = "https://api.openai.com/v1"):
@@ -178,7 +178,7 @@ class AnthropicProvider(AIProvider):
     def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
         if not self._available:
             return ""
-        # Anthropic 用 system 参数而非 messages 中的 system role
+        # Anthropic uses 'system' parameter instead of system role in messages
         system = ""
         user_messages = []
         for m in messages:
@@ -204,5 +204,5 @@ class AnthropicProvider(AIProvider):
         return ""
 
 
-# 向后兼容
+# Backward compatibility alias
 CloudAI = OpenAIProvider

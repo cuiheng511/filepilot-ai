@@ -9,7 +9,7 @@ import urllib.request
 REPO_NAME = "filepilot-ai"
 GITHUB_USER = "cuiheng511"
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
-DESCRIPTION = "馃殌 鏅鸿兘鏂囦欢绠＄悊宸ュ叿 鈥?鍩轰簬 AI 鐨勬枃浠舵壂鎻忋€佹绱€佸幓閲嶄笌鑷姩褰掔被"
+DESCRIPTION = "Smart file management tool — AI-powered file scanning, search, deduplication, and auto-categorization"
 
 
 def github_api(method, url, data=None):

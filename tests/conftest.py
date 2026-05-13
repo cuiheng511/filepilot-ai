@@ -1,4 +1,4 @@
-"""pytest 配置 — 共享 fixtures 和 pytest-qt 支持"""
+"""pytest configuration — shared fixtures and pytest-qt support"""
 
 from pathlib import Path
 
@@ -7,17 +7,17 @@ import pytest
 
 @pytest.fixture(scope="session")
 def qapp_class():
-    """为 pytest-qt 提供 QApplication 子类"""
+    """Provide QApplication subclass for pytest-qt"""
     from PySide6.QtWidgets import QApplication
     return QApplication
 
 
 @pytest.fixture
 def temp_dir(tmp_path: Path) -> Path:
-    """创建含测试文件的临时目录"""
+    """Create a temporary directory with test files"""
     root = tmp_path
 
-    # 创建各种类型的测试文件
+    # Create various test file types
     (root / "test_doc.txt").write_text("This is a test document for AI summarization.")
     (root / "readme.md").write_text("# Project Title\n\nThis is a sample markdown file.")
     (root / "script.py").write_text(
@@ -33,7 +33,7 @@ def temp_dir(tmp_path: Path) -> Path:
     (root / "notes.pdf").write_bytes(b"%PDF-1.4 dummy pdf content for testing")
     (root / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n")
 
-    # 子目录文件
+    # Subdirectory files
     sub = root / "subfolder"
     sub.mkdir()
     (sub / "nested.md").write_text("## Nested File\n\nContent in subfolder.")

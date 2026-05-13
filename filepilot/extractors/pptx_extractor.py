@@ -1,20 +1,19 @@
-"""PPTX 内容提取器"""
+"""PPTX Content Extractor"""
 
 from pathlib import Path
 
 
 class PptxExtractor:
-    """PowerPoint 文档内容提取"""
+    """PowerPoint document content extraction"""
 
     SUPPORTED_EXTENSIONS = {".pptx", ".ppt"}
 
     def extract_text(self, file_path: str | Path) -> str:
-        """提取 PPTX 中的文本内容"""
+        """Extract text content from a PPTX file"""
         try:
             from pptx import Presentation
         except ImportError:
             return ""
-
         try:
             prs = Presentation(str(file_path))
             parts = []
@@ -38,12 +37,11 @@ class PptxExtractor:
             return ""
 
     def extract_metadata(self, file_path: str | Path) -> dict:
-        """提取 PPTX 元数据"""
+        """Extract PPTX metadata"""
         try:
             from pptx import Presentation
         except ImportError:
             return {}
-
         try:
             prs = Presentation(str(file_path))
             meta = {

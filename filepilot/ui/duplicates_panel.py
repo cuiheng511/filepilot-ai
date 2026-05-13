@@ -1,4 +1,4 @@
-"""重复文件查找面板 — 扫描、分组展示、清理操作"""
+"""Deduplication panel — scan, group, and clean up duplicate files"""
 
 from pathlib import Path
 from threading import Thread
@@ -25,7 +25,7 @@ from filepilot.ui.base_panel import BasePanel
 
 
 class DuplicatesPanel(BasePanel):
-    """重复文件查找面板"""
+    """Duplicate file finder panel"""
 
     def __init__(self, finder: DuplicateFinder | None = None, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
@@ -43,49 +43,49 @@ class DuplicatesPanel(BasePanel):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── 标题 ──
-        title = QLabel("🔗 重复文件查找")
+        # ── Title ──
+        title = QLabel("🔗 Duplicate File Finder")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         desc = QLabel(
-            "基于内容哈希精准查找重复文件，释放磁盘空间。\n"
-            "算法：先按大小分组 → 部分哈希快速过滤 → 完整 SHA256 确认。"
+            "Find duplicate files based on content hash to free up disk space.\n"
+            "Algorithm: group by size -> partial hash filter -> full SHA256 verification."
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── 文件夹选择 ──
+        # ── Folder selection ──
         dir_layout = QHBoxLayout()
-        dir_layout.addWidget(QLabel("📂 扫描文件夹:"))
-        self.dir_label = QLabel("未选择")
+        dir_layout.addWidget(QLabel("📂 Scan folder:"))
+        self.dir_label = QLabel("Not selected")
         self.dir_label.setStyleSheet(
             "color: #585b70; padding: 6px 10px; background: #181825; "
             "border: 1px solid #313244; border-radius: 4px;"
         )
         self.dir_label.setWordWrap(True)
-        self.btn_browse = QPushButton("浏览...")
+        self.btn_browse = QPushButton("Browse...")
         self.btn_browse.clicked.connect(self._on_select_source)
         dir_layout.addWidget(self.dir_label, 1)
         dir_layout.addWidget(self.btn_browse)
         layout.addLayout(dir_layout)
 
-        # ── 选项与操作 ──
+        # ── Options & actions ──
         action_layout = QHBoxLayout()
 
-        self.cb_hash = QCheckBox("使用哈希校验 (更准确)")
+        self.cb_hash = QCheckBox("Use hash verification (more accurate)")
         self.cb_hash.setChecked(True)
         self.cb_hash.setStyleSheet("color: #cdd6f4;")
 
-        self.cb_similar_name = QCheckBox("查找文件名相似文件")
+        self.cb_similar_name = QCheckBox("Find similar file names")
         self.cb_similar_name.setStyleSheet("color: #cdd6f4;")
 
         action_layout.addWidget(self.cb_hash)
         action_layout.addWidget(self.cb_similar_name)
         action_layout.addStretch()
 
-        self.btn_scan = QPushButton("🔍 开始扫描")
+        self.btn_scan = QPushButton("🔍 Start Scan")
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         self.btn_scan.setStyleSheet("""
@@ -99,19 +99,19 @@ class DuplicatesPanel(BasePanel):
         """)
         action_layout.addWidget(self.btn_scan)
 
-        self.btn_clear = QPushButton("清空")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.clicked.connect(self._clear_all)
         action_layout.addWidget(self.btn_clear)
 
         layout.addLayout(action_layout)
 
-        # 进度条 + 取消按钮
+        # Progress bar + cancel button
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
 
-        self.btn_cancel = QPushButton("✕ 取消")
+        self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet("""
@@ -125,12 +125,12 @@ class DuplicatesPanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # ── 统计卡片 ──
+        # ── Stat cards ──
         stats_layout = QHBoxLayout()
-        self.stat_groups = self._make_stat_card("📦 重复组", "0")
-        self.stat_files = self._make_stat_card("📄 重复文件", "0")
-        self.stat_wasted = self._make_stat_card("💾 浪费空间", "0 B")
-        self.stat_scanned = self._make_stat_card("📊 已扫描", "0 个文件")
+        self.stat_groups = self._make_stat_card("📦 Duplicate Groups", "0")
+        self.stat_files = self._make_stat_card("📄 Duplicate Files", "0")
+        self.stat_wasted = self._make_stat_card("💾 Wasted Space", "0 B")
+        self.stat_scanned = self._make_stat_card("📊 Scanned", "0 files")
 
         stats_layout.addWidget(self.stat_groups)
         stats_layout.addWidget(self.stat_files)
@@ -138,12 +138,12 @@ class DuplicatesPanel(BasePanel):
         stats_layout.addWidget(self.stat_scanned)
         layout.addLayout(stats_layout)
 
-        # ── 结果树 + 操作 ──
+        # ── Result tree + actions ──
         splitter = QSplitter(Qt.Vertical)
 
-        # 上方：结果树
+        # Top: result tree
         self.result_tree = QTreeWidget()
-        self.result_tree.setHeaderLabels(["文件名", "路径", "大小", "修改日期"])
+        self.result_tree.setHeaderLabels(["File Name", "Path", "Size", "Modified Date"])
         self.result_tree.setAlternatingRowColors(True)
         self.result_tree.setAnimated(True)
         self.result_tree.setExpandsOnDoubleClick(True)
@@ -167,12 +167,12 @@ class DuplicatesPanel(BasePanel):
         """)
         splitter.addWidget(self.result_tree)
 
-        # 下方：操作按钮
+        # Bottom: action buttons
         op_widget = QWidget()
         op_layout = QHBoxLayout(op_widget)
         op_layout.setContentsMargins(0, 4, 0, 0)
 
-        self.btn_delete = QPushButton("🗑️ 删除选中的重复文件")
+        self.btn_delete = QPushButton("🗑️ Delete Selected Duplicates")
         self.btn_delete.clicked.connect(self._on_delete_selected)
         self.btn_delete.setEnabled(False)
         self.btn_delete.setStyleSheet("""
@@ -185,11 +185,11 @@ class DuplicatesPanel(BasePanel):
             QPushButton:disabled { background-color: #313244; color: #585b70; }
         """)
 
-        self.btn_select_all_dup = QPushButton("全选重复文件")
+        self.btn_select_all_dup = QPushButton("Select All Duplicates")
         self.btn_select_all_dup.clicked.connect(self._on_select_all_duplicates)
         self.btn_select_all_dup.setEnabled(False)
 
-        self.btn_keep_first = QPushButton("每组保留第一个")
+        self.btn_keep_first = QPushButton("Keep First in Each Group")
         self.btn_keep_first.clicked.connect(self._on_keep_first)
         self.btn_keep_first.setEnabled(False)
 
@@ -203,8 +203,8 @@ class DuplicatesPanel(BasePanel):
         splitter.setStretchFactor(1, 0)
         layout.addWidget(splitter, 1)
 
-        # ── 底部状态 ──
-        self.stats_label = QLabel("选择文件夹后开始扫描")
+        # ── Bottom status ──
+        self.stats_label = QLabel("Select a folder and start scanning")
         self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
         layout.addWidget(self.stats_label)
 
@@ -212,11 +212,11 @@ class DuplicatesPanel(BasePanel):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.status_message.connect(self.stats_label.setText)
 
-    # ── 文件夹选择 ──
+    # ── Folder selection ──
 
     @Slot()
     def _on_select_source(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "选择要扫描的文件夹", str(self.source_dir or Path.home()))
+        dir_path = QFileDialog.getExistingDirectory(self, "Select folder to scan", str(self.source_dir or Path.home()))
         if dir_path:
             self.source_dir = Path(dir_path)
             self.dir_label.setText(f"📂 {dir_path}")
@@ -226,11 +226,11 @@ class DuplicatesPanel(BasePanel):
             )
             self.btn_scan.setEnabled(True)
 
-    # ── 扫描查重 ──
+    # ── Scan for duplicates ──
 
     @Slot()
     def _on_cancel(self):
-        """取消扫描"""
+        """Cancel scanning"""
         if self._cancelling:
             return
         self._cancelled = True
@@ -238,12 +238,12 @@ class DuplicatesPanel(BasePanel):
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
         self.btn_scan.setEnabled(True)
-        self.status_message.emit("⏹️ 扫描已取消")
+        self.status_message.emit("⏹️ Scan cancelled")
 
     @Slot()
     def _on_scan(self):
         if not self.source_dir:
-            self.status_message.emit("⚠️ 请先选择文件夹")
+            self.status_message.emit("⚠️ Please select a folder first")
             return
 
         self._cancelled = False
@@ -256,11 +256,11 @@ class DuplicatesPanel(BasePanel):
         self.progress_bar.setVisible(True)
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
-        self._update_stat("📊 已扫描", "正在扫描...")
-        self.status_message.emit("正在扫描文件...")
+        self._update_stat("📊 Scanned", "Scanning...")
+        self.status_message.emit("Scanning files...")
 
         def worker():
-            # 1. 扫描文件（可取消）
+            # 1. Scan files (cancellable)
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
@@ -275,7 +275,7 @@ class DuplicatesPanel(BasePanel):
 
             self.progress_updated.emit(50)
 
-            # 2. 查找重复
+            # 2. Find duplicates
             use_hash = self.cb_hash.isChecked()
             groups = self.finder.find_duplicates(
                 files,
@@ -285,7 +285,7 @@ class DuplicatesPanel(BasePanel):
             if self._cancelled:
                 return
 
-            # 3. 查找文件名相似
+            # 3. Find similar file names
             similar_groups = []
             if self.cb_similar_name.isChecked():
                 similar_groups = self.finder.find_similar_by_name(files)
@@ -304,33 +304,33 @@ class DuplicatesPanel(BasePanel):
 
     @Slot()
     def _display_results(self, groups: list[list[FileInfo]], similar_groups: list[list[FileInfo]], files: list = None):
-        """显示查重结果"""
+        """Display deduplication results"""
         if files is not None:
             self.files = files
         self.result_tree.clear()
         self.duplicate_groups = groups
 
-        # ── 精确重复组 ──
+        # ── Exact duplicate groups ──
         for i, group in enumerate(groups, 1):
             kept = group[0]
             wasted = sum(f.size_bytes for f in group[1:])
             wasted_str = self._format_bytes(wasted)
 
-            # 组标题
+            # Group header
             group_item = QTreeWidgetItem(self.result_tree)
             group_item.setText(
                 0,
-                f"📋 重复组 #{i}  ({len(group)} 个文件, 可释放 {wasted_str})"
+                f"📋 Duplicate Group #{i}  ({len(group)} files, {wasted_str} reclaimable)"
             )
-            group_item.setToolTip(0, f"保留: {kept.path}\n浪费空间: {wasted_str}")
-            group_item.setExpanded(i <= 3)  # 默认展开前3组
+            group_item.setToolTip(0, f"Keep: {kept.path}\nWasted space: {wasted_str}")
+            group_item.setExpanded(i <= 3)  # Expand first 3 groups by default
 
-            # 用粗体
+            # Bold font
             font = group_item.font(0)
             font.setBold(True)
             group_item.setFont(0, font)
 
-            # 组内文件
+            # Files in group
             for j, f in enumerate(group):
                 child = QTreeWidgetItem(group_item)
                 child.setText(0, f.name)
@@ -339,26 +339,26 @@ class DuplicatesPanel(BasePanel):
                 child.setText(3, f.modified_time.strftime("%Y-%m-%d %H:%M"))
                 child.setToolTip(0, str(f.path))
 
-                # 第一个文件标为"保留"
+                # First file marked as "keep"
                 if j == 0:
-                    child.setText(0, f"⭐ {f.name} (保留)")
+                    child.setText(0, f"⭐ {f.name} (keep)")
                     child.setForeground(0, Qt.green)
 
                 child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
                 child.setCheckState(0, Qt.Unchecked if j > 0 else Qt.Unchecked)
                 child.setData(0, Qt.UserRole, str(f.path))
 
-        # ── 相似文件名组 ──
+        # ── Similar file name groups ──
         if similar_groups:
             sep = QTreeWidgetItem(self.result_tree)
-            sep.setText(0, f"📎 文件名相似文件 ({len(similar_groups)} 组)")
+            sep.setText(0, f"📎 Similar File Names ({len(similar_groups)} groups)")
             font = sep.font(0)
             font.setBold(True)
             sep.setFont(0, font)
 
             for i, group in enumerate(similar_groups, 1):
                 sg = QTreeWidgetItem(sep)
-                sg.setText(0, f"相似组 #{i} ({len(group)} 个文件)")
+                sg.setText(0, f"Similar Group #{i} ({len(group)} files)")
                 sg.setExpanded(False)
 
                 for f in group:
@@ -371,12 +371,12 @@ class DuplicatesPanel(BasePanel):
                     child.setCheckState(0, Qt.Unchecked)
                     child.setData(0, Qt.UserRole, str(f.path))
 
-        # ── 更新统计 ──
+        # ── Update stats ──
         stats = self.finder.get_duplicate_stats(groups)
-        self._update_stat("📦 重复组", str(stats["groups"]))
-        self._update_stat("📄 重复文件", str(stats["duplicate_files"]))
-        self._update_stat("💾 浪费空间", stats["wasted_space_str"])
-        self._update_stat("📊 已扫描", f"{len(self.files)} 个文件")
+        self._update_stat("📦 Duplicate Groups", str(stats["groups"]))
+        self._update_stat("📄 Duplicate Files", str(stats["duplicate_files"]))
+        self._update_stat("💾 Wasted Space", stats["wasted_space_str"])
+        self._update_stat("📊 Scanned", f"{len(self.files)} files")
 
         self.btn_scan.setEnabled(True)
         self.progress_bar.setVisible(False)
@@ -389,29 +389,29 @@ class DuplicatesPanel(BasePanel):
 
         if has_results:
             self.status_message.emit(
-                f"🔍 找到 {stats['groups']} 组重复文件，"
-                f"共 {stats['duplicate_files']} 个重复文件，"
-                f"可释放 {stats['wasted_space_str']}"
+                f"🔍 Found {stats['groups']} duplicate groups, "
+                f"{stats['duplicate_files']} duplicate files, "
+                f"can reclaim {stats['wasted_space_str']}"
             )
         else:
-            self.status_message.emit("✅ 未找到重复文件")
+            self.status_message.emit("✅ No duplicates found")
 
-    # ── 操作处理 ──
+    # ── Action handlers ──
 
     @Slot()
     def _on_delete_selected(self):
-        """删除选中的重复文件"""
+        """Delete selected duplicate files"""
         selected_paths = self._get_checked_paths()
         if not selected_paths:
-            self.status_message.emit("⚠️ 请勾选要删除的文件（记得保留每组至少一个）")
+            self.status_message.emit("⚠️ Please check the files to delete (keep at least one per group)")
             return
 
         from PySide6.QtWidgets import QMessageBox
         reply = QMessageBox.warning(
             self,
-            "确认删除",
-            f"确定要删除 {len(selected_paths)} 个文件吗？\n\n"
-            "文件将被移至回收站。此操作不可撤销！",
+            "Confirm Deletion",
+            f"Are you sure you want to delete {len(selected_paths)} files?\n\n"
+            "Files will be moved to the recycle bin. This action cannot be undone!",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -427,28 +427,28 @@ class DuplicatesPanel(BasePanel):
             except (OSError, PermissionError) as e:
                 errors += 1
 
-        # 重新扫描显示
-        self.status_message.emit(f"✅ 已删除 {deleted} 个文件" + (f", {errors} 个失败" if errors else ""))
+        # Re-scan
+        self.status_message.emit(f"✅ Deleted {deleted} files" + (f", {errors} failed" if errors else ""))
         self._on_scan()
 
     @Slot()
     def _on_select_all_duplicates(self):
-        """全选所有重复文件（不选每组的第一个）"""
+        """Select all duplicate files (skip first in each group)"""
         for i in range(self.result_tree.topLevelItemCount()):
             group = self.result_tree.topLevelItem(i)
             if not group or not group.text(0).startswith("📋"):
                 continue
-            for j in range(1, group.childCount()):  # 从1开始，跳过保留的
+            for j in range(1, group.childCount()):
                 child = group.child(j)
                 child.setCheckState(0, Qt.Checked)
 
     @Slot()
     def _on_keep_first(self):
-        """每组只勾选保留第一个之外的文件"""
+        """Only check files beyond the first in each group"""
         self._on_select_all_duplicates()
 
     def _get_checked_paths(self) -> list[str]:
-        """获取所有勾选的文件路径"""
+        """Get all checked file paths"""
         paths = []
         for i in range(self.result_tree.topLevelItemCount()):
             group = self.result_tree.topLevelItem(i)
@@ -464,18 +464,18 @@ class DuplicatesPanel(BasePanel):
 
     @Slot()
     def _clear_all(self):
-        """清空所有结果"""
+        """Clear all results"""
         self.result_tree.clear()
         self.duplicate_groups = []
-        self._update_stat("📦 重复组", "0")
-        self._update_stat("📄 重复文件", "0")
-        self._update_stat("💾 浪费空间", "0 B")
+        self._update_stat("📦 Duplicate Groups", "0")
+        self._update_stat("📄 Duplicate Files", "0")
+        self._update_stat("💾 Wasted Space", "0 B")
         self.btn_delete.setEnabled(False)
         self.btn_select_all_dup.setEnabled(False)
         self.btn_keep_first.setEnabled(False)
-        self.stats_label.setText("就绪")
+        self.stats_label.setText("Ready")
 
     def _format_bytes(self, size: int) -> str:
-        """格式化字节数"""
+        """Format byte size to human-readable string"""
         from filepilot.utils.file_utils import get_file_size_str
         return get_file_size_str(size)

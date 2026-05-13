@@ -1,39 +1,36 @@
-"""PDF 内容提取器"""
+"""PDF Content Extractor"""
 
 from pathlib import Path
 
 
 class PDFExtractor:
-    """PDF 文件内容提取"""
+    """PDF file content extraction"""
 
     SUPPORTED_EXTENSIONS = {".pdf"}
 
     def extract_text(self, file_path: str | Path) -> str:
-        """提取 PDF 中的文本内容"""
+        """Extract text content from a PDF file"""
         try:
             import fitz  # PyMuPDF
         except ImportError:
             return ""
-
         text_parts: list[str] = []
         try:
             with fitz.open(str(file_path)) as doc:
                 for page_num, page in enumerate(doc, 1):
                     page_text = page.get_text().strip()
                     if page_text:
-                        text_parts.append(f"--- 第 {page_num} 页 ---\n{page_text}")
+                        text_parts.append(f"--- Page {page_num} ---\n{page_text}")
         except Exception:
             pass
-
         return "\n\n".join(text_parts)
 
     def extract_metadata(self, file_path: str | Path) -> dict:
-        """提取 PDF 元数据"""
+        """Extract PDF metadata"""
         try:
             import fitz
         except ImportError:
             return {}
-
         try:
             with fitz.open(str(file_path)) as doc:
                 metadata = doc.metadata or {}
@@ -42,18 +39,17 @@ class PDFExtractor:
                     "author": metadata.get("author", ""),
                     "subject": metadata.get("subject", ""),
                     "pages": doc.page_count,
-                    "format": f"{doc.page_count} 页",
+                    "format": f"{doc.page_count} pages",
                 }
         except Exception:
             return {}
 
     def extract_images(self, file_path: str | Path, output_dir: str | Path | None = None) -> list[str]:
-        """提取 PDF 中的图片"""
+        """Extract images from a PDF file"""
         try:
             import fitz
         except ImportError:
             return []
-
         saved_images: list[str] = []
         try:
             with fitz.open(str(file_path)) as doc:
@@ -65,7 +61,6 @@ class PDFExtractor:
                         base_image = doc.extract_image(xref)
                         image_bytes = base_image["image"]
                         image_ext = base_image["ext"]
-
                         if output_dir:
                             output_path = Path(output_dir)
                             output_path.mkdir(parents=True, exist_ok=True)
@@ -76,5 +71,4 @@ class PDFExtractor:
                             saved_images.append(str(img_path))
         except Exception:
             pass
-
         return saved_images

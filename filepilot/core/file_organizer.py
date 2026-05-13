@@ -1,4 +1,4 @@
-"""文件整理器 — 自动归类、智能重命名"""
+"""File Organizer — Auto-categorize, smart rename"""
 
 import re
 import shutil
@@ -13,57 +13,57 @@ from filepilot.utils.file_utils import FileCategory, safe_filename
 
 @dataclass
 class OrganizeRule:
-    """组织规则"""
+    """Organize rule"""
     name: str
     enabled: bool = True
 
     def apply(self, file_info: FileInfo) -> str | None:
-        """返回目标子目录名，None 表示不匹配"""
+        """Return target subdirectory name, None means no match"""
         raise NotImplementedError
 
 
 class CategoryRule(OrganizeRule):
-    """按文件分类归类"""
+    """Organize by file category"""
     category_map: dict[FileCategory, str] = {
-        FileCategory.DOCUMENT: "文档",
-        FileCategory.IMAGE: "图片",
-        FileCategory.VIDEO: "视频",
-        FileCategory.AUDIO: "音频",
-        FileCategory.CODE: "代码",
-        FileCategory.ARCHIVE: "压缩包",
+        FileCategory.DOCUMENT: "Documents",
+        FileCategory.IMAGE: "Images",
+        FileCategory.VIDEO: "Videos",
+        FileCategory.AUDIO: "Audio",
+        FileCategory.CODE: "Code",
+        FileCategory.ARCHIVE: "Archives",
         FileCategory.PDF: "PDF",
         FileCategory.MARKDOWN: "Markdown",
-        FileCategory.SPREADSHEET: "表格",
-        FileCategory.PRESENTATION: "演示",
-        FileCategory.DATA: "数据",
-        FileCategory.EXECUTABLE: "可执行文件",
-        FileCategory.FONT: "字体",
-        FileCategory.UNKNOWN: "其他",
+        FileCategory.SPREADSHEET: "Spreadsheets",
+        FileCategory.PRESENTATION: "Presentations",
+        FileCategory.DATA: "Data",
+        FileCategory.EXECUTABLE: "Executables",
+        FileCategory.FONT: "Fonts",
+        FileCategory.UNKNOWN: "Other",
     }
 
     def __init__(self):
-        super().__init__("按类型归类")
+        super().__init__("By Type")
 
     def apply(self, file_info: FileInfo) -> str | None:
-        return self.category_map.get(file_info.category, "其他")
+        return self.category_map.get(file_info.category, "Other")
 
 
 class DateRule(OrganizeRule):
-    """按日期归类（年/月）"""
+    """Organize by date (year/month)"""
 
     def __init__(self):
-        super().__init__("按日期归类")
+        super().__init__("By Date")
 
     def apply(self, file_info: FileInfo) -> str | None:
         dt = file_info.modified_time
-        return f"{dt.year}/{dt.month:02d}月"
+        return f"{dt.year}/{dt.month:02d}"
 
 
 class ExtensionRule(OrganizeRule):
-    """按扩展名归类"""
+    """Organize by extension"""
 
     def __init__(self):
-        super().__init__("按扩展名归类")
+        super().__init__("By Extension")
 
     def apply(self, file_info: FileInfo) -> str | None:
         ext = file_info.extension.lstrip(".").upper()
@@ -71,15 +71,15 @@ class ExtensionRule(OrganizeRule):
 
 
 class SizeRule(OrganizeRule):
-    """按文件大小归类"""
+    """Organize by file size"""
 
     def __init__(self):
-        super().__init__("按文件大小归类")
+        super().__init__("By Size")
 
     def apply(self, file_info: FileInfo) -> str | None:
         size = file_info.size_bytes
         if size < 1024:
-            return "小于1KB"
+            return "<1KB"
         elif size < 100 * 1024:
             return "1KB-100KB"
         elif size < 1024 * 1024:
@@ -87,18 +87,18 @@ class SizeRule(OrganizeRule):
         elif size < 100 * 1024 * 1024:
             return "1MB-100MB"
         else:
-            return "大于100MB"
+            return ">100MB"
 
 
 class FileOrganizer:
-    """文件整理器"""
+    """File organizer"""
 
     def __init__(self, rules: list[OrganizeRule] | None = None):
         self.rules = rules or [CategoryRule()]
         self._organized_count = 0
         self._errors: list[tuple[str, str]] = []
-        self.preview_mode = True  # 默认预览模式
-        self._undo_log: list[dict] = []  # 撤销日志
+        self.preview_mode = True  # Default preview mode
+        self._undo_log: list[dict] = []  # Undo log
 
     def organize(
         self,
@@ -111,20 +111,20 @@ class FileOrganizer:
         dry_run: bool = True,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> list[dict]:
-        """整理文件到目标目录
+        """Organize files into target directory
 
         Args:
-            files: 文件列表
-            target_root: 目标根目录
-            rules: 组织规则列表
-            preview: 预览模式（不实际移动）
-            rename: 是否重命名文件
-            rename_pattern: 重命名模板
-            dry_run: 是否仅预览（不执行）
-            progress_callback: 进度回调
+            files: List of files
+            target_root: Target root directory
+            rules: List of organization rules
+            preview: Preview mode (don't actually move)
+            rename: Whether to rename files
+            rename_pattern: Rename template
+            dry_run: Whether to preview only (no execution)
+            progress_callback: Progress callback
 
         Returns:
-            操作记录列表
+            List of operation records
         """
         rules = rules or self.rules
         target = Path(target_root)
@@ -134,15 +134,15 @@ class FileOrganizer:
 
         for i, file_info in enumerate(files):
             try:
-                # 确定目标子目录
+                # Determine target subdirectory
                 sub_dir = self._determine_target(file_info, rules)
                 dest_dir = target / sub_dir if sub_dir else target
 
-                # 确定目标文件名
+                # Determine target filename
                 dest_name = self._determine_filename(file_info, rename, rename_pattern)
                 dest_path = dest_dir / dest_name
 
-                # 处理重名冲突
+                # Handle name conflicts
                 dest_path = self._resolve_conflict(dest_path)
 
                 op = {
@@ -169,7 +169,7 @@ class FileOrganizer:
         return operations
 
     def _determine_target(self, file_info: FileInfo, rules: list[OrganizeRule]) -> str:
-        """根据规则确定目标子目录"""
+        """Determine target subdirectory based on rules"""
         parts = []
         for rule in rules:
             if rule.enabled:
@@ -184,17 +184,17 @@ class FileOrganizer:
         rename: bool,
         pattern: str | None,
     ) -> str:
-        """确定目标文件名"""
+        """Determine target filename"""
         if not rename or not pattern:
             return file_info.name
 
-        # 支持的重命名变量:
-        # {name} - 原文件名
-        # {date} - 修改日期 (YYYY-MM-DD)
-        # {time} - 修改时间 (HHMMSS)
-        # {ext} - 扩展名
-        # {idx} - 序号
-        # {category} - 文件类别
+        # Supported rename variables:
+        # {name} - Original filename
+        # {date} - Modified date (YYYY-MM-DD)
+        # {time} - Modified time (HHMMSS)
+        # {ext} - Extension
+        # {idx} - Index number
+        # {category} - File category
         dt = file_info.modified_time
         vars_map = {
             "name": file_info.path.stem,
@@ -211,7 +211,7 @@ class FileOrganizer:
         return safe_filename(new_name) + file_info.extension
 
     def _resolve_conflict(self, path: Path) -> Path:
-        """处理文件重名冲突，添加数字后缀"""
+        """Handle filename conflicts by adding numeric suffix"""
         if not path.exists():
             return path
 
@@ -234,13 +234,13 @@ class FileOrganizer:
         }
 
     def save_undo_log(self, path: str | Path) -> None:
-        """保存撤销日志到文件"""
+        """Save undo log to file"""
         import json
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self._undo_log, f, ensure_ascii=False, indent=2)
 
     def undo(self, undo_log_path: str | Path) -> dict:
-        """根据撤销日志回退文件操作
+        """Undo file operations based on undo log
 
         Returns:
             {"restored": int, "errors": int}

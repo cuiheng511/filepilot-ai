@@ -1,4 +1,4 @@
-"""重复文件查找器 — 基于内容哈希和大小"""
+"""Duplicate File Finder — Based on content hash and size"""
 
 import hashlib
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger("filepilot.duplicates")
 
 
 class DuplicateFinder:
-    """重复文件查找器"""
+    """Duplicate file finder"""
 
     def __init__(self):
         self._potential_duplicates: list[list[FileInfo]] = []
@@ -25,32 +25,32 @@ class DuplicateFinder:
         min_size: int = 1,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> list[list[FileInfo]]:
-        """查找重复文件
+        """Find duplicate files
 
-        算法：
-        1. 先按文件大小分组（快速过滤）
-        2. 相同大小的文件计算部分哈希（前64KB + 后64KB）
-        3. 仍相同的计算完整哈希
+        Algorithm:
+        1. Group by file size (fast filter)
+        2. Compute partial hash for same-size files (first 64KB + last 64KB)
+        3. Compute full hash for remaining candidates
 
         Args:
-            files: 文件列表
-            use_hash: 是否使用哈希校验（否则仅按大小判断）
-            min_size: 最小文件大小（字节）
-            progress_callback: 进度回调
+            files: List of files
+            use_hash: Whether to use hash verification (otherwise size-only)
+            min_size: Minimum file size (bytes)
+            progress_callback: Progress callback
 
         Returns:
-            重复文件分组列表，每组至少2个文件
+            Groups of duplicate files, each group has at least 2 files
         """
         if not files:
             return []
 
-        # 第一步：按文件大小分组
+        # Step 1: Group by file size
         size_groups: defaultdict[int, list[FileInfo]] = defaultdict(list)
         for f in files:
             if f.size_bytes >= min_size and not f.is_directory:
                 size_groups[f.size_bytes].append(f)
 
-        # 筛选出有重复大小的组
+        # Filter groups with duplicate sizes
         potential_groups = [g for g in size_groups.values() if len(g) > 1]
         total = len(potential_groups)
 
@@ -58,7 +58,7 @@ class DuplicateFinder:
             self._potential_duplicates = potential_groups
             return potential_groups
 
-        # 第二步：计算部分哈希快速过滤
+        # Step 2: Compute partial hash for fast filtering
         hash_groups: defaultdict[str, list[FileInfo]] = defaultdict(list)
         for i, group in enumerate(potential_groups):
             for f in group:
@@ -66,12 +66,12 @@ class DuplicateFinder:
                 hash_groups[partial_hash].append(f)
 
             if progress_callback:
-                progress_callback(i + 1, f"校验哈希... {i + 1}/{total}")
+                progress_callback(i + 1, f"Verifying hash... {i + 1}/{total}")
 
-        # 筛选出部分哈希相同的组
+        # Filter groups with same partial hash
         still_potential = [g for g in hash_groups.values() if len(g) > 1]
 
-        # 第三步：计算完整哈希确认
+        # Step 3: Compute full hash for final verification
         final_groups: list[list[FileInfo]] = []
         for group in still_potential:
             full_hash_groups: defaultdict[str, list[FileInfo]] = defaultdict(list)
@@ -89,14 +89,14 @@ class DuplicateFinder:
         files: list[FileInfo],
         threshold: float = 0.8,
     ) -> list[list[FileInfo]]:
-        """基于文件名相似度查找近似重复文件
+        """Find near-duplicate files by name similarity
 
         Args:
-            files: 文件列表
-            threshold: 相似度阈值 0.0-1.0
+            files: List of files
+            threshold: Similarity threshold 0.0-1.0
 
         Returns:
-            相似文件分组
+            Similar file groups
         """
         from difflib import SequenceMatcher
 
@@ -113,7 +113,7 @@ class DuplicateFinder:
                 if j in used or i == j:
                     continue
                 if f1.size_bytes == f2.size_bytes:
-                    continue  # 大小相同的不算"近似"
+                    continue  # Same size files don't count as "similar"
                 name1 = f1.path.stem.lower()
                 name2 = f2.path.stem.lower()
                 similarity = SequenceMatcher(None, name1, name2).ratio()
@@ -127,15 +127,15 @@ class DuplicateFinder:
         return groups
 
     def _partial_hash(self, file_path: Path, sample_size: int = 65536) -> str:
-        """计算文件部分哈希（头尾各 sample_size 字节）
+        """Compute partial file hash (first and last sample_size bytes each)
 
-        当文件大小 <= 2 * sample_size 时，head 和 tail 会重叠，
-        因此用长度前缀区分，避免不同大小文件产生相同 hash。
+        When file size <= 2 * sample_size, head and tail may overlap,
+        so a length prefix is used to avoid collisions.
         """
         hasher = hashlib.sha256()
         try:
             file_size = file_path.stat().st_size
-            hasher.update(file_size.to_bytes(8, 'big'))  # 长度前缀
+            hasher.update(file_size.to_bytes(8, 'big'))  # Length prefix
             with open(file_path, "rb") as f:
                 head = f.read(sample_size)
                 hasher.update(head)
@@ -148,7 +148,7 @@ class DuplicateFinder:
         return hasher.hexdigest()
 
     def _full_hash(self, file_path: Path) -> str:
-        """计算文件完整 SHA256 哈希"""
+        """Compute full file SHA256 hash"""
         hasher = hashlib.sha256()
         try:
             with open(file_path, "rb") as f:
@@ -160,7 +160,7 @@ class DuplicateFinder:
         return hasher.hexdigest()
 
     def get_duplicate_stats(self, groups: list[list[FileInfo]]) -> dict:
-        """获取重复文件统计信息"""
+        """Get duplicate file statistics"""
         total_duplicates = sum(len(g) - 1 for g in groups)
         wasted_bytes = sum(
             sum(f.size_bytes for f in g) - g[0].size_bytes
@@ -174,6 +174,6 @@ class DuplicateFinder:
         }
 
     def _format_bytes(self, size: int) -> str:
-        """格式化字节数"""
+        """Format byte size"""
         from filepilot.utils.file_utils import get_file_size_str
         return get_file_size_str(size)

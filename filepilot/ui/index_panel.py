@@ -1,4 +1,4 @@
-"""文件索引管理面板 — 构建、更新、查看索引"""
+"""Index Management Panel — Build, update, and view index"""
 
 from pathlib import Path
 from threading import Thread
@@ -24,7 +24,7 @@ from filepilot.ui.base_panel import BasePanel
 
 
 class IndexPanel(BasePanel):
-    """文件索引管理面板"""
+    """Index Management Panel"""
 
     def __init__(self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
@@ -42,24 +42,25 @@ class IndexPanel(BasePanel):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── 标题 ──
-        title = QLabel("🗂️ 文件索引管理")
+        # ── Title ──
+        title = QLabel("\U0001f5c2\ufe0f Index Management")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         desc = QLabel(
-            "管理 Whoosh 全文搜索索引。建立索引后可实现快速全文搜索和自然语言检索。\n"
-            "支持增量更新，无需每次都重建完整索引。"
+            "Manage Whoosh full-text search index. Build the index to enable fast "
+            "full-text search and natural language retrieval.\n"
+            "Supports incremental updates without rebuilding the entire index."
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── 统计卡片 ──
+        # ── Stat Cards ──
         stats_layout = QHBoxLayout()
-        self.stat_indexed = self._make_stat_card("📄 已索引文件", "—")
-        self.stat_size = self._make_stat_card("💾 索引大小", "—")
-        self.stat_location = self._make_stat_card("📁 索引位置", "—")
+        self.stat_indexed = self._make_stat_card("\U0001f4c4 Indexed Files", "\u2014")
+        self.stat_size = self._make_stat_card("\U0001f4be Index Size", "\u2014")
+        self.stat_location = self._make_stat_card("\U0001f4c1 Index Location", "\u2014")
 
         stats_layout.addWidget(self.stat_indexed)
         stats_layout.addWidget(self.stat_size)
@@ -67,25 +68,25 @@ class IndexPanel(BasePanel):
         stats_layout.addStretch()
         layout.addLayout(stats_layout)
 
-        # ── 文件夹选择 ──
+        # ── Directory Selection ──
         dir_layout = QHBoxLayout()
-        dir_layout.addWidget(QLabel("📂 要索引的文件夹:"))
-        self.dir_label = QLabel("未选择")
+        dir_layout.addWidget(QLabel("\U0001f4c2 Folder to Index:"))
+        self.dir_label = QLabel("Not selected")
         self.dir_label.setStyleSheet(
             "color: #585b70; padding: 6px 10px; background: #181825; "
             "border: 1px solid #313244; border-radius: 4px;"
         )
         self.dir_label.setWordWrap(True)
-        self.btn_browse = QPushButton("浏览...")
+        self.btn_browse = QPushButton("Browse...")
         self.btn_browse.clicked.connect(self._on_select_source)
         dir_layout.addWidget(self.dir_label, 1)
         dir_layout.addWidget(self.btn_browse)
         layout.addLayout(dir_layout)
 
-        # ── 操作按钮 ──
+        # ── Action Buttons ──
         action_layout = QHBoxLayout()
 
-        self.btn_build = QPushButton("🔨 建立索引")
+        self.btn_build = QPushButton("\U0001f528 Build Index")
         self.btn_build.clicked.connect(self._on_build)
         self.btn_build.setEnabled(False)
         self.btn_build.setStyleSheet("""
@@ -98,11 +99,11 @@ class IndexPanel(BasePanel):
             QPushButton:disabled { background-color: #313244; color: #585b70; }
         """)
 
-        self.btn_update = QPushButton("🔄 增量更新")
+        self.btn_update = QPushButton("\U0001f504 Incremental Update")
         self.btn_update.clicked.connect(self._on_update)
         self.btn_update.setEnabled(False)
 
-        self.btn_clear = QPushButton("🗑️ 清空索引")
+        self.btn_clear = QPushButton("\U0001f5d1\ufe0f Clear Index")
         self.btn_clear.clicked.connect(self._on_clear)
         self.btn_clear.setEnabled(False)
         self.btn_clear.setStyleSheet("""
@@ -115,7 +116,7 @@ class IndexPanel(BasePanel):
             QPushButton:disabled { background-color: #313244; color: #585b70; }
         """)
 
-        self.btn_refresh = QPushButton("🔄 刷新统计")
+        self.btn_refresh = QPushButton("\U0001f504 Refresh Stats")
         self.btn_refresh.clicked.connect(self._refresh_stats)
 
         action_layout.addWidget(self.btn_build)
@@ -125,7 +126,7 @@ class IndexPanel(BasePanel):
         action_layout.addStretch()
         layout.addLayout(action_layout)
 
-        # 进度条 + 进度文字 + 取消按钮
+        # Progress bar + progress text + cancel button
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -136,7 +137,7 @@ class IndexPanel(BasePanel):
         self.progress_label.setVisible(False)
         progress_layout.addWidget(self.progress_label)
 
-        self.btn_cancel = QPushButton("✕ 取消")
+        self.btn_cancel = QPushButton("\u2715 Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel_indexing)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet("""
@@ -151,17 +152,17 @@ class IndexPanel(BasePanel):
 
         layout.addLayout(progress_layout)
 
-        # ── 分割器：上方工具提示 + 下方已索引文件列表 ──
+        # ── Splitter: tips above + indexed file table below ──
         splitter = QSplitter(Qt.Vertical)
 
-        # 提示区域
+        # Info area
         info_widget = QWidget()
         info_layout = QVBoxLayout(info_widget)
         info_layout.setContentsMargins(0, 0, 0, 0)
         info_label = QLabel(
-            "💡 提示：先选择文件夹，点击「建立索引」扫描并索引所有文件。\n"
-            "       之后修改文件后只需点击「增量更新」即可。\n"
-            "       已索引文件列表将显示在此处。"
+            "\U0001f4a1 Tip: Select a folder first, then click Build Index.\n"
+            "       After modifying files, just click Incremental Update.\n"
+            "       The indexed file list will appear here."
         )
         info_label.setStyleSheet(
             "color: #a6adc8; font-size: 12px; background: #181825; "
@@ -172,11 +173,11 @@ class IndexPanel(BasePanel):
         info_layout.addStretch()
         splitter.addWidget(info_widget)
 
-        # 已索引文件表格
+        # Indexed file table
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(5)
         self.file_table.setHorizontalHeaderLabels(
-            ["文件名", "路径", "类别", "大小", "修改日期"]
+            ["Filename", "Path", "Category", "Size", "Modified Date"]
         )
         self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.file_table.setSelectionMode(QTableWidget.ExtendedSelection)
@@ -208,8 +209,8 @@ class IndexPanel(BasePanel):
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
 
-        # ── 底部状态 ──
-        self.stats_label = QLabel("就绪 — 选择文件夹后建立索引")
+        # ── Bottom status ──
+        self.stats_label = QLabel("Ready \u2014 Select a folder and build index")
         self.stats_label.setStyleSheet(
             "color: #585b70; font-size: 12px; padding: 4px 0;"
         )
@@ -220,16 +221,16 @@ class IndexPanel(BasePanel):
         self.progress_text.connect(self.progress_label.setText)
         self.status_message.connect(self.stats_label.setText)
 
-    # ── 文件夹选择 ──
+    # ── Directory Selection ──
 
     @Slot()
     def _on_select_source(self):
         dir_path = QFileDialog.getExistingDirectory(
-            self, "选择要索引的文件夹", str(self.source_dir or Path.home())
+            self, "Select folder to index", str(self.source_dir or Path.home())
         )
         if dir_path:
             self.source_dir = Path(dir_path)
-            self.dir_label.setText(f"📂 {dir_path}")
+            self.dir_label.setText(f"\U0001f4c2 {dir_path}")
             self.dir_label.setStyleSheet(
                 "color: #cdd6f4; padding: 6px 10px; background: #181825; "
                 "border: 1px solid #313244; border-radius: 4px;"
@@ -237,25 +238,25 @@ class IndexPanel(BasePanel):
             self.btn_build.setEnabled(True)
             self.btn_update.setEnabled(True)
 
-    # ── 统计刷新 ──
+    # ── Stats Refresh ──
 
     def _refresh_stats(self):
-        """刷新索引统计"""
+        """Refresh index statistics"""
         try:
             stats = self.indexer.get_stats()
-            self._update_stat("📄 已索引文件", str(stats["indexed_files"]))
-            self._update_stat("💾 索引大小", stats["index_size"])
-            self._update_stat("📁 索引位置", stats["index_dir"])
+            self._update_stat("\U0001f4c4 Indexed Files", str(stats["indexed_files"]))
+            self._update_stat("\U0001f4be Index Size", stats["index_size"])
+            self._update_stat("\U0001f4c1 Index Location", stats["index_dir"])
             self.btn_clear.setEnabled(stats["indexed_files"] > 0)
             self._load_indexed_files()
         except Exception:
-            self._update_stat("📄 已索引文件", "0")
-            self._update_stat("💾 索引大小", "—")
-            self._update_stat("📁 索引位置", str(self.indexer.index_dir))
+            self._update_stat("\U0001f4c4 Indexed Files", "0")
+            self._update_stat("\U0001f4be Index Size", "\u2014")
+            self._update_stat("\U0001f4c1 Index Location", str(self.indexer.index_dir))
             self.btn_clear.setEnabled(False)
 
     def _load_indexed_files(self):
-        """加载已索引文件列表到表格"""
+        """Load indexed file list into table"""
         try:
             files = self.indexer.get_all_indexed(limit=2000)
         except Exception:
@@ -273,12 +274,12 @@ class IndexPanel(BasePanel):
 
         self.file_table.setSortingEnabled(True)
 
-    # ── 建立索引 ──
+    # ── Build Index ──
 
     @Slot()
     def _on_build(self):
         if not self.source_dir:
-            self.status_message.emit("⚠️ 请先选择文件夹")
+            self.status_message.emit("\u26a0\ufe0f Please select a folder first")
             return
         if self._indexing:
             return
@@ -287,29 +288,30 @@ class IndexPanel(BasePanel):
 
         reply = QMessageBox.question(
             self,
-            "确认建立索引",
-            f"将为 {self.source_dir} 下的所有文件建立全文搜索索引。\n\n"
-            "如果已有索引将被覆盖重建。\n这可能需要一些时间，继续吗？",
+            "Confirm Build Index",
+            f"Build full-text search index for {self.source_dir}.\n\n"
+            "Existing index will be overwritten.\n"
+            "This may take some time. Continue?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )
         if reply != QMessageBox.Yes:
             return
 
-        self._start_indexing("正在建立索引...", rebuild=True)
+        self._start_indexing("Building index...", rebuild=True)
 
     @Slot()
     def _on_update(self):
         if not self.source_dir:
-            self.status_message.emit("⚠️ 请先选择文件夹")
+            self.status_message.emit("\u26a0\ufe0f Please select a folder first")
             return
         if self._indexing:
             return
-        self._start_indexing("正在增量更新索引...", rebuild=False)
+        self._start_indexing("Updating index incrementally...", rebuild=False)
 
     @Slot()
     def _on_cancel_indexing(self):
-        """取消索引操作"""
+        """Cancel indexing operation"""
         self._cancelled = True
         self._indexing = False
         self.btn_cancel.setVisible(False)
@@ -318,10 +320,10 @@ class IndexPanel(BasePanel):
         self.btn_build.setEnabled(bool(self.source_dir))
         self.btn_update.setEnabled(bool(self.source_dir))
         self.btn_refresh.setEnabled(True)
-        self.status_message.emit("⏹️ 索引已取消")
+        self.status_message.emit("\u23f9\ufe0f Index cancelled")
 
     def _start_indexing(self, status_text: str, rebuild: bool):
-        """启动索引线程"""
+        """Start indexing thread"""
         self._cancelled = False
         self._indexing = True
         self.btn_build.setEnabled(False)
@@ -338,8 +340,8 @@ class IndexPanel(BasePanel):
 
         def worker():
             try:
-                # 扫描文件
-                self.progress_text.emit("正在扫描文件...")
+                # Scan files
+                self.progress_text.emit("Scanning files...")
                 files = []
                 for f in self.scanner.scan(
                     str(source),
@@ -356,16 +358,16 @@ class IndexPanel(BasePanel):
                     self.indexer.clear_index()
 
                 self.progress_updated.emit(0)
-                self.progress_text.emit(f"正在索引 {len(files)} 个文件...")
+                self.progress_text.emit(f"Indexing {len(files)} files...")
 
-                # 索引文件（可取消）
+                # Index files (cancellable)
                 for i, f in enumerate(files):
                     if self._cancelled:
                         return
                     self.indexer.index_file(f)
                     pct = int((i + 1) / len(files) * 90) + 10
                     self.progress_updated.emit(pct)
-                    self.progress_text.emit(f"索引: {f.name}")
+                    self.progress_text.emit(f"Index: {f.name}")
 
                 if not self._cancelled:
                     from PySide6.QtCore import QMetaObject, Qt
@@ -387,7 +389,7 @@ class IndexPanel(BasePanel):
 
     @Slot()
     def _on_indexing_finished(self):
-        """索引完成"""
+        """Indexing complete"""
         self._indexing = False
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
@@ -397,34 +399,34 @@ class IndexPanel(BasePanel):
         self._refresh_stats()
         stats = self.indexer.get_stats()
         self.status_message.emit(
-            f"✅ 索引完成: {stats['indexed_files']} 个文件已索引, "
-            f"占用 {stats['index_size']}"
+            f"\u2705 Index complete: {stats['indexed_files']} files indexed, "
+            f"size: {stats['index_size']}"
         )
 
     @Slot(str)
     def _on_indexing_error(self, error_msg: str):
-        """索引出错"""
+        """Indexing error"""
         self._indexing = False
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.btn_build.setEnabled(bool(self.source_dir))
         self.btn_update.setEnabled(bool(self.source_dir))
         self.btn_refresh.setEnabled(True)
-        self.status_message.emit(f"❌ 索引出错: {error_msg}")
+        self.status_message.emit(f"\u274c Index error: {error_msg}")
 
-    # ── 清空索引 ──
+    # ── Clear Index ──
 
     @Slot()
     def _on_clear(self):
-        """清空索引"""
+        """Clear index"""
         from PySide6.QtWidgets import QMessageBox
 
         reply = QMessageBox.warning(
             self,
-            "确认清空索引",
-            "确定要清空所有索引数据吗？\n\n"
-            "所有已索引的文件记录将被删除，"
-            "之后需要重新建立索引才能搜索。",
+            "Confirm Clear Index",
+            "Are you sure you want to clear all index data?\n\n"
+            "All indexed file records will be deleted. "
+            "You will need to rebuild the index to search again.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -435,16 +437,16 @@ class IndexPanel(BasePanel):
             self.indexer.clear_index()
             self._refresh_stats()
             self.file_table.setRowCount(0)
-            self.status_message.emit("🗑️ 索引已清空")
+            self.status_message.emit("\U0001f5d1\ufe0f Index cleared")
             self.btn_clear.setEnabled(False)
         except Exception as e:
-            self.status_message.emit(f"❌ 清空失败: {e}")
+            self.status_message.emit(f"\u274c Clear failed: {e}")
 
-    # ── 表格右键菜单 ──
+    # ── Table Context Menu ──
 
     @Slot()
     def _on_table_context_menu(self, pos):
-        """表格右键菜单：从索引中移除"""
+        """Table right-click menu: remove from index"""
         row = self.file_table.rowAt(pos.y())
         if row < 0:
             return
@@ -462,18 +464,18 @@ class IndexPanel(BasePanel):
             QMenu::item:selected { background-color: #313244; }
         """)
 
-        remove_action = QAction("🗑️ 从索引中移除", self)
+        remove_action = QAction("\U0001f5d1\ufe0f Remove from Index", self)
         remove_action.triggered.connect(lambda: self._remove_selected_from_index())
         menu.addAction(remove_action)
 
-        refresh_action = QAction("🔄 刷新列表", self)
+        refresh_action = QAction("\U0001f504 Refresh List", self)
         refresh_action.triggered.connect(self._load_indexed_files)
         menu.addAction(refresh_action)
 
         menu.exec(self.file_table.viewport().mapToGlobal(pos))
 
     def _remove_selected_from_index(self):
-        """移除选中的文件"""
+        """Remove selected files from index"""
         selected = self.file_table.selectionModel().selectedRows()
         if not selected:
             return
@@ -490,14 +492,14 @@ class IndexPanel(BasePanel):
 
         self._load_indexed_files()
         self._refresh_stats()
-        self.status_message.emit(f"✅ 已从索引中移除 {removed} 个文件")
+        self.status_message.emit(f"\u2705 Removed {removed} files from index")
 
-    # ── 外部调用入口 ──
+    # ── External Entry Point ──
 
     def index_directory(self, dir_path: str | Path):
-        """供主窗口调用的快捷方法"""
+        """Quick method for main window to call"""
         self.source_dir = Path(dir_path)
-        self.dir_label.setText(f"📂 {dir_path}")
+        self.dir_label.setText(f"\U0001f4c2 {dir_path}")
         self.dir_label.setStyleSheet(
             "color: #cdd6f4; padding: 6px 10px; background: #181825; "
             "border: 1px solid #313244; border-radius: 4px;"

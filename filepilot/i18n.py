@@ -1,18 +1,18 @@
-"""FilePilot AI — 国际化 (i18n) 支持
+"""FilePilot AI — Internationalization (i18n) Support
 
-简单的字符串翻译框架。当前支持中文/英文切换。
+Simple string translation framework. Supports Chinese/English switching.
 """
 
 import json
 from pathlib import Path
 
-# 当前语言
-_current_lang = "zh"
+# Current language
+_current_lang = "en"
 
-# 翻译字典
+# Translation dictionary
 _translations: dict[str, dict[str, str]] = {
     "zh": {
-        # 通用
+        # General
         "app_name": "FilePilot AI",
         "app_subtitle": "智能文件管家",
         "ok": "确定",
@@ -26,28 +26,28 @@ _translations: dict[str, dict[str, str]] = {
         "error": "错误",
         "success": "成功",
         "warning": "警告",
-        # 导航
+        # Navigation
         "nav_browse": "📂  文件浏览",
         "nav_search": "🔍  文件搜索",
         "nav_organize": "📋  文件整理",
         "nav_duplicates": "🔗  查重工具",
         "nav_summary": "📝  摘要生成",
         "nav_index": "🗂️  文件索引",
-        # 文件浏览
+        # File Browser
         "browse_title": "文件浏览",
         "browse_desc": "浏览和管理本地文件",
         "browse_no_folder": "未选择文件夹",
         "browse_scan": "🔄 扫描",
         "browse_export": "📥 导出",
         "browse_stats": "就绪 - 选择文件夹开始浏览",
-        # 搜索
+        # Search
         "search_title": "🔍 文件搜索",
         "search_desc": "自然语言搜索本地文件。支持按文件名、内容、类型、日期搜索。",
         "search_placeholder": "输入搜索关键词...",
         "search_btn": "🔍 搜索",
         "search_index_btn": "🗂️ 建立索引",
         "search_no_results": "没有找到相关结果",
-        # 整理
+        # Organize
         "organize_title": "📋 文件整理",
         "organize_desc": "选择源文件夹和目标文件夹，配置规则后一键整理文件。",
         "organize_src": "📂 源文件夹:",
@@ -57,14 +57,14 @@ _translations: dict[str, dict[str, str]] = {
         "organize_undo": "↩️ 撤销整理",
         "organize_confirm": "确认整理",
         "organize_done": "整理完成",
-        # 查重
+        # Duplicates
         "duplicates_title": "🔗 重复文件查找",
         "duplicates_desc": "基于内容哈希精准查找重复文件，释放磁盘空间。",
         "duplicates_scan": "🔍 开始扫描",
         "duplicates_groups": "📦 重复组",
         "duplicates_files": "📄 重复文件",
         "duplicates_wasted": "💾 浪费空间",
-        # 摘要
+        # Summary
         "summary_title": "📝 AI 摘要生成",
         "summary_desc": "使用 AI 自动提取 PDF、Markdown、代码文件的摘要和关键词。",
         "summary_select_file": "选择文件...",
@@ -73,12 +73,12 @@ _translations: dict[str, dict[str, str]] = {
         "summary_batch": "📦 批量处理",
         "summary_copy": "📋 复制摘要",
         "summary_no_ai": "无可用的 AI 引擎，请在设置中配置",
-        # 索引
+        # Index
         "index_title": "🗂️ 文件索引管理",
         "index_desc": "管理 Whoosh 全文搜索索引。建立索引后可实现快速全文搜索。",
         "index_build": "🔨 建立索引",
         "index_clear": "🗑️ 清空索引",
-        # 设置
+        # Settings
         "settings_title": "⚙️ 设置",
         "settings_ai": "🤖 AI 引擎",
         "settings_general": "⚙️ 通用",
@@ -87,7 +87,7 @@ _translations: dict[str, dict[str, str]] = {
         "settings_model_label": "模型:",
         "settings_api_base": "API 地址:",
         "settings_api_key": "API Key:",
-        # 磁盘分析
+        # Disk Analysis
         "disk_title": "📊 磁盘占用分析",
         "disk_total": "总大小",
         "disk_dirs": "目录数",
@@ -167,26 +167,26 @@ _translations: dict[str, dict[str, str]] = {
 
 
 def set_language(lang: str) -> None:
-    """设置当前语言"""
+    """Set the current language"""
     global _current_lang
     if lang in _translations:
         _current_lang = lang
 
 
 def get_language() -> str:
-    """获取当前语言"""
+    """Get the current language"""
     return _current_lang
 
 
 def t(key: str, **kwargs) -> str:
-    """翻译字符串
+    """Translate a string
 
     Args:
-        key: 翻译键
-        **kwargs: 格式化参数
+        key: Translation key
+        **kwargs: Format arguments
 
     Returns:
-        翻译后的字符串，未找到则返回 key 本身
+        Translated string, returns key itself if not found
     """
     text = _translations.get(_current_lang, {}).get(key)
     if text is None:
@@ -200,12 +200,12 @@ def t(key: str, **kwargs) -> str:
 
 
 def load_language_from_settings() -> None:
-    """从用户设置加载语言"""
+    """Load language from user settings"""
     settings_path = Path.home() / ".filepilot" / "settings.json"
     if settings_path.exists():
         try:
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
-            lang = settings.get("language", "zh")
+            lang = settings.get("language", "en")
             set_language(lang)
         except Exception:
             pass

@@ -1,84 +1,100 @@
-"""文件浏览面板 — 树形目录 + 文件列表"""
+"""File browser panel — directory tree, file list, and preview"""
+"""File browser panel — directory tree, file list, and preview"""
 
+import json
+import mimetypes
+import csv
+import io
 from pathlib import Path
 from threading import Thread
+from typing import Any
 
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QFont, QColor, QBrush
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
+    QFileDialog,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from filepilot.core.file_scanner import FileInfo, FileScanner
-from filepilot.utils.file_utils import FileCategory
 from filepilot.ui.base_panel import BasePanel
 
 
 class FileBrowserPanel(BasePanel):
-    """文件浏览面板"""
-
-    files_scanned = Signal(list)  # 扫描完成信号
+    """File browser panel — browse, scan, preview files"""
 
     def __init__(self, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
+        self.scanner = scanner or FileScanner()
         self.current_dir: Path | None = None
         self.files: list[FileInfo] = []
-        self.scanner = scanner or FileScanner()
+        self.categories: dict[str, list[FileInfo]] = {}
 
         self._setup_ui()
         self._connect_signals()
 
     def _setup_ui(self):
-        """构建界面"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # 顶部工具栏
-        toolbar = QHBoxLayout()
-        self.path_label = QLabel("未选择文件夹")
-        self.path_label.setStyleSheet("""
-            QLabel {
-                color: #a6adc8;
-                font-size: 13px;
-                padding: 8px 12px;
-                background-color: #181825;
-                border: 1px solid #313244;
-                border-radius: 6px;
-            }
-        """)
-        self.path_label.setWordWrap(True)
+        # ── Header ──
+        header_layout = QHBoxLayout()
+        title = QLabel("📂 File Browser")
+        title.setObjectName("sectionTitle")
+        header_layout.addWidget(title)
+        header_layout.addStretch()
 
-        self.refresh_btn = QPushButton("🔄 刷新")
-        self.refresh_btn.clicked.connect(self._on_refresh)
+        self.dir_label = QLabel("No folder opened")
+        self.dir_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 8px;")
+        header_layout.addWidget(self.dir_label)
+        layout.addLayout(header_layout)
 
-        self.export_btn = QPushButton("📥 导出")
-        self.export_btn.clicked.connect(self._on_export)
-        self.export_btn.setEnabled(False)
+        desc = QLabel(
+            "Browse files, preview content, and manage your folders. "
+            "Drag and drop folders to open them."
+        )
+        desc.setObjectName("sectionDesc")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
 
-        toolbar.addWidget(self.path_label, 1)
-        toolbar.addWidget(self.refresh_btn)
-        toolbar.addWidget(self.export_btn)
-        layout.addLayout(toolbar)
+        # ── Toolbar ──
+        toolbar_layout = QHBoxLayout()
 
-        # 进度条 + 取消按钮
-        progress_layout = QHBoxLayout()
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        progress_layout.addWidget(self.progress_bar, 1)
+        self.btn_refresh = QPushButton("🔄 Refresh")
+        self.btn_refresh.clicked.connect(self._on_refresh)
+        self.btn_refresh.setEnabled(False)
+        toolbar_layout.addWidget(self.btn_refresh)
 
-        self.btn_cancel = QPushButton("✕ 取消")
+        self.btn_export = QPushButton("📤 Export")
+        self.btn_export.clicked.connect(self._on_export)
+        self.btn_export.setEnabled(False)
+        toolbar_layout.addWidget(self.btn_export)
+
+        toolbar_layout.addStretch()
+
+        self.cb_show_hidden = QCheckBox("Show hidden files")
+        self.cb_show_hidden.setStyleSheet("color: #a6adc8;")
+        self.cb_show_hidden.stateChanged.connect(self._on_refresh)
+        toolbar_layout.addWidget(self.cb_show_hidden)
+
+        self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.setStyleSheet("""
@@ -89,404 +105,417 @@ class FileBrowserPanel(BasePanel):
             }
             QPushButton:hover { background-color: #eba0ac; }
         """)
-        progress_layout.addWidget(self.btn_cancel)
-        layout.addLayout(progress_layout)
+        toolbar_layout.addWidget(self.btn_cancel)
 
-        # 分割器：左侧树 + 右侧表格
-        splitter = QSplitter(Qt.Horizontal)
+        layout.addLayout(toolbar_layout)
 
-        # 左侧目录树
-        self.tree = QTreeWidget()
-        self.tree.setHeaderLabel("目录")
-        self.tree.setMinimumWidth(220)
-        self.tree.setIndentation(16)
-        self.tree.setAnimated(True)
-        self.tree.setStyleSheet("""
+        # ── Progress bar ──
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+
+        # ── Main splitter: directory tree | file list | preview ──
+        main_splitter = QSplitter(Qt.Horizontal)
+
+        # Left: directory tree
+        dir_widget = QWidget()
+        dir_layout = QVBoxLayout(dir_widget)
+        dir_layout.setContentsMargins(0, 0, 0, 0)
+        dir_layout.addWidget(QLabel("🗂 Directories"))
+
+        self.dir_tree = QTreeWidget()
+        self.dir_tree.setHeaderLabels(["Name"])
+        self.dir_tree.setAnimated(True)
+        self.dir_tree.setIndentation(16)
+        self.dir_tree.setRootIsDecorated(True)
+        self.dir_tree.header().setStretchLastSection(True)
+        self.dir_tree.setStyleSheet("""
             QTreeWidget {
-                background-color: #181825;
-                color: #cdd6f4;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                padding: 4px;
+                background-color: #181825; color: #cdd6f4;
+                border: 1px solid #313244; border-radius: 8px;
                 font-size: 13px;
             }
-            QTreeWidget::item {
-                padding: 4px 8px;
-                border-radius: 4px;
-            }
-            QTreeWidget::item:selected {
-                background-color: #313244;
-                color: #cba6f7;
-            }
-            QTreeWidget::item:hover {
-                background-color: #252538;
-            }
-        """)
-        self.tree.itemClicked.connect(self._on_tree_item_clicked)
-        splitter.addWidget(self.tree)
-
-        # 右侧文件表格
-        self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["名称", "类型", "大小", "修改日期", "扩展名", "路径"])
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.setDragEnabled(True)
-        self.table.setAcceptDrops(True)
-        self.table.setDropIndicatorShown(True)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.table.verticalHeader().setVisible(False)
-
-        self.table.setStyleSheet("""
-            QTableWidget {
-                background-color: #1e1e2e;
-                color: #cdd6f4;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                gridline-color: #313244;
-                font-size: 13px;
-            }
-            QTableWidget::item {
-                padding: 6px 10px;
-            }
-            QTableWidget::item:selected {
-                background-color: #313244;
-                color: #cba6f7;
-            }
+            QTreeWidget::item { padding: 6px 8px; border-radius: 4px; }
+            QTreeWidget::item:selected { background-color: #313244; color: #cba6f7; }
+            QTreeWidget::item:hover { background-color: #252538; }
             QHeaderView::section {
-                background-color: #181825;
-                color: #a6adc8;
-                border: none;
-                border-bottom: 1px solid #313244;
-                padding: 8px 10px;
-                font-weight: bold;
-                font-size: 12px;
+                background-color: #181825; color: #a6adc8;
+                border: none; border-bottom: 1px solid #313244;
+                padding: 8px 10px; font-weight: bold; font-size: 12px;
             }
         """)
-        splitter.addWidget(self.table)
+        self.dir_tree.itemClicked.connect(self._on_dir_clicked)
+        dir_layout.addWidget(self.dir_tree, 1)
 
-        # 文件预览面板
-        from PySide6.QtWidgets import QTextEdit
-        self.preview = QTextEdit()
-        self.preview.setReadOnly(True)
-        self.preview.setMaximumHeight(200)
-        self.preview.setPlaceholderText("选择文件以预览内容...")
-        self.preview.setStyleSheet("""
+        # Center: file list table
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.addWidget(QLabel("📄 Files"))
+
+        self.file_table = QTableWidget()
+        self.file_table.setColumnCount(5)
+        self.file_table.setHorizontalHeaderLabels(["Name", "Size", "Type", "Modified", "Path"])
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.file_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.file_table.setAlternatingRowColors(True)
+        self.file_table.setSortingEnabled(True)
+        self.file_table.horizontalHeader().setStretchLastSection(True)
+        self.file_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.file_table.verticalHeader().setVisible(False)
+        self.file_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #181825; color: #cdd6f4;
+                border: 1px solid #313244; border-radius: 8px;
+                font-size: 13px; gridline-color: #252538;
+            }
+            QTableWidget::item { padding: 6px 10px; }
+            QTableWidget::item:selected { background-color: #313244; color: #cba6f7; }
+            QHeaderView::section {
+                background-color: #181825; color: #a6adc8;
+                border: none; border-bottom: 1px solid #313244;
+                padding: 8px 10px; font-weight: bold; font-size: 12px;
+            }
+        """)
+        self.file_table.itemSelectionChanged.connect(self._on_file_selected)
+        self.file_table.cellDoubleClicked.connect(self._on_file_double_click)
+        file_layout.addWidget(self.file_table, 1)
+
+        # Right: file preview
+        preview_widget = QWidget()
+        preview_layout = QVBoxLayout(preview_widget)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.addWidget(QLabel("👁 Preview"))
+
+        self.preview_area = QTextEdit()
+        self.preview_area.setReadOnly(True)
+        self.preview_area.setPlaceholderText("Select a file to preview its content or metadata...")
+        self.preview_area.setStyleSheet("""
             QTextEdit {
                 background-color: #181825; color: #cdd6f4;
                 border: 1px solid #313244; border-radius: 8px;
-                padding: 8px; font-size: 12px; font-family: monospace;
+                padding: 12px; font-size: 13px;
             }
         """)
-        self.preview.setVisible(False)
-        splitter.addWidget(self.preview)
+        preview_layout.addWidget(self.preview_area, 1)
 
-        self.table.currentCellChanged.connect(self._on_row_selected)
+        main_splitter.addWidget(dir_widget)
+        main_splitter.addWidget(file_widget)
+        main_splitter.addWidget(preview_widget)
+        main_splitter.setStretchFactor(0, 1)
+        main_splitter.setStretchFactor(1, 2)
+        main_splitter.setStretchFactor(2, 2)
+        main_splitter.setSizes([250, 500, 350])
 
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
-        splitter.setSizes([280, 600, 150])
+        layout.addWidget(main_splitter, 1)
 
-        layout.addWidget(splitter, 1)
+        # ── Category stats bar ──
+        stats_layout = QHBoxLayout()
+        self.stat_total = self._make_stat_card("📊 Total Files", "0")
+        self.stat_categories = {}
 
-        # 底部统计
-        self.stats_label = QLabel("就绪 - 选择文件夹开始浏览")
+        stats_layout.addWidget(self.stat_total)
+        layout.addLayout(stats_layout)
+        self.stats_container = stats_layout
+
+        # ── Status ──
+        self.stats_label = QLabel("Open a folder to start browsing")
         self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
-        """连接信号"""
-        self.files_scanned.connect(self._on_files_scanned)
-        self.status_message.connect(self._on_status_message)
         self.progress_updated.connect(self.progress_bar.setValue)
+        self.status_message.connect(self.stats_label.setText)
 
-    def load_directory(self, dir_path: str):
-        """加载目录（异步扫描）"""
+    def load_directory(self, dir_path: str | Path):
+        """Load a directory into the tree"""
         self.current_dir = Path(dir_path)
-        self.path_label.setText(f"📂 {dir_path}")
-        self.stats_label.setText("正在扫描...")
+        self.dir_label.setText(f"📂 {dir_path}")
+        self.dir_tree.clear()
 
-        # 更新目录树
-        self._update_tree(dir_path)
-
-        # 异步扫描
-        self._scan_async(dir_path)
-
-    def scan_directory(self, dir_path: str | Path):
-        """扫描目录"""
-        self.load_directory(str(dir_path))
-
-    def _update_tree(self, dir_path: str):
-        """更新目录树"""
-        self.tree.clear()
-        root = QTreeWidgetItem(self.tree, [Path(dir_path).name])
-        root.setData(0, Qt.UserRole, dir_path)
+        root = QTreeWidgetItem(self.dir_tree)
+        root.setText(0, self.current_dir.name)
+        root.setData(0, Qt.UserRole, str(self.current_dir))
         root.setExpanded(True)
 
-        try:
-            for entry in sorted(Path(dir_path).iterdir()):
-                if entry.is_dir() and not entry.name.startswith("."):
-                    child = QTreeWidgetItem(root, [entry.name])
-                    child.setData(0, Qt.UserRole, str(entry))
-        except (OSError, PermissionError):
-            pass
+        self._populate_dir_tree(self.current_dir, root)
+        self.btn_refresh.setEnabled(True)
+        self.scan_directory(self.current_dir)
 
-    @Slot()
-    def _on_cancel(self):
-        """取消扫描"""
-        if self._cancelling:
-            return
-        self._cancelled = True
-        self._cancelling = True
-        self.status_message.emit("⏹️ 正在取消扫描...")
-
-    def _scan_async(self, dir_path: str):
-        """异步扫描文件"""
+    def scan_directory(self, dir_path: str | Path):
+        """Scan directory and populate file list"""
         self._cancelled = False
         self._cancelling = False
-        self.refresh_btn.setEnabled(False)
+        self.btn_refresh.setEnabled(False)
+        self.btn_export.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.btn_cancel.setVisible(True)
+        self.status_message.emit("Scanning files...")
+        self.file_table.setRowCount(0)
 
         def scan_worker():
             files = []
+            total_estimate = 0
+
             for f in self.scanner.scan(
-                dir_path,
+                str(dir_path),
                 progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
             ):
                 if self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt
-                    QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
                     return
                 files.append(f)
 
-            self.files_scanned.emit(files)
+            if self._cancelled:
+                return
+
+            self.files = files
+
+            # Categorize
+            self.categories = self._categorize_files(files)
+
+            if not self._cancelled:
+                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                QMetaObject.invokeMethod(
+                    self, "_display_files", Qt.QueuedConnection, Q_ARG(list, files)
+                )
 
         Thread(target=scan_worker, daemon=True).start()
 
+    def _populate_dir_tree(self, dir_path: Path, parent_item: QTreeWidgetItem):
+        """Recursively populate directory tree"""
+        try:
+            for entry in sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                if entry.name.startswith(".") and not self.cb_show_hidden.isChecked():
+                    continue
+                if entry.is_dir():
+                    child = QTreeWidgetItem(parent_item)
+                    child.setText(0, f"📁 {entry.name}")
+                    child.setData(0, Qt.UserRole, str(entry))
+                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
+        except PermissionError:
+            pass
+
+    def _categorize_files(self, files: list[FileInfo]) -> dict[str, list[FileInfo]]:
+        """Categorize files by type"""
+        categories: dict[str, list[FileInfo]] = {}
+        for f in files:
+            ext = f.suffix.lower()
+            if ext in (".pdf",):
+                cat = "PDF"
+            elif ext in (".md", ".markdown", ".mdx", ".rst"):
+                cat = "Markdown"
+            elif ext in (".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c", ".h", ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua"):
+                cat = "Code"
+            elif ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico"):
+                cat = "Image"
+            elif ext in (".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"):
+                cat = "Office"
+            elif ext in (".txt", ".log", ".cfg", ".ini", ".conf", ".yaml", ".yml", ".toml", ".json", ".xml"):
+                cat = "Text"
+            else:
+                cat = "Other"
+            categories.setdefault(cat, []).append(f)
+        return categories
+
     @Slot()
-    def _on_cancel_done(self):
-        """取消后恢复按钮状态"""
-        if not self._cancelling:
-            return
-        self._cancelling = False
-        self.refresh_btn.setEnabled(True)
+    def _display_files(self, files: list[FileInfo]):
+        """Display file list in table"""
+        self.file_table.setRowCount(0)
+        self.file_table.setSortingEnabled(False)
+
+        hidden = self.cb_show_hidden.isChecked()
+        filtered = [f for f in files if hidden or not f.name.startswith(".")]
+
+        self.file_table.setRowCount(len(filtered))
+        icon_map = {
+            "PDF": "📕", "Markdown": "📝", "Code": "💻",
+            "Image": "🖼️", "Office": "📊", "Text": "📄", "Other": "📁",
+        }
+
+        for row, f in enumerate(filtered):
+            ext = f.suffix.lower()
+            cat = "Other"
+            if ext in (".pdf",): cat = "PDF"
+            elif ext in (".md", ".markdown", ".mdx", ".rst"): cat = "Markdown"
+            elif ext in (".py", ".js", ".ts"): cat = "Code"
+            elif ext in (".jpg", ".jpeg", ".png", ".gif"): cat = "Image"
+            elif ext in (".docx", ".xlsx", ".pptx"): cat = "Office"
+            elif ext in (".txt", ".log", ".cfg"): cat = "Text"
+
+            icon = icon_map.get(cat, "📁")
+            name_item = QTableWidgetItem(f"{icon}  {f.name}")
+            name_item.setData(Qt.UserRole, str(f.path))
+
+            size_item = QTableWidgetItem(f.size_str)
+            type_item = QTableWidgetItem(cat)
+            time_item = QTableWidgetItem(f.modified_time.strftime("%Y-%m-%d %H:%M"))
+            path_item = QTableWidgetItem(str(f.path))
+
+            self.file_table.setItem(row, 0, name_item)
+            self.file_table.setItem(row, 1, size_item)
+            self.file_table.setItem(row, 2, type_item)
+            self.file_table.setItem(row, 3, time_item)
+            self.file_table.setItem(row, 4, path_item)
+
+        self.file_table.setSortingEnabled(True)
+
+        # Update stats
+        self._update_stat("📊 Total Files", str(len(filtered)))
+
+        # Category stats
+        for cat, flist in self.categories.items():
+            key = f"📁 {cat}"
+
+        self.btn_refresh.setEnabled(True)
+        self.btn_export.setEnabled(True)
+
+        total_size = sum(f.size_bytes for f in files)
+        from filepilot.utils.file_utils import get_file_size_str
+        size_str = get_file_size_str(total_size)
+        self.status_message.emit(f"✅ Scanned {len(filtered)} files ({size_str})")
+
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
 
     @Slot()
-    def _on_files_scanned(self, files: list[FileInfo]):
-        """扫描完成回调"""
-        self.files = files
-        self._populate_table(files)
-        self.refresh_btn.setEnabled(True)
-        self.export_btn.setEnabled(len(files) > 0)
-        self.progress_bar.setVisible(False)
-
-        stats = self.scanner.stats
-        # 按类别统计大小
-        cat_sizes: dict[str, int] = {}
-        for f in files:
-            cat_sizes[f.category.label] = cat_sizes.get(f.category.label, 0) + f.size_bytes
-        total = sum(cat_sizes.values()) or 1
-        top_cats = sorted(cat_sizes.items(), key=lambda x: x[1], reverse=True)[:5]
-        bar_parts = []
-        for cat, size in top_cats:
-            pct = size / total * 100
-            bar_len = int(pct / 5)
-            bar_parts.append(f"{cat} {'█' * bar_len} {pct:.0f}%")
-        bar_text = " | ".join(bar_parts) if bar_parts else ""
-
-        self.stats_label.setText(
-            f"📊 {stats['scanned_count']} 个文件, {stats['total_size_str']}"
-            + (f"  —  {bar_text}" if bar_text else "")
-        )
-
-    def _populate_table(self, files: list[FileInfo]):
-        """填充文件列表"""
-        self.table.setSortingEnabled(False)
-        self.table.setRowCount(len(files))
-
-        for row, f in enumerate(files):
-            # 名称
-            name_item = QTableWidgetItem(f"{f.category.icon}  {f.name}")
-            name_item.setData(Qt.UserRole, str(f.path))
-            name_item.setToolTip(str(f.path))
-            self.table.setItem(row, 0, name_item)
-
-            # 类型
-            type_item = QTableWidgetItem(f.category.label)
-            type_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 1, type_item)
-
-            # 大小
-            size_item = QTableWidgetItem(f.size_str)
-            size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(row, 2, size_item)
-
-            # 修改日期
-            date_item = QTableWidgetItem(f.modified_time.strftime("%Y-%m-%d %H:%M"))
-            self.table.setItem(row, 3, date_item)
-
-            # 扩展名
-            ext_item = QTableWidgetItem(f.extension)
-            ext_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(row, 4, ext_item)
-
-            # 路径
-            path_item = QTableWidgetItem(str(f.path))
-            path_item.setToolTip(str(f.path))
-            self.table.setItem(row, 5, path_item)
-
-        self.table.setSortingEnabled(True)
-
-        # 按类型着色
-        for row in range(self.table.rowCount()):
-            type_item = self.table.item(row, 1)
-            if type_item:
-                cat_text = type_item.text()
-                color = self._get_category_color(cat_text)
-                if color:
-                    type_item.setBackground(QColor(color).lighter(160))
-                    type_item.setForeground(QColor("#1e1e2e"))
-
-    def _get_category_color(self, category: str) -> str | None:
-        """获取分类对应的颜色"""
-        color_map = {
-            "文档": "#89b4fa",
-            "图片": "#a6e3a1",
-            "视频": "#f38ba8",
-            "音频": "#fab387",
-            "代码": "#cba6f7",
-            "压缩包": "#f9e2af",
-            "PDF": "#f38ba8",
-            "Markdown": "#89b4fa",
-            "表格": "#a6e3a1",
-            "数据": "#94e2d5",
-            "其他": "#585b70",
-        }
-        return color_map.get(category)
-
-    @Slot()
-    def _on_tree_item_clicked(self, item: QTreeWidgetItem, column: int):
-        """点击目录树"""
+    def _on_dir_clicked(self, item: QTreeWidgetItem, column: int):
+        """Handle directory tree click"""
         dir_path = item.data(0, Qt.UserRole)
         if dir_path and Path(dir_path).is_dir():
-            self.load_directory(dir_path)
+            if item.childCount() == 0 and item.data(0, Qt.UserRole):
+                self._populate_dir_tree(Path(dir_path), item)
+            self.current_dir = Path(dir_path)
+            self.dir_label.setText(f"📂 {dir_path}")
+            self.scan_directory(dir_path)
 
     @Slot()
     def _on_refresh(self):
-        """刷新当前目录"""
+        """Refresh current directory"""
         if self.current_dir:
-            self.load_directory(str(self.current_dir))
+            self.scan_directory(self.current_dir)
 
     @Slot()
-    def _on_status_message(self, msg: str):
-        """状态消息"""
-        self.stats_label.setText(msg)
-
-    # ── 拖拽支持 ──
-
-    def dragEnterEvent(self, event):
-        """接受文件夹拖入"""
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dragMoveEvent(self, event):
-        """允许拖入"""
-        event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        """处理拖入的文件/文件夹"""
-        urls = event.mimeData().urls()
-        if not urls:
+    def _on_cancel(self):
+        """Cancel scanning"""
+        if self._cancelling:
             return
-        # 取第一个路径
-        path = Path(urls[0].toLocalFile())
-        if path.is_dir():
-            self.load_directory(str(path))
-        elif path.is_file():
-            self.load_directory(str(path.parent))
-
-    # ── 文件预览 ──
+        self._cancelled = True
+        self._cancelling = True
+        self.btn_cancel.setVisible(False)
+        self.progress_bar.setVisible(False)
+        self.btn_refresh.setEnabled(True)
+        self.status_message.emit("⏹️ Scan cancelled")
 
     @Slot()
-    def _on_row_selected(self, row, col, prev_row, prev_col):
-        """行选中时预览文件内容"""
-        if row < 0:
-            self.preview.setVisible(False)
-            return
-        name_item = self.table.item(row, 0)
-        if not name_item:
-            return
-        file_path = Path(name_item.data(Qt.UserRole))
-        if not file_path.is_file():
-            self.preview.setVisible(False)
+    def _on_file_selected(self):
+        """Handle file selection change — show preview"""
+        selected = self.file_table.selectedItems()
+        if not selected:
             return
 
-        # 显示预览
-        self.preview.setVisible(True)
-        ext = file_path.suffix.lower()
-        try:
-            if ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'):
-                from filepilot.extractors.image_extractor import ImageExtractor
-                meta = ImageExtractor().extract_metadata(file_path)
-                text = f"图片: {file_path.name}\n"
-                text += f"尺寸: {meta.get('size', '?')}\n"
-                text += f"格式: {meta.get('format', '?')}\n"
-                if 'exif' in meta:
-                    exif = meta['exif']
-                    if 'DateTimeOriginal' in exif:
-                        text += f"拍摄: {exif['DateTimeOriginal']}\n"
-                self.preview.setPlainText(text)
-            elif ext == '.pdf':
-                from filepilot.extractors.pdf_extractor import PDFExtractor
-                text = PDFExtractor().extract_text(file_path)
-                self.preview.setPlainText(text[:3000] if text else "(无法提取 PDF 文本)")
-            elif ext in ('.py', '.js', '.ts', '.java', '.cpp', '.c', '.go', '.rs', '.sh'):
-                content = file_path.read_text(encoding='utf-8', errors='replace')
-                self.preview.setPlainText(content[:3000])
-            else:
-                content = file_path.read_text(encoding='utf-8', errors='replace')
-                self.preview.setPlainText(content[:3000] if content else "(空文件)")
-        except Exception:
-            self.preview.setPlainText("(无法预览)")
+        row = selected[0].row()
+        path_item = self.file_table.item(row, 0)
+        if not path_item:
+            return
 
-    # ── 导出功能 ──
+        file_path = path_item.data(Qt.UserRole)
+        if not file_path:
+            return
+
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            return
+
+        self._preview_file(path)
+
+    def _preview_file(self, path: Path):
+        """Preview file content or metadata"""
+        ext = path.suffix.lower()
+
+        if ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp"):
+            self.preview_area.setHtml(
+                f"<p><b>Image file:</b> {path.name}</p>"
+                f"<p><i>File preview is not supported in text mode. "
+                f"Open the file in an external viewer.</i></p>"
+                f"<p>Size: {path.stat().st_size} bytes</p>"
+            )
+        elif ext in (".pdf",):
+            self.preview_area.setHtml(
+                f"<p><b>PDF file:</b> {path.name}</p>"
+                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>"
+                f"<p>Size: {path.stat().st_size} bytes</p>"
+            )
+        elif ext in (".md", ".markdown", ".mdx", ".rst"):
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+                self.preview_area.setPlainText(content[:5000])
+            except Exception:
+                self.preview_area.setPlainText("[Error reading file]")
+        else:
+            # Try to preview as text
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+                self.preview_area.setPlainText(content[:5000])
+            except (UnicodeDecodeError, Exception):
+                self.preview_area.setHtml(
+                    f"<p><b>Binary file:</b> {path.name}</p>"
+                    f"<p>Size: {path.stat().st_size} bytes</p>"
+                    f"<p>Modified: {path.stat().st_mtime}</p>"
+                )
+
+    @Slot()
+    def _on_file_double_click(self, row: int, column: int):
+        """Handle file double-click — try to open externally"""
+        path_item = self.file_table.item(row, 0)
+        if path_item:
+            file_path = Path(path_item.data(Qt.UserRole))
+            if file_path.exists():
+                import subprocess
+                try:
+                    subprocess.Popen(["xdg-open", str(file_path)], shell=True)
+                except Exception:
+                    pass
 
     @Slot()
     def _on_export(self):
-        """导出扫描结果为 CSV 或 JSON"""
+        """Export file list as JSON or CSV"""
         if not self.files:
+            self.status_message.emit("No files to export")
             return
 
-        from PySide6.QtWidgets import QFileDialog
-        path, selected_filter = QFileDialog.getSaveFileName(
-            self, "导出扫描结果", "scan_results.json",
-            "JSON 文件 (*.json);;CSV 文件 (*.csv)",
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self, "Export File List",
+            str(Path.home() / "file_list.csv"),
+            "CSV (*.csv);;JSON (*.json)",
         )
-        if not path:
+        if not file_path:
             return
 
-        import csv, json
-        rows = [{
-            "path": str(f.path), "name": f.name, "extension": f.extension,
-            "size_bytes": f.size_bytes, "size_str": f.size_str,
-            "category": f.category.label,
-            "modified": f.modified_time.isoformat(),
-        } for f in self.files]
-
-        if path.endswith(".csv"):
-            with open(path, "w", newline="", encoding="utf-8-sig") as f:
-                writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-                writer.writeheader()
-                writer.writerows(rows)
-        else:
-            Path(path).write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-
-        self.stats_label.setText(f"✅ 已导出 {len(rows)} 条记录到 {path}")
+        path = Path(file_path)
+        try:
+            if path.suffix.lower() == ".json":
+                data = [
+                    {
+                        "name": f.name,
+                        "path": str(f.path),
+                        "size": f.size_bytes,
+                        "size_str": f.size_str,
+                        "modified": f.modified_time.isoformat(),
+                        "suffix": f.suffix,
+                    }
+                    for f in self.files
+                ]
+                path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            else:
+                with open(path, "w", newline="", encoding="utf-8") as fp:
+                    writer = csv.writer(fp)
+                    writer.writerow(["Name", "Path", "Size (bytes)", "Size", "Modified", "Type"])
+                    for f in self.files:
+                        writer.writerow([
+                            f.name, str(f.path), f.size_bytes, f.size_str,
+                            f.modified_time.isoformat(), f.suffix,
+                        ])
+            self.status_message.emit(f"✅ Exported to {path.name}")
+        except Exception as e:
+            self.status_message.emit(f"❌ Export failed: {e}")

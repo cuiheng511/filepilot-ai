@@ -1,11 +1,14 @@
 """本地 AI 引擎 — 支持 Ollama / llama.cpp / vLLM / LM Studio"""
 
 import json
+import logging
 from typing import Callable
 
 import requests
 
 from filepilot.ai.base import AIProvider
+
+logger = logging.getLogger("filepilot.ai.local")
 
 
 class OllamaProvider(AIProvider):

@@ -1,11 +1,14 @@
 """重复文件查找器 — 基于内容哈希和大小"""
 
 import hashlib
+import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable
 
 from filepilot.core.file_scanner import FileInfo
+
+logger = logging.getLogger("filepilot.duplicates")
 
 
 class DuplicateFinder:
@@ -140,8 +143,8 @@ class DuplicateFinder:
                     f.seek(-sample_size, 2)
                     tail = f.read(sample_size)
                     hasher.update(tail)
-        except (OSError, PermissionError):
-            pass
+        except (OSError, PermissionError) as e:
+            logger.debug("Partial hash failed for %s: %s", file_path, e)
         return hasher.hexdigest()
 
     def _full_hash(self, file_path: Path) -> str:
@@ -151,7 +154,8 @@ class DuplicateFinder:
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(65536), b""):
                     hasher.update(chunk)
-        except (OSError, PermissionError):
+        except (OSError, PermissionError) as e:
+            logger.debug("Full hash failed for %s: %s", file_path, e)
             pass
         return hasher.hexdigest()
 

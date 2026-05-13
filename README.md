@@ -1,103 +1,186 @@
 # FilePilot AI
 
-🚀 智能文件管理工具 — 基于 AI 的文件扫描、检索、去重与自动归类。
+> A local-first desktop assistant for scanning, searching, deduplicating, summarizing, and organizing your files with AI.
 
-## ✨ 功能特性
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PySide6](https://img.shields.io/badge/UI-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)
+![Whoosh](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-111827?style=for-the-badge)
 
-- **📂 文件扫描** — 高效扫描指定目录，支持递归遍历
-- **🔍 全文检索** — 基于 Whoosh 引擎的快速索引和搜索
-- **🔗 重复文件检测** — 智能识别重复文件（支持 MD5/SHA1 对比）
-- **📁 自动归类** — AI 驱动的文件自动分类整理
-- **🖼️ 多媒体提取** — 支持图片 EXIF、PDF 元数据、Markdown 内容提取
-- **🧠 AI 双引擎** — 支持本地 Ollama 模型和云端 OpenAI API
-- **🎨 图形界面** — 基于 PySide6 的友好桌面 UI
+FilePilot AI is a desktop file management application built with Python and PySide6. It helps users understand large folders, find files faster, detect duplicates, extract useful metadata, and generate optional AI summaries for documents, code, and research materials.
 
-## 🛠️ 技术栈
+The project is designed for practical local workflows: cleaning download folders, organizing project archives, exploring personal knowledge bases, and reviewing file collections without relying on a cloud database.
 
-| 组件 | 技术 |
-|------|------|
-| 界面 | PySide6 (Qt6) |
-| 搜索引擎 | Whoosh |
-| AI 本地引擎 | Ollama |
-| AI 云端引擎 | OpenAI API |
-| 文件哈希 | hashlib (MD5, SHA1) |
+## Key Features
 
-## 📦 安装
+| Area | What FilePilot AI does |
+| --- | --- |
+| Local scanning | Scans selected folders and collects structured file metadata. |
+| Full-text search | Builds a local Whoosh index for fast filename and content search. |
+| Duplicate detection | Uses file hashing to identify duplicate files and reduce storage waste. |
+| Content extraction | Extracts text and metadata from code, Markdown, PDFs, images, and more. |
+| AI summaries | Supports local Ollama models and optional cloud AI providers. |
+| Smart organization | Suggests file organization actions based on type, content, and context. |
+| Desktop interface | Provides a multi-panel PySide6 UI for non-command-line workflows. |
 
-### 前置条件
+## Product Preview
 
-- Python 3.11+
-- pip
+The application is organized around focused desktop panels:
 
-### 安装步骤
+- File Browser
+- Search
+- Index Management
+- Duplicate Finder
+- Smart Organizer
+- AI Summary
+- Settings
+
+Screenshots and packaged release assets will be added after the first stable build.
+
+## Quick Start
+
+### Requirements
+
+- Python 3.10 or newer
+- Windows, macOS, or Linux
+- Optional: Ollama for local AI summaries
+- Optional: OpenAI API key for cloud AI summaries
+
+### Installation
 
 ```bash
-# 1. 克隆仓库
 git clone https://github.com/cuiheng511/filepilot-ai.git
 cd filepilot-ai
-
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 运行
-python -m filepilot.main
+python -m venv .venv
 ```
 
-## 🚀 使用指南
+Windows PowerShell:
 
-### 启动应用
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+macOS / Linux:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Run the App
 
 ```bash
 python -m filepilot.main
 ```
 
-### 配置 AI
+## AI Configuration
 
-在应用菜单中打开 **设置**，选择：
+FilePilot AI can work with local AI models or cloud AI APIs.
 
-- **本地模式 (Ollama)** — 使用本地 LLM 模型（如 `qwen2.5:7b`）
-- **云端模式 (OpenAI API)** — 配置 API Key 使用云端模型
+### Local AI with Ollama
 
-### 主要功能
+Install Ollama from [ollama.com](https://ollama.com), then pull a model:
 
-1. **索引文件** — 选择目录，点击"开始索引"
-2. **搜索文件** — 输入关键词，快速检索文件
-3. **查找重复** — 扫描并列出重复文件
-4. **自动归类** — 选择目录，AI 自动整理文件结构
-
-## 📁 项目结构
-
+```bash
+ollama pull qwen2.5:7b
 ```
+
+After that, open FilePilot AI settings and select the local AI mode.
+
+### Cloud AI with OpenAI
+
+Set your API key as an environment variable.
+
+macOS / Linux:
+
+```bash
+export OPENAI_API_KEY="your_api_key"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="your_api_key"
+```
+
+Then select the cloud AI mode in the application settings.
+
+## Project Structure
+
+```text
 filepilot-ai/
-├── filepilot/
-│   ├── ai/          # AI 引擎（本地 + 云端）
-│   ├── core/        # 核心功能（扫描、索引、去重、归类）
-│   ├── extractors/  # 文件提取器（代码、图片、PDF、Markdown）
-│   ├── ui/          # 图形界面
-│   └── utils/       # 工具函数
-├── tests/           # 单元测试
-├── requirements.txt
-├── pyproject.toml
-└── README.md
+|-- filepilot/
+|   |-- ai/           # Local and cloud AI adapters
+|   |-- core/         # Scanner, indexer, organizer, duplicate finder
+|   |-- extractors/   # Text and metadata extraction modules
+|   |-- ui/           # PySide6 desktop interface
+|   `-- utils/        # Shared utilities
+|-- scripts/          # Helper scripts
+|-- tests/            # Test suite
+|-- check_syntax.py   # Syntax validation helper
+|-- pyproject.toml    # Project metadata
+|-- requirements.txt  # Runtime dependencies
+`-- README.md
 ```
 
-## 🤝 贡献指南
+## Core Modules
 
-欢迎贡献代码！请遵循以下步骤：
+| Module | Purpose |
+| --- | --- |
+| `filepilot.core.file_scanner` | Scans folders and records file metadata. |
+| `filepilot.core.indexer` | Builds and queries the local search index. |
+| `filepilot.core.duplicate_finder` | Detects duplicate files using content hashes. |
+| `filepilot.core.file_organizer` | Suggests and applies file organization actions. |
+| `filepilot.extractors.*` | Extracts text and metadata from supported file formats. |
+| `filepilot.ai.*` | Connects local and cloud AI providers for summaries. |
+| `filepilot.ui.*` | Implements the desktop panels and main window. |
 
-1. Fork 本仓库
-2. 创建您的特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交您的更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 打开一个 Pull Request
+## Development
 
-## 📄 许可证
+Install the project in editable mode:
 
-本项目基于 MIT 许可证开源 — 详见 [LICENSE](LICENSE) 文件。
+```bash
+pip install -e ".[test]"
+```
 
-## 🙏 致谢
+Run tests:
 
-- [PySide6](https://pypi.org/project/PySide6/) — Qt for Python
-- [Whoosh](https://whoosh.readthedocs.io/) — 全文搜索引擎
-- [Ollama](https://ollama.ai/) — 本地 LLM 运行时
-- [OpenAI](https://openai.com/) — 云端 AI API
+```bash
+pytest
+```
+
+Run a syntax check:
+
+```bash
+python check_syntax.py
+```
+
+## Roadmap
+
+- [ ] Add a packaged Windows installer
+- [ ] Add application screenshots and demo GIFs
+- [ ] Improve large-folder indexing performance
+- [ ] Add a safer preview workflow before moving files
+- [ ] Add persistent AI summary caching
+- [ ] Expand document extractor coverage
+- [ ] Add multilingual UI support
+
+## Security and Privacy
+
+FilePilot AI is built around local file workflows. Folder scanning, indexing, duplicate detection, and metadata extraction are designed to run locally.
+
+Cloud AI features are optional. If you enable a cloud provider, review which selected file content may be sent to that provider. For sensitive folders, use local AI mode or disable AI summaries.
+
+Do not commit API keys, passwords, or personal access tokens. Use environment variables such as `OPENAI_API_KEY` and `GITHUB_TOKEN` instead.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Acknowledgements
+
+- [PySide6](https://pypi.org/project/PySide6/) for the desktop interface
+- [Whoosh](https://whoosh.readthedocs.io/) for local full-text search
+- [Ollama](https://ollama.com/) for local model execution
+- [OpenAI](https://openai.com/) for optional cloud AI capabilities

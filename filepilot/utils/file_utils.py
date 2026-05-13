@@ -10,14 +10,14 @@ from pathlib import Path
 
 class FileCategory(Enum):
     """文件分类"""
-    DOCUMENT = ("文档", ".pdf,.doc,.docx,.txt,.rtf,.odt", "📄")
+    DOCUMENT = ("文档", ".txt,.doc,.docx,.rtf,.odt", "📄")
     IMAGE = ("图片", ".jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.ico", "🖼️")
     VIDEO = ("视频", ".mp4,.avi,.mkv,.mov,.wmv,.flv,.webm", "🎬")
     AUDIO = ("音频", ".mp3,.wav,.flac,.aac,.ogg,.wma,.m4a", "🎵")
     CODE = ("代码", ".py,.js,.ts,.java,.cpp,.c,.h,.hpp,.cs,.go,.rs,.rb,.php,.swift,.kt,.scala,.sql,.sh,.bash,.ps1,.bat,.pl,.lua,.r,.m,.dart", "💻")
     ARCHIVE = ("压缩包", ".zip,.rar,.7z,.tar,.gz,.bz2,.xz,.zst,.iso", "🗜️")
     PDF = ("PDF", ".pdf", "📕")
-    MARKDOWN = ("Markdown", ".md,.markdown,.rst,.txt", "📝")
+    MARKDOWN = ("Markdown", ".md,.markdown,.rst", "📝")
     SPREADSHEET = ("表格", ".xls,.xlsx,.csv,.ods", "📊")
     PRESENTATION = ("演示", ".ppt,.pptx,.odp,.key", "📽️")
     DATA = ("数据", ".json,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf", "🗃️")

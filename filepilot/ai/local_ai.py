@@ -1,32 +1,23 @@
-"""本地 AI 引擎 — 通过 Ollama 运行本地模型"""
+"""本地 AI 引擎 — 支持 Ollama / llama.cpp / vLLM / LM Studio"""
 
 import json
-import subprocess
-import threading
-from pathlib import Path
 from typing import Callable
 
 import requests
 
+from filepilot.ai.base import AIProvider
 
-class LocalAI:
-    """本地 AI 推理引擎
 
-    通过 Ollama API 调用本地运行的 LLM 模型。
-    数据不离本机，完全离线可用。
-    """
+class OllamaProvider(AIProvider):
+    """Ollama 本地模型"""
 
-    DEFAULT_MODEL = "qwen2.5:7b"  # 推荐模型
-    OLLAMA_API_BASE = "http://localhost:11434"
-
-    def __init__(self, model: str = DEFAULT_MODEL, api_base: str = OLLAMA_API_BASE):
+    def __init__(self, model: str = "qwen2.5:7b", api_base: str = "http://localhost:11434"):
         self.model = model
-        self.api_base = api_base
+        self.api_base = api_base.rstrip("/")
         self._available = False
         self._check_connection()
 
     def _check_connection(self) -> bool:
-        """检查 Ollama 服务是否可用"""
         try:
             resp = requests.get(f"{self.api_base}/api/tags", timeout=5)
             self._available = resp.status_code == 200
@@ -36,140 +27,75 @@ class LocalAI:
 
     @property
     def is_available(self) -> bool:
-        """Ollama 服务是否可用"""
         return self._available
 
-    def generate(
-        self,
-        prompt: str,
-        system_prompt: str | None = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        stream: bool = False,
-        on_token: Callable[[str], None] | None = None,
-    ) -> str:
-        """生成文本
+    @property
+    def provider_name(self) -> str:
+        return "Ollama"
 
-        Args:
-            prompt: 输入提示
-            system_prompt: 系统提示词
-            temperature: 温度参数 (0.0-1.0)
-            max_tokens: 最大生成 token 数
-            stream: 是否流式输出
-            on_token: 流式回调函数
-
-        Returns:
-            生成的文本
-        """
+    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=2048,
+                 stream=False, on_token=None) -> str:
         if not self._available:
             return ""
-
         payload = {
             "model": self.model,
             "prompt": prompt,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
+            "options": {"temperature": temperature, "num_predict": max_tokens},
             "stream": stream,
         }
-
         if system_prompt:
             payload["system"] = system_prompt
-
         if stream:
             return self._stream_generate(payload, on_token)
-        else:
-            return self._simple_generate(payload)
+        return self._simple_generate(payload)
 
-    def _simple_generate(self, payload: dict) -> str:
-        """非流式生成"""
+    def _simple_generate(self, payload):
         try:
-            resp = requests.post(
-                f"{self.api_base}/api/generate",
-                json=payload,
-                timeout=120,
-            )
+            resp = requests.post(f"{self.api_base}/api/generate", json=payload, timeout=120)
             if resp.status_code == 200:
-                data = resp.json()
-                return data.get("response", "")
+                return resp.json().get("response", "")
         except requests.RequestException:
             self._available = False
         return ""
 
-    def _stream_generate(
-        self,
-        payload: dict,
-        on_token: Callable[[str], None] | None,
-    ) -> str:
-        """流式生成"""
-        full_response: list[str] = []
+    def _stream_generate(self, payload, on_token):
+        full = []
         try:
-            with requests.post(
-                f"{self.api_base}/api/generate",
-                json=payload,
-                stream=True,
-                timeout=120,
-            ) as resp:
+            with requests.post(f"{self.api_base}/api/generate", json=payload, stream=True, timeout=120) as resp:
                 for line in resp.iter_lines():
                     if line:
                         try:
-                            data = json.loads(line)
-                            token = data.get("response", "")
-                            full_response.append(token)
+                            token = json.loads(line).get("response", "")
+                            full.append(token)
                             if on_token:
                                 on_token(token)
                         except json.JSONDecodeError:
                             continue
         except requests.RequestException:
             self._available = False
+        return "".join(full)
 
-        return "".join(full_response)
-
-    def chat(
-        self,
-        messages: list[dict],
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-    ) -> str:
-        """对话接口"""
+    def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
         if not self._available:
             return ""
-
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
-            "stream": False,
-        }
-
         try:
-            resp = requests.post(
-                f"{self.api_base}/api/chat",
-                json=payload,
-                timeout=120,
-            )
+            resp = requests.post(f"{self.api_base}/api/chat", json={
+                "model": self.model, "messages": messages,
+                "options": {"temperature": temperature, "num_predict": max_tokens},
+                "stream": False,
+            }, timeout=120)
             if resp.status_code == 200:
-                data = resp.json()
-                return data.get("message", {}).get("content", "")
+                return resp.json().get("message", {}).get("content", "")
         except requests.RequestException:
             self._available = False
         return ""
 
-    def embed(self, text: str) -> list[float]:
-        """生成文本嵌入向量"""
+    def embed(self, text) -> list[float]:
         if not self._available:
             return []
-
         try:
-            resp = requests.post(
-                f"{self.api_base}/api/embeddings",
-                json={"model": self.model, "prompt": text},
-                timeout=30,
-            )
+            resp = requests.post(f"{self.api_base}/api/embeddings",
+                                 json={"model": self.model, "prompt": text}, timeout=30)
             if resp.status_code == 200:
                 return resp.json().get("embedding", [])
         except requests.RequestException:
@@ -177,33 +103,100 @@ class LocalAI:
         return []
 
     def get_available_models(self) -> list[str]:
-        """获取本地可用模型列表"""
         try:
             resp = requests.get(f"{self.api_base}/api/tags", timeout=5)
             if resp.status_code == 200:
-                models = resp.json().get("models", [])
-                return [m["name"] for m in models]
+                return [m["name"] for m in resp.json().get("models", [])]
         except requests.RequestException:
             pass
         return []
 
-    def pull_model(self, model: str, progress_callback: Callable[[str], None] | None = None) -> bool:
-        """下载模型"""
+
+class LlamaCppProvider(AIProvider):
+    """llama.cpp server / LM Studio / vLLM（OpenAI 兼容接口）"""
+
+    def __init__(self, model: str = "default", api_base: str = "http://localhost:8080"):
+        self.model = model
+        self.api_base = api_base.rstrip("/")
+        self._available = False
+        self._check_connection()
+
+    def _check_connection(self) -> bool:
         try:
-            with requests.post(
-                f"{self.api_base}/api/pull",
-                json={"name": model},
-                stream=True,
-                timeout=None,
-            ) as resp:
-                for line in resp.iter_lines():
-                    if line and progress_callback:
-                        try:
-                            data = json.loads(line)
-                            status = data.get("status", "")
-                            progress_callback(status)
-                        except json.JSONDecodeError:
-                            continue
-                return True
+            resp = requests.get(f"{self.api_base}/v1/models", timeout=5)
+            self._available = resp.status_code == 200
+        except requests.ConnectionError:
+            self._available = False
+        return self._available
+
+    @property
+    def is_available(self) -> bool:
+        return self._available
+
+    @property
+    def provider_name(self) -> str:
+        return "llama.cpp"
+
+    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=2048,
+                 stream=False, on_token=None) -> str:
+        if not self._available:
+            return ""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        return self._chat_completions(messages, temperature, max_tokens, stream, on_token)
+
+    def _chat_completions(self, messages, temperature, max_tokens, stream, on_token):
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream,
+        }
+        headers = {"Content-Type": "application/json"}
+        try:
+            if stream:
+                full = []
+                with requests.post(f"{self.api_base}/v1/chat/completions",
+                                   json=payload, headers=headers, stream=True, timeout=120) as resp:
+                    for line in resp.iter_lines():
+                        if line:
+                            line = line.decode("utf-8", errors="replace")
+                            if line.startswith("data: ") and line != "data: [DONE]":
+                                try:
+                                    delta = json.loads(line[6:])["choices"][0].get("delta", {})
+                                    token = delta.get("content", "")
+                                    if token:
+                                        full.append(token)
+                                        if on_token:
+                                            on_token(token)
+                                except (json.JSONDecodeError, KeyError):
+                                    continue
+                return "".join(full)
+            else:
+                resp = requests.post(f"{self.api_base}/v1/chat/completions",
+                                     json=payload, headers=headers, timeout=120)
+                if resp.status_code == 200:
+                    return resp.json()["choices"][0]["message"]["content"]
         except requests.RequestException:
-            return False
+            self._available = False
+        return ""
+
+    def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
+        return self._chat_completions(messages, temperature, max_tokens, False, None)
+
+    def embed(self, text) -> list[float]:
+        try:
+            resp = requests.post(f"{self.api_base}/v1/embeddings",
+                                 json={"input": text, "model": self.model}, timeout=30)
+            if resp.status_code == 200:
+                return resp.json()["data"][0]["embedding"]
+        except (requests.RequestException, KeyError):
+            pass
+        return []
+
+
+# 向后兼容：LocalAI = OllamaProvider
+LocalAI = OllamaProvider

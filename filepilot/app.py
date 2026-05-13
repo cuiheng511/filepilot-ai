@@ -56,18 +56,27 @@ def load_settings() -> dict:
 
 def create_services(settings: dict) -> dict:
     """创建各服务模块实例"""
-    ai_mode = settings.get("ai_mode", "local")
+    from filepilot.ai.local_ai import OllamaProvider, LlamaCppProvider
+    from filepilot.ai.cloud_ai import OpenAIProvider, AnthropicProvider
 
-    # AI 引擎
-    local_ai = LocalAI(
-        model=settings.get("ollama_model", "qwen2.5:7b"),
-        api_base=settings.get("ollama_url", "http://localhost:11434"),
-    )
-    cloud_ai = CloudAI(
-        api_key=settings.get("openai_key", ""),
-        model=settings.get("openai_model", "gpt-4o-mini"),
-        api_base=settings.get("openai_url", "https://api.openai.com/v1"),
-    )
+    provider = settings.get("ai_provider", "ollama")
+    model = settings.get("ai_model", "qwen2.5:7b")
+    api_base = settings.get("ai_api_base", "http://localhost:11434")
+    api_key = settings.get("ai_api_key", "")
+
+    # 根据 provider 创建对应的 AI 引擎
+    provider_map = {
+        "ollama": lambda: OllamaProvider(model=model, api_base=api_base),
+        "llamacpp": lambda: LlamaCppProvider(model=model, api_base=api_base),
+        "openai": lambda: OpenAIProvider(api_key=api_key, model=model, api_base=api_base),
+        "anthropic": lambda: AnthropicProvider(api_key=api_key, model=model, api_base=api_base),
+        "custom": lambda: OpenAIProvider(api_key=api_key, model=model, api_base=api_base),
+    }
+    primary_ai = provider_map.get(provider, provider_map["ollama"])()
+
+    # 本地和云端 AI 都保留（向后兼容 + 混合模式）
+    local_ai = primary_ai if provider in ("ollama", "llamacpp") else OllamaProvider()
+    cloud_ai = primary_ai if provider in ("openai", "anthropic", "custom") else OpenAIProvider(api_key=api_key)
 
     # 摘要器
     summarizer = Summarizer(

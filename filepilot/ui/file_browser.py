@@ -211,12 +211,16 @@ class FileBrowserPanel(BasePanel):
     @Slot()
     def _on_cancel(self):
         """取消扫描"""
+        if self._cancelling:
+            return
         self._cancelled = True
+        self._cancelling = True
         self.status_message.emit("⏹️ 正在取消扫描...")
 
     def _scan_async(self, dir_path: str):
         """异步扫描文件"""
         self._cancelled = False
+        self._cancelling = False
         self.refresh_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
@@ -241,6 +245,9 @@ class FileBrowserPanel(BasePanel):
     @Slot()
     def _on_cancel_done(self):
         """取消后恢复按钮状态"""
+        if not self._cancelling:
+            return
+        self._cancelling = False
         self.refresh_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)

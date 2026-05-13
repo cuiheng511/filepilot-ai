@@ -168,75 +168,72 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _create_ai_tab(self) -> QWidget:
-        """创建 AI 设置页"""
+        """创建 AI 设置页（支持多 Provider）"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(16)
 
-        # AI 模式
-        mode_group = QGroupBox("AI 模式")
-        mode_layout = QVBoxLayout()
-        self.local_radio = QRadioButton("本地模式 (Ollama)")
-        self.local_radio.setToolTip("使用本地运行的 Ollama 模型，数据不出本机")
-        self.cloud_radio = QRadioButton("云端模式 (OpenAI API)")
-        self.cloud_radio.setToolTip("使用 OpenAI 兼容 API，需要 API Key")
-        self.hybrid_radio = QRadioButton("混合模式 (优先本地，回退云端)")
-        self.hybrid_radio.setToolTip("优先使用本地模型，不可用时自动切换云端")
-
-        mode_layout.addWidget(self.local_radio)
-        mode_layout.addWidget(self.cloud_radio)
-        mode_layout.addWidget(self.hybrid_radio)
-        mode_group.setLayout(mode_layout)
-        layout.addWidget(mode_group)
-
-        # Ollama 设置
-        ollama_group = QGroupBox("Ollama 本地模型")
-        ollama_layout = QFormLayout()
-        self.ollama_model = QComboBox()
-        self.ollama_model.setEditable(True)
-        self.ollama_model.addItems([
-            "qwen2.5:7b",
-            "qwen2.5:3b",
-            "llama3.1:8b",
-            "mistral:7b",
-            "gemma2:9b",
+        # AI Provider 选择
+        provider_group = QGroupBox("AI Provider")
+        provider_layout = QVBoxLayout()
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItems([
+            "Ollama (本地)",
+            "llama.cpp / LM Studio (本地)",
+            "OpenAI (云端)",
+            "Anthropic Claude (云端)",
+            "自定义 OpenAI 兼容",
         ])
-        self.ollama_model.setCurrentText(
-            self._settings.get("ollama_model", "qwen2.5:7b")
-        )
-        self.ollama_url = QLineEdit("http://localhost:11434")
-        ollama_layout.addRow("模型:", self.ollama_model)
-        ollama_layout.addRow("API 地址:", self.ollama_url)
-        ollama_group.setLayout(ollama_layout)
-        layout.addWidget(ollama_group)
+        self.provider_combo.currentIndexChanged.connect(self._on_provider_changed)
+        provider_layout.addWidget(self.provider_combo)
+        provider_group.setLayout(provider_layout)
+        layout.addWidget(provider_group)
 
-        # OpenAI 设置
-        openai_group = QGroupBox("OpenAI 云端 API")
-        openai_layout = QFormLayout()
-        self.openai_key = QLineEdit()
-        self.openai_key.setEchoMode(QLineEdit.Password)
-        self.openai_key.setPlaceholderText("sk-...")
-        self.openai_key.setText(self._settings.get("openai_key", ""))
-        self.openai_model = QComboBox()
-        self.openai_model.setEditable(True)
-        self.openai_model.addItems([
-            "gpt-4o-mini",
-            "gpt-4o",
-            "gpt-4-turbo",
-            "gpt-3.5-turbo",
+        # 通用设置（所有 Provider 共用）
+        common_group = QGroupBox("模型设置")
+        common_layout = QFormLayout()
+        self.model_input = QComboBox()
+        self.model_input.setEditable(True)
+        self.model_input.addItems([
+            "qwen2.5:7b", "qwen2.5:3b", "llama3.1:8b", "mistral:7b",
+            "gpt-4o-mini", "gpt-4o", "claude-sonnet-4-20250514",
         ])
-        self.openai_model.setCurrentText(
-            self._settings.get("openai_model", "gpt-4o-mini")
-        )
-        self.openai_url = QLineEdit("https://api.openai.com/v1")
-        openai_layout.addRow("API Key:", self.openai_key)
-        openai_layout.addRow("模型:", self.openai_model)
-        openai_layout.addRow("API 地址:", self.openai_url)
-        openai_group.setLayout(openai_layout)
-        layout.addWidget(openai_group)
+        self.model_input.setCurrentText(self._settings.get("ollama_model", "qwen2.5:7b"))
+        self.api_base_input = QLineEdit("http://localhost:11434")
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.setPlaceholderText("sk-...")
+        common_layout.addRow("模型:", self.model_input)
+        common_layout.addRow("API 地址:", self.api_base_input)
+        common_layout.addRow("API Key:", self.api_key_input)
+        common_group.setLayout(common_layout)
+        layout.addWidget(common_group)
 
         layout.addStretch()
+
+        # 初始化默认值
+        mode = self._settings.get("ai_mode", "local")
+        provider = self._settings.get("ai_provider", "ollama")
+        provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
+        self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
+        self.api_key_input.setText(self._settings.get("openai_key", ""))
+
         return widget
+
+    def _on_provider_changed(self, index: int):
+        """Provider 切换时更新默认值"""
+        defaults = [
+            ("http://localhost:11434", "qwen2.5:7b", False),
+            ("http://localhost:8080", "default", False),
+            ("https://api.openai.com/v1", "gpt-4o-mini", True),
+            ("https://api.anthropic.com", "claude-sonnet-4-20250514", True),
+            ("", "", True),
+        ]
+        url, model, need_key = defaults[index]
+        self.api_base_input.setText(url)
+        self.model_input.setCurrentText(model)
+        self.api_key_input.setVisible(need_key)
+        self.api_key_input.parent().findChild(QLabel).setVisible(need_key) if self.api_key_input.parent() else None
 
     def _create_general_tab(self) -> QWidget:
         """创建通用设置页"""
@@ -266,31 +263,24 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         """加载现有设置"""
-        mode = self._settings.get("ai_mode", "local")
-        if mode == "local":
-            self.local_radio.setChecked(True)
-        elif mode == "cloud":
-            self.cloud_radio.setChecked(True)
-        else:
-            self.hybrid_radio.setChecked(True)
+        provider = self._settings.get("ai_provider", "ollama")
+        provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}
+        self.provider_combo.setCurrentIndex(provider_map.get(provider, 0))
+        self.model_input.setCurrentText(self._settings.get("ollama_model", "qwen2.5:7b"))
+        self.api_base_input.setText(self._settings.get("ollama_url", "http://localhost:11434"))
+        self.api_key_input.setText(self._settings.get("openai_key", ""))
+        self.index_dir.setText(self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index")))
 
     def get_settings(self) -> dict:
         """获取设置值"""
-        # 确定 AI 模式
-        if self.local_radio.isChecked():
-            ai_mode = "local"
-        elif self.cloud_radio.isChecked():
-            ai_mode = "cloud"
-        else:
-            ai_mode = "hybrid"
-
+        provider_names = ["ollama", "llamacpp", "openai", "anthropic", "custom"]
+        provider = provider_names[self.provider_combo.currentIndex()]
         return {
-            "ai_mode": ai_mode,
-            "ollama_model": self.ollama_model.currentText(),
-            "ollama_url": self.ollama_url.text(),
-            "openai_key": self.openai_key.text(),
-            "openai_model": self.openai_model.currentText(),
-            "openai_url": self.openai_url.text(),
+            "ai_mode": "local" if provider in ("ollama", "llamacpp") else "cloud",
+            "ai_provider": provider,
+            "ai_model": self.model_input.currentText(),
+            "ai_api_base": self.api_base_input.text(),
+            "ai_api_key": self.api_key_input.text(),
             "index_dir": self.index_dir.text(),
             "max_file_size_mb": int(self.max_file_size.text() or "500"),
         }

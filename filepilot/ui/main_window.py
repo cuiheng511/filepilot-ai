@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from filepilot.styles.manager import ThemeManager
+from filepilot.i18n import t, load_language_from_settings
 from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.file_browser import FileBrowserPanel
 from filepilot.ui.index_panel import IndexPanel
@@ -37,7 +38,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, services: dict | None = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("FilePilot AI — Smart File Manager")
+        self.setWindowTitle(t("app_name") + " — " + t("app_subtitle"))
         self.setMinimumSize(1200, 800)
         self.resize(1400, 900)
 
@@ -84,12 +85,12 @@ class MainWindow(QMainWindow):
 
         # Nav items
         self._nav_items = {
-            "browse": self._add_nav_item("📂  File Browser", "Browse and manage files"),
-            "search": self._add_nav_item("🔍  File Search", "Natural language file search"),
-            "organize": self._add_nav_item("📋  File Organizer", "Auto-categorize and rename"),
-            "duplicates": self._add_nav_item("🔗  Duplicate Finder", "Find duplicate files"),
-            "summary": self._add_nav_item("📝  AI Summary", "Extract file summaries"),
-            "index": self._add_nav_item("🗂️  File Index", "Manage file index"),
+            "browse": self._add_nav_item(t("nav_browse"), t("browse_desc")),
+            "search": self._add_nav_item(t("nav_search"), t("search_desc")),
+            "organize": self._add_nav_item(t("nav_organize"), t("organize_desc")),
+            "duplicates": self._add_nav_item(t("nav_duplicates"), t("duplicates_desc")),
+            "summary": self._add_nav_item(t("nav_summary"), t("summary_desc")),
+            "index": self._add_nav_item(t("nav_index"), t("index_desc")),
         }
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
@@ -198,18 +199,18 @@ class MainWindow(QMainWindow):
         toolbar.setIconSize(QSize(20, 20))
         self.addToolBar(toolbar)
 
-        self.btn_open = QPushButton("📂 Open Folder")
+        self.btn_open = QPushButton(t("browse_scan"))
         self.btn_open.clicked.connect(self._on_open_folder)
         toolbar.addWidget(self.btn_open)
 
         toolbar.addSeparator()
 
-        self.btn_scan = QPushButton("🔄 Scan")
+        self.btn_scan = QPushButton(t("browse_scan"))
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         toolbar.addWidget(self.btn_scan)
 
-        self.btn_index = QPushButton("🗂️ Build Index")
+        self.btn_index = QPushButton(t("index_build"))
         self.btn_index.clicked.connect(self._on_index)
         self.btn_index.setEnabled(False)
         toolbar.addWidget(self.btn_index)

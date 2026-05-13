@@ -63,8 +63,13 @@ class FileBrowserPanel(BasePanel):
         self.refresh_btn = QPushButton("🔄 刷新")
         self.refresh_btn.clicked.connect(self._on_refresh)
 
+        self.export_btn = QPushButton("📥 导出")
+        self.export_btn.clicked.connect(self._on_export)
+        self.export_btn.setEnabled(False)
+
         toolbar.addWidget(self.path_label, 1)
         toolbar.addWidget(self.refresh_btn)
+        toolbar.addWidget(self.export_btn)
         layout.addLayout(toolbar)
 
         # 进度条 + 取消按钮
@@ -128,6 +133,9 @@ class FileBrowserPanel(BasePanel):
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(True)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.setDragEnabled(True)
+        self.table.setAcceptDrops(True)
+        self.table.setDropIndicatorShown(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
@@ -160,9 +168,28 @@ class FileBrowserPanel(BasePanel):
         """)
         splitter.addWidget(self.table)
 
+        # 文件预览面板
+        from PySide6.QtWidgets import QTextEdit
+        self.preview = QTextEdit()
+        self.preview.setReadOnly(True)
+        self.preview.setMaximumHeight(200)
+        self.preview.setPlaceholderText("选择文件以预览内容...")
+        self.preview.setStyleSheet("""
+            QTextEdit {
+                background-color: #181825; color: #cdd6f4;
+                border: 1px solid #313244; border-radius: 8px;
+                padding: 8px; font-size: 12px; font-family: monospace;
+            }
+        """)
+        self.preview.setVisible(False)
+        splitter.addWidget(self.preview)
+
+        self.table.currentCellChanged.connect(self._on_row_selected)
+
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([280, 700])
+        splitter.setStretchFactor(2, 0)
+        splitter.setSizes([280, 600, 150])
 
         layout.addWidget(splitter, 1)
 
@@ -258,12 +285,26 @@ class FileBrowserPanel(BasePanel):
         self.files = files
         self._populate_table(files)
         self.refresh_btn.setEnabled(True)
+        self.export_btn.setEnabled(len(files) > 0)
         self.progress_bar.setVisible(False)
 
         stats = self.scanner.stats
+        # 按类别统计大小
+        cat_sizes: dict[str, int] = {}
+        for f in files:
+            cat_sizes[f.category.label] = cat_sizes.get(f.category.label, 0) + f.size_bytes
+        total = sum(cat_sizes.values()) or 1
+        top_cats = sorted(cat_sizes.items(), key=lambda x: x[1], reverse=True)[:5]
+        bar_parts = []
+        for cat, size in top_cats:
+            pct = size / total * 100
+            bar_len = int(pct / 5)
+            bar_parts.append(f"{cat} {'█' * bar_len} {pct:.0f}%")
+        bar_text = " | ".join(bar_parts) if bar_parts else ""
+
         self.stats_label.setText(
-            f"📊 共 {stats['scanned_count']} 个文件，"
-            f"总计 {stats['total_size_str']}"
+            f"📊 {stats['scanned_count']} 个文件, {stats['total_size_str']}"
+            + (f"  —  {bar_text}" if bar_text else "")
         )
 
     def _populate_table(self, files: list[FileInfo]):
@@ -348,3 +389,104 @@ class FileBrowserPanel(BasePanel):
     def _on_status_message(self, msg: str):
         """状态消息"""
         self.stats_label.setText(msg)
+
+    # ── 拖拽支持 ──
+
+    def dragEnterEvent(self, event):
+        """接受文件夹拖入"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        """允许拖入"""
+        event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """处理拖入的文件/文件夹"""
+        urls = event.mimeData().urls()
+        if not urls:
+            return
+        # 取第一个路径
+        path = Path(urls[0].toLocalFile())
+        if path.is_dir():
+            self.load_directory(str(path))
+        elif path.is_file():
+            self.load_directory(str(path.parent))
+
+    # ── 文件预览 ──
+
+    @Slot()
+    def _on_row_selected(self, row, col, prev_row, prev_col):
+        """行选中时预览文件内容"""
+        if row < 0:
+            self.preview.setVisible(False)
+            return
+        name_item = self.table.item(row, 0)
+        if not name_item:
+            return
+        file_path = Path(name_item.data(Qt.UserRole))
+        if not file_path.is_file():
+            self.preview.setVisible(False)
+            return
+
+        # 显示预览
+        self.preview.setVisible(True)
+        ext = file_path.suffix.lower()
+        try:
+            if ext in ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'):
+                from filepilot.extractors.image_extractor import ImageExtractor
+                meta = ImageExtractor().extract_metadata(file_path)
+                text = f"图片: {file_path.name}\n"
+                text += f"尺寸: {meta.get('size', '?')}\n"
+                text += f"格式: {meta.get('format', '?')}\n"
+                if 'exif' in meta:
+                    exif = meta['exif']
+                    if 'DateTimeOriginal' in exif:
+                        text += f"拍摄: {exif['DateTimeOriginal']}\n"
+                self.preview.setPlainText(text)
+            elif ext == '.pdf':
+                from filepilot.extractors.pdf_extractor import PDFExtractor
+                text = PDFExtractor().extract_text(file_path)
+                self.preview.setPlainText(text[:3000] if text else "(无法提取 PDF 文本)")
+            elif ext in ('.py', '.js', '.ts', '.java', '.cpp', '.c', '.go', '.rs', '.sh'):
+                content = file_path.read_text(encoding='utf-8', errors='replace')
+                self.preview.setPlainText(content[:3000])
+            else:
+                content = file_path.read_text(encoding='utf-8', errors='replace')
+                self.preview.setPlainText(content[:3000] if content else "(空文件)")
+        except Exception:
+            self.preview.setPlainText("(无法预览)")
+
+    # ── 导出功能 ──
+
+    @Slot()
+    def _on_export(self):
+        """导出扫描结果为 CSV 或 JSON"""
+        if not self.files:
+            return
+
+        from PySide6.QtWidgets import QFileDialog
+        path, selected_filter = QFileDialog.getSaveFileName(
+            self, "导出扫描结果", "scan_results.json",
+            "JSON 文件 (*.json);;CSV 文件 (*.csv)",
+        )
+        if not path:
+            return
+
+        import csv, json
+        rows = [{
+            "path": str(f.path), "name": f.name, "extension": f.extension,
+            "size_bytes": f.size_bytes, "size_str": f.size_str,
+            "category": f.category.label,
+            "modified": f.modified_time.isoformat(),
+        } for f in self.files]
+
+        if path.endswith(".csv"):
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+        else:
+            Path(path).write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        self.stats_label.setText(f"✅ 已导出 {len(rows)} 条记录到 {path}")

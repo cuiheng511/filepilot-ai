@@ -181,8 +181,22 @@ class OrganizePanel(BasePanel):
         self.btn_clear = QPushButton("清空结果")
         self.btn_clear.clicked.connect(self._clear_results)
 
+        self.btn_undo = QPushButton("↩️ 撤销整理")
+        self.btn_undo.clicked.connect(self._on_undo)
+        self.btn_undo.setEnabled(False)
+        self.btn_undo.setStyleSheet("""
+            QPushButton {
+                background-color: #f9e2af; color: #1e1e2e;
+                border: none; border-radius: 6px;
+                padding: 10px 24px; font-size: 14px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #f5c2e7; }
+            QPushButton:disabled { background-color: #313244; color: #585b70; }
+        """)
+
         action_layout.addWidget(self.btn_preview)
         action_layout.addWidget(self.btn_execute)
+        action_layout.addWidget(self.btn_undo)
         action_layout.addWidget(self.btn_clear)
         action_layout.addStretch()
         layout.addLayout(action_layout)
@@ -499,13 +513,46 @@ class OrganizePanel(BasePanel):
         self.result_table.setSortingEnabled(True)
         self.btn_execute.setEnabled(False)
         self.btn_preview.setEnabled(True)
+        self.btn_undo.setEnabled(done > 0)
         self.progress_bar.setVisible(False)
+
+        # 保存撤销日志
+        if done > 0:
+            import json as _json
+            undo_path = Path.home() / ".filepilot" / "last_undo.json"
+            undo_path.parent.mkdir(parents=True, exist_ok=True)
+            self.organizer.save_undo_log(undo_path)
 
         stats = self.organizer.stats
         self.stats_label.setText(
             f"✅ 整理完成: {stats['organized_count']} 个文件已移动"
             + (f", {stats['errors']} 个错误" if stats["errors"] else "")
         )
+
+    @Slot()
+    def _on_undo(self):
+        """撤销上次整理操作"""
+        from PySide6.QtWidgets import QMessageBox
+        undo_path = Path.home() / ".filepilot" / "last_undo.json"
+        if not undo_path.exists():
+            QMessageBox.warning(self, "撤销失败", "没有找到撤销日志")
+            return
+
+        reply = QMessageBox.question(
+            self, "确认撤销",
+            "确定要撤销上次整理操作吗？文件将移回原始位置。",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        result = self.organizer.undo(undo_path)
+        self.stats_label.setText(
+            f"↩️ 撤销完成: 恢复 {result['restored']} 个文件"
+            + (f", {result['errors']} 个失败" if result['errors'] else "")
+        )
+        self.btn_undo.setEnabled(False)
+        self.result_table.setRowCount(0)
 
     @Slot()
     def _clear_results(self):

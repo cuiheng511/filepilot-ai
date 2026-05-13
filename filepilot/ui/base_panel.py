@@ -4,12 +4,9 @@ Provides shared signals, cancel operation support, and stat card methods.
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QVBoxLayout,
@@ -25,7 +22,7 @@ class BasePanel(QWidget):
     progress_updated = Signal(int)
     progress_text = Signal(str)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         # Cancel operation support
         self._cancelled: bool = False
@@ -68,27 +65,16 @@ class BasePanel(QWidget):
         """Create a uniformly styled stat card."""
         card = QFrame()
         card.setObjectName("statCard")
-        card.setStyleSheet("""
-            QFrame#statCard {
-                background: #1e1e2e;
-                border: 1px solid #313244;
-                border-radius: 6px;
-                padding: 8px;
-            }
-        """)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(4)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet("font-size: 11px; color: #6c7086;")
+        title_label.setObjectName("statTitle")
         title_label.setAlignment(Qt.AlignCenter)
 
         value_label = QLabel(value)
         value_label.setObjectName("statValue")
-        value_label.setStyleSheet(
-            "font-size: 20px; font-weight: bold; color: #cdd6f4;"
-        )
         value_label.setAlignment(Qt.AlignCenter)
 
         layout.addWidget(title_label)

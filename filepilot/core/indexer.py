@@ -1,20 +1,17 @@
 """File Indexer — Whoosh-based full-text search engine"""
 
-import json
 import logging
-import os
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 from whoosh import fields, index
 from whoosh.analysis import StandardAnalyzer
 from whoosh.filedb.filestore import FileStorage
+from whoosh.qparser import FuzzyTermPlugin, MultifieldParser
 from whoosh.query import Every
-from whoosh.qparser import MultifieldParser, FuzzyTermPlugin
 
 from filepilot.core.file_scanner import FileInfo
-from filepilot.utils.file_utils import get_file_category
 
 logger = logging.getLogger("filepilot.indexer")
 
@@ -106,7 +103,7 @@ class FileIndexer:
                 indexed += 1
 
                 if progress_callback:
-                    progress_callback(i + 1, f"索引 {file_info.name} ({i + 1}/{total})")
+                    progress_callback(i + 1, f"Indexing {file_info.name} ({i + 1}/{total})")
 
             except (OSError, PermissionError, ValueError) as e:
                 logger.debug("Skipped indexing %s: %s", file_info.name, e)

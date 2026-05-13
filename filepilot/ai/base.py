@@ -1,7 +1,7 @@
 """AI Provider Abstract Base Class — unified interface for local/cloud/third-party models"""
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from collections.abc import Callable
 
 
 class AIProvider(ABC):

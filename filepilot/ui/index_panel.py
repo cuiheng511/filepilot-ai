@@ -3,10 +3,9 @@
 from pathlib import Path
 from threading import Thread
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from filepilot.core.file_scanner import FileScanner
@@ -25,6 +25,9 @@ from filepilot.ui.base_panel import BasePanel
 
 class IndexPanel(BasePanel):
     """Index Management Panel"""
+
+    indexing_finished = Signal()
+    indexing_error = Signal(str)
 
     def __init__(self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
@@ -36,6 +39,13 @@ class IndexPanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
         self._refresh_stats()
+
+    def update_services(self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None):
+        """Update service references without recreating the panel"""
+        if scanner is not None:
+            self.scanner = scanner
+        if indexer is not None:
+            self.indexer = indexer
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -72,10 +82,7 @@ class IndexPanel(BasePanel):
         dir_layout = QHBoxLayout()
         dir_layout.addWidget(QLabel("\U0001f4c2 Folder to Index:"))
         self.dir_label = QLabel("Not selected")
-        self.dir_label.setStyleSheet(
-            "color: #585b70; padding: 6px 10px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 4px;"
-        )
+        self.dir_label.setObjectName("pathLabel")
         self.dir_label.setWordWrap(True)
         self.btn_browse = QPushButton("Browse...")
         self.btn_browse.clicked.connect(self._on_select_source)
@@ -87,34 +94,18 @@ class IndexPanel(BasePanel):
         action_layout = QHBoxLayout()
 
         self.btn_build = QPushButton("\U0001f528 Build Index")
+        self.btn_build.setObjectName("btnPrimary")
         self.btn_build.clicked.connect(self._on_build)
         self.btn_build.setEnabled(False)
-        self.btn_build.setStyleSheet("""
-            QPushButton {
-                background-color: #89b4fa; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 10px 24px; font-size: 14px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #74c7ec; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
 
         self.btn_update = QPushButton("\U0001f504 Incremental Update")
         self.btn_update.clicked.connect(self._on_update)
         self.btn_update.setEnabled(False)
 
         self.btn_clear = QPushButton("\U0001f5d1\ufe0f Clear Index")
+        self.btn_clear.setObjectName("btnDanger")
         self.btn_clear.clicked.connect(self._on_clear)
         self.btn_clear.setEnabled(False)
-        self.btn_clear.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 10px 20px; font-size: 13px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
 
         self.btn_refresh = QPushButton("\U0001f504 Refresh Stats")
         self.btn_refresh.clicked.connect(self._refresh_stats)
@@ -133,21 +124,14 @@ class IndexPanel(BasePanel):
         progress_layout.addWidget(self.progress_bar, 1)
 
         self.progress_label = QLabel("")
-        self.progress_label.setStyleSheet("color: #a6adc8; font-size: 12px;")
+        self.progress_label.setObjectName("progressLabel")
         self.progress_label.setVisible(False)
         progress_layout.addWidget(self.progress_label)
 
         self.btn_cancel = QPushButton("\u2715 Cancel")
+        self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel_indexing)
         self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-        """)
         progress_layout.addWidget(self.btn_cancel)
 
         layout.addLayout(progress_layout)
@@ -164,10 +148,7 @@ class IndexPanel(BasePanel):
             "       After modifying files, just click Incremental Update.\n"
             "       The indexed file list will appear here."
         )
-        info_label.setStyleSheet(
-            "color: #a6adc8; font-size: 12px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 8px; padding: 16px;"
-        )
+        info_label.setObjectName("infoBox")
         info_label.setWordWrap(True)
         info_layout.addWidget(info_label)
         info_layout.addStretch()
@@ -187,22 +168,6 @@ class IndexPanel(BasePanel):
         self.file_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.file_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_table.customContextMenuRequested.connect(self._on_table_context_menu)
-        self.file_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #1e1e2e; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                gridline-color: #313244; font-size: 12px;
-            }
-            QTableWidget::item { padding: 4px 8px; }
-            QTableWidget::item:selected {
-                background-color: #313244; color: #cba6f7;
-            }
-            QHeaderView::section {
-                background-color: #181825; color: #a6adc8;
-                border: none; border-bottom: 1px solid #313244;
-                padding: 6px 8px; font-weight: bold; font-size: 12px;
-            }
-        """)
         splitter.addWidget(self.file_table)
 
         splitter.setStretchFactor(0, 0)
@@ -211,15 +176,15 @@ class IndexPanel(BasePanel):
 
         # ── Bottom status ──
         self.stats_label = QLabel("Ready \u2014 Select a folder and build index")
-        self.stats_label.setStyleSheet(
-            "color: #585b70; font-size: 12px; padding: 4px 0;"
-        )
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.progress_text.connect(self.progress_label.setText)
         self.status_message.connect(self.stats_label.setText)
+        self.indexing_finished.connect(self._on_indexing_finished)
+        self.indexing_error.connect(self._on_indexing_error)
 
     # ── Directory Selection ──
 
@@ -231,10 +196,9 @@ class IndexPanel(BasePanel):
         if dir_path:
             self.source_dir = Path(dir_path)
             self.dir_label.setText(f"\U0001f4c2 {dir_path}")
-            self.dir_label.setStyleSheet(
-                "color: #cdd6f4; padding: 6px 10px; background: #181825; "
-                "border: 1px solid #313244; border-radius: 4px;"
-            )
+            self.dir_label.setProperty("selected", True)
+            self.dir_label.style().unpolish(self.dir_label)
+            self.dir_label.style().polish(self.dir_label)
             self.btn_build.setEnabled(True)
             self.btn_update.setEnabled(True)
 
@@ -364,26 +328,15 @@ class IndexPanel(BasePanel):
                 for i, f in enumerate(files):
                     if self._cancelled:
                         return
-                    self.indexer.index_file(f)
+                    self.indexer.index_files([f])
                     pct = int((i + 1) / len(files) * 90) + 10
                     self.progress_updated.emit(pct)
                     self.progress_text.emit(f"Index: {f.name}")
 
                 if not self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt
-                    QMetaObject.invokeMethod(
-                        self,
-                        "_on_indexing_finished",
-                        Qt.QueuedConnection,
-                    )
+                    self.indexing_finished.emit()
             except Exception as e:
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
-                QMetaObject.invokeMethod(
-                    self,
-                    "_on_indexing_error",
-                    Qt.QueuedConnection,
-                    Q_ARG(str, str(e)),
-                )
+                self.indexing_error.emit(str(e))
 
         Thread(target=worker, daemon=True).start()
 
@@ -455,14 +408,7 @@ class IndexPanel(BasePanel):
         from PySide6.QtWidgets import QMenu
 
         menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #1e1e2e; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 6px;
-                padding: 4px;
-            }
-            QMenu::item:selected { background-color: #313244; }
-        """)
+        menu.setObjectName("contextMenu")
 
         remove_action = QAction("\U0001f5d1\ufe0f Remove from Index", self)
         remove_action.triggered.connect(lambda: self._remove_selected_from_index())
@@ -500,10 +446,9 @@ class IndexPanel(BasePanel):
         """Quick method for main window to call"""
         self.source_dir = Path(dir_path)
         self.dir_label.setText(f"\U0001f4c2 {dir_path}")
-        self.dir_label.setStyleSheet(
-            "color: #cdd6f4; padding: 6px 10px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 4px;"
-        )
+        self.dir_label.setProperty("selected", True)
+        self.dir_label.style().unpolish(self.dir_label)
+        self.dir_label.style().polish(self.dir_label)
         self.btn_build.setEnabled(True)
         self.btn_update.setEnabled(True)
         self._on_build()

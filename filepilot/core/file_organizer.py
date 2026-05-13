@@ -1,11 +1,9 @@
 """File Organizer — Auto-categorize, smart rename"""
 
-import re
 import shutil
-from dataclasses import dataclass, field
-from datetime import datetime
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from filepilot.core.file_scanner import FileInfo
 from filepilot.utils.file_utils import FileCategory, safe_filename
@@ -97,7 +95,6 @@ class FileOrganizer:
         self.rules = rules or [CategoryRule()]
         self._organized_count = 0
         self._errors: list[tuple[str, str]] = []
-        self.preview_mode = True  # Default preview mode
         self._undo_log: list[dict] = []  # Undo log
 
     def organize(

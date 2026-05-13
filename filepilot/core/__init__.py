@@ -1,6 +1,6 @@
-from .file_scanner import FileScanner, FileInfo
-from .file_organizer import FileOrganizer, OrganizeRule
 from .duplicate_finder import DuplicateFinder
+from .file_organizer import FileOrganizer, OrganizeRule
+from .file_scanner import FileInfo, FileScanner
 from .indexer import FileIndexer
 
 __all__ = [

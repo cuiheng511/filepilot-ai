@@ -4,7 +4,6 @@ from pathlib import Path
 from threading import Thread
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
@@ -17,7 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from filepilot.core.file_scanner import FileInfo, FileScanner
+from filepilot.core.file_scanner import FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.ui.base_panel import BasePanel
 
@@ -26,15 +25,26 @@ class SearchPanel(BasePanel):
     """Search panel for natural language file search"""
 
     indexing_finished = Signal(int, str)
+    search_results_ready = Signal(list, str)
+    cancel_acknowledged = Signal()
 
     def __init__(self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
         self.indexer = indexer or FileIndexer()
         self.scanner = scanner or FileScanner()
         self.current_dir: Path | None = None
+        self._cancelled = False
+        self._cancelling = False
 
         self._setup_ui()
         self._connect_signals()
+
+    def update_services(self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None):
+        """Update service references without recreating the panel"""
+        if scanner is not None:
+            self.scanner = scanner
+        if indexer is not None:
+            self.indexer = indexer
 
     def _setup_ui(self):
         """Build the UI"""
@@ -58,37 +68,12 @@ class SearchPanel(BasePanel):
         # Search bar
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
+        self.search_input.setObjectName("searchInput")
         self.search_input.setPlaceholderText("Enter search keywords, e.g.: find PDFs about deep learning...")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #181825;
-                color: #cdd6f4;
-                border: 2px solid #313244;
-                border-radius: 10px;
-                padding: 12px 16px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #cba6f7;
-            }
-        """)
         self.search_input.returnPressed.connect(self._on_search)
 
         self.search_btn = QPushButton("🔍 Search")
-        self.search_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #cba6f7;
-                color: #1e1e2e;
-                border: none;
-                border-radius: 10px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #b4befe;
-            }
-        """)
+        self.search_btn.setObjectName("btnSearch")
         self.search_btn.clicked.connect(self._on_search)
 
         search_layout.addWidget(self.search_input, 1)
@@ -99,12 +84,10 @@ class SearchPanel(BasePanel):
         options_layout = QHBoxLayout()
         self.fuzzy_cb = QCheckBox("Fuzzy search")
         self.fuzzy_cb.setChecked(True)
-        self.fuzzy_cb.setStyleSheet("color: #a6adc8;")
         options_layout.addWidget(self.fuzzy_cb)
 
         self.content_cb = QCheckBox("Search content")
         self.content_cb.setChecked(True)
-        self.content_cb.setStyleSheet("color: #a6adc8;")
         options_layout.addWidget(self.content_cb)
 
         options_layout.addStretch()
@@ -126,48 +109,20 @@ class SearchPanel(BasePanel):
         progress_layout.addWidget(self.progress_bar, 1)
 
         self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-        """)
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
         # Search results
         self.result_list = QListWidget()
-        self.result_list.setStyleSheet("""
-            QListWidget {
-                background-color: #181825;
-                color: #cdd6f4;
-                border: 1px solid #313244;
-                border-radius: 8px;
-                padding: 8px;
-                font-size: 13px;
-            }
-            QListWidget::item {
-                padding: 12px 16px;
-                border-bottom: 1px solid #252538;
-                border-radius: 4px;
-            }
-            QListWidget::item:selected {
-                background-color: #313244;
-                color: #cba6f7;
-            }
-            QListWidget::item:hover {
-                background-color: #252538;
-            }
-        """)
+        self.result_list.setAlternatingRowColors(True)
         layout.addWidget(self.result_list, 1)
 
         # Status
         self.stats_label = QLabel("Please open a folder and build the index first")
-        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px;")
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
@@ -175,6 +130,8 @@ class SearchPanel(BasePanel):
         self.status_message.connect(self._on_status_message)
         self.progress_updated.connect(self.progress_bar.setValue)
         self.indexing_finished.connect(self._on_indexing_finished)
+        self.search_results_ready.connect(self._display_results)
+        self.cancel_acknowledged.connect(self._on_cancel_done)
 
     def index_directory(self, dir_path: str | Path):
         """Index a directory"""
@@ -228,15 +185,8 @@ class SearchPanel(BasePanel):
             if self._cancelled:
                 return
 
-            # Display results on main thread
-            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
-            QMetaObject.invokeMethod(
-                self,
-                "_display_results",
-                Qt.QueuedConnection,
-                Q_ARG(list, results),
-                Q_ARG(str, query),
-            )
+            # Signal results to main thread
+            self.search_results_ready.emit(results, query)
 
         Thread(target=search_worker, daemon=True).start()
 
@@ -312,8 +262,7 @@ class SearchPanel(BasePanel):
                 progress_callback=lambda i, p: None,
             ):
                 if self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt
-                    QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
+                    self.cancel_acknowledged.emit()
                     return
                 files.append(f)
 

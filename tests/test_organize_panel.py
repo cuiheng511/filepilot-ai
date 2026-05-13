@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import Qt
 
 
 class TestOrganizePanelInitialState:
@@ -258,7 +257,7 @@ class TestOrganizePanelPreviewAndExecute:
         self.panel._display_execution(operations)
 
         assert self.panel.result_table.rowCount() == 1
-        assert "moved" in self.panel.result_table.item(0, 4).text()
+        assert "Moved" in self.panel.result_table.item(0, 4).text()
 
     def test_display_execution_with_errors(self):
         """Test execution result display (with errors)"""
@@ -354,8 +353,8 @@ class TestOrganizePanelMockIntegration:
         # Simulate display execution
         self.panel._display_execution(self.panel.organizer.organize.return_value)
 
-        assert "moved" in self.panel.result_table.item(0, 4).text()
-        assert "1 file moved" in self.panel.stats_label.text()
+        assert "Moved" in self.panel.result_table.item(0, 4).text()
+        assert "files moved" in self.panel.stats_label.text()
 
 
 class TestOrganizePanelEdgeCases:
@@ -392,4 +391,4 @@ class TestOrganizePanelEdgeCases:
 
     def test_rename_input_placeholder(self):
         """Test rename input placeholder text"""
-        assert "Leave blank to keep original name" in self.panel.rename_input.placeholderText()
+        assert "Supports: {name} {date} {time} {ext} {category}" in self.panel.rename_input.placeholderText()

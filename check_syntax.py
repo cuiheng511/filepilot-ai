@@ -40,7 +40,7 @@ def main():
         print(f"\n❌ Found {len(errors)} syntax error(s)", file=sys.stderr)
         sys.exit(1)
     else:
-        print(f"\n✅ All files passed syntax check")
+        print("\n✅ All files passed syntax check")
 
 
 if __name__ == "__main__":

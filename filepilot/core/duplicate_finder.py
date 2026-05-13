@@ -3,8 +3,8 @@
 import hashlib
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from filepilot.core.file_scanner import FileInfo
 

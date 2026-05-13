@@ -54,8 +54,8 @@ def cmd_search(args):
 
 def cmd_duplicates(args):
     """Find duplicate files"""
-    from filepilot.core.file_scanner import FileScanner
     from filepilot.core.duplicate_finder import DuplicateFinder
+    from filepilot.core.file_scanner import FileScanner
     scanner = FileScanner()
     files = scanner.scan(args.path)
     print(f"Scan complete: {len(files)} files", file=sys.stderr)
@@ -72,8 +72,8 @@ def cmd_duplicates(args):
 
 def cmd_organize(args):
     """Organize files"""
+    from filepilot.core.file_organizer import CategoryRule, DateRule, FileOrganizer, SizeRule
     from filepilot.core.file_scanner import FileScanner
-    from filepilot.core.file_organizer import FileOrganizer, CategoryRule, DateRule, SizeRule
     scanner = FileScanner()
     files = scanner.scan(args.path)
 

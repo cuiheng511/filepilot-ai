@@ -1,12 +1,11 @@
 """FileScanner Unit Tests"""
 
-import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from filepilot.core.file_scanner import FileScanner, FileInfo
+from filepilot.core.file_scanner import FileScanner
 from filepilot.utils.file_utils import FileCategory
 
 

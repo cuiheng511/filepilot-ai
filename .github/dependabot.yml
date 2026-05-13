@@ -1,0 +1,58 @@
+# Dependabot — Automatic dependency update configuration
+# For details: https://docs.github.com/code-security/dependabot
+
+version: 2
+updates:
+  # ── Python (pip) dependencies via pyproject.toml ───────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      major-updates:
+        applies-to: version-updates
+        update-types:
+          - "major"
+        patterns:
+          - "*"
+      minor-patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"

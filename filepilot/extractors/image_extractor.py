@@ -1,5 +1,6 @@
 """Image Content Extractor"""
 
+import io
 from pathlib import Path
 
 
@@ -11,7 +12,7 @@ class ImageExtractor:
     def extract_metadata(self, file_path: str | Path) -> dict:
         """Extract image metadata"""
         try:
-            from PIL import Image, ExifTags
+            from PIL import ExifTags, Image
         except ImportError:
             return {"error": "Pillow not installed"}
         try:

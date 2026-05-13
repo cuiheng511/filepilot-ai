@@ -9,7 +9,6 @@ from filepilot.core.file_organizer import (
     CategoryRule,
     DateRule,
     ExtensionRule,
-    FileOrganizer,
     SizeRule,
 )
 from filepilot.core.file_scanner import FileScanner
@@ -37,7 +36,8 @@ class TestFileOrganizer:
 
     def test_category_rule(self):
         """Test category classification rule"""
-        import tempfile, pathlib
+        import pathlib
+        import tempfile
         scanner = FileScanner()
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(b"%PDF")
@@ -54,7 +54,8 @@ class TestFileOrganizer:
 
     def test_date_rule(self):
         """Test date-based classification rule"""
-        import tempfile, pathlib
+        import pathlib
+        import tempfile
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"test")
             path = pathlib.Path(f.name)
@@ -75,7 +76,8 @@ class TestFileOrganizer:
         """Test extension-based classification rule"""
         rule = ExtensionRule()
 
-        import tempfile, pathlib
+        import pathlib
+        import tempfile
         with tempfile.NamedTemporaryFile(suffix=".PYTHON", delete=False) as f:
             f.write(b"test")
             path = pathlib.Path(f.name)
@@ -91,7 +93,8 @@ class TestFileOrganizer:
 
     def test_size_rule(self):
         """Test size-based classification rule"""
-        import tempfile, pathlib
+        import pathlib
+        import tempfile
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"x" * 100)
             path = pathlib.Path(f.name)

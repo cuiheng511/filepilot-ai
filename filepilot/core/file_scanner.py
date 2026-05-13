@@ -2,11 +2,10 @@
 
 import logging
 import mimetypes
-import os
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Iterator
 
 from filepilot.utils.file_utils import (
     FileCategory,
@@ -102,6 +101,13 @@ class FileScanner:
 
             # Skip ignored extensions
             if file_path.suffix.lower() in self.IGNORED_EXTENSIONS:
+                continue
+
+            # Skip files exceeding max size
+            try:
+                if file_path.stat().st_size > self.MAX_FILE_SIZE:
+                    continue
+            except OSError:
                 continue
 
             try:

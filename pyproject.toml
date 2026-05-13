@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "filepilot-ai"
@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.31.0",
     "pyyaml>=6.0",
     "markdown>=3.5.0",
+    "keyring>=24.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -26,9 +27,80 @@ include = ["filepilot*"]
 test = [
     "pytest>=8.0.0",
     "pytest-qt>=4.2.0",
+    "pytest-cov>=5.0.0",
+]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
 ]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-v --tb=short"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "F",     # pyflakes (errors)
+    "E", "W",  # pycodestyle (convention + warnings)
+    "I",     # isort (import order)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade (modernize for py310+)
+    "B",     # flake8-bugbear (bug detection)
+    "SIM",   # flake8-simplify (code simplification)
+    "C4",    # flake8-comprehensions
+    "T20",   # flake8-print (catch debug print() statements)
+    "PT",    # flake8-pytest (pytest best practices)
+    "RUF100",  # detect unused noqa directives
+]
+ignore = [
+    "E501",  # line-length handled by formatter
+    "UP007",  # allow Union type syntax (not just X|Y for now)
+    "B028",   # allow stacklevel warning
+    "SIM108",  # allow simple if-else instead of ternary
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # allow unused imports in __init__.py
+"tests/*.py" = [
+    "T20",   # allow print() in tests
+    "N802",  # allow test function names like test_MyFeature
+    "PT009", # allow unittest-style assert
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint.isort]
+known-first-party = ["filepilot"]
+
+[tool.coverage.run]
+source = ["filepilot"]
+omit = ["*/tests/*", "*/__init__.py", "*/.venv/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.",
+    "raise NotImplementedError",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+
+

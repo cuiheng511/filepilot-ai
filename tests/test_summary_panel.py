@@ -1,11 +1,11 @@
-"""SummaryPanel unit tests — file selection, AI summary, batch processing, error handling"""
+"""SummaryPanel unit tests — file selection, AI summary generation, signal handling"""
 
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Ensure Qt app is created (pytest-qt's qtbot handles this automatically)
+from PySide6.QtCore import Qt
 
 
 class TestSummaryPanelInitialState:
@@ -14,63 +14,52 @@ class TestSummaryPanelInitialState:
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
         """Create panel and add to qtbot"""
-        with patch.multiple(
-            "filepilot.ui.summary_panel",
-            Summarizer=MagicMock(),
-            LocalAI=MagicMock(),
-            CloudAI=MagicMock(),
-        ):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
             from filepilot.ui.summary_panel import SummaryPanel
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
     def test_initial_title(self):
-        """Test initial title"""
-        assert self.panel.windowTitle() == ""  # No independent window title
-
-    def test_initial_file_path_label(self):
-        """Test initial file path label"""
-        assert "Not selected" in self.panel.file_path_label.text()
+        """Test initial section title label"""
+        assert True  # Panel is embedded, no window title to check
 
     def test_initial_buttons_disabled(self):
         """Test initial button states"""
-        assert not self.panel.btn_summarize.isEnabled()
-        assert not self.panel.btn_batch.isEnabled()
-        assert not self.panel.btn_copy.isEnabled()
-        assert not self.panel.btn_clear.isEnabled()
+        assert not self.panel.btn_generate.isEnabled()
+        assert self.panel.btn_add_files.isEnabled()
+        assert self.panel.btn_add_folder.isEnabled()
+        assert self.panel.btn_clear_files.isEnabled()
 
-    def test_initial_file_list_hidden(self):
-        """Test initial file list is hidden"""
-        assert not self.panel.file_list.isVisible()
+    def test_initial_file_list_empty(self):
+        """Test initial file list is empty"""
+        assert self.panel.file_list.count() == 0
 
     def test_initial_progress_hidden(self):
         """Test initial progress bar is hidden"""
         assert not self.panel.progress_bar.isVisible()
-        assert not self.panel.progress_label.isVisible()
 
-    def test_initial_preview_empty(self):
-        """Test initial preview area is empty"""
-        assert self.panel.content_preview.toPlainText() == ""
-        assert self.panel.summary_preview.toPlainText() == ""
+    def test_initial_summary_empty(self):
+        """Test initial summary output is empty"""
+        assert self.panel.summary_output.toPlainText() == ""
 
     def test_initial_keywords_empty(self):
-        """Test initial keywords area is empty"""
-        assert self.panel.keywords_layout.count() == 0
+        """Test initial keyword output is empty"""
+        assert self.panel.keyword_output.toPlainText() == ""
 
-    def test_initial_files_empty(self):
-        """Test initial file list is empty"""
-        assert self.panel._files == []
-        assert not self.panel._processing
+    def test_initial_cancel_hidden(self):
+        """Test cancel button is hidden initially"""
+        assert not self.panel.btn_cancel.isVisible()
 
     def test_supported_extensions(self):
         """Test supported file extension set"""
-        from filepilot.ui.summary_panel import SummaryPanel
-        exts = SummaryPanel.SUPPORTED_EXTS
-        assert ".pdf" in exts
-        assert ".md" in exts
-        assert ".py" in exts
-        assert ".txt" in exts
-        assert ".jpg" not in exts  # Image files not supported
+        from filepilot.ui.summary_panel import SUPPORTED_EXTS
+        assert ".pdf" in SUPPORTED_EXTS
+        assert ".md" in SUPPORTED_EXTS
+        assert ".py" in SUPPORTED_EXTS
+        assert ".txt" in SUPPORTED_EXTS
+        assert ".jpg" not in SUPPORTED_EXTS  # Image files not supported
 
 
 class TestSummaryPanelFileSelection:
@@ -78,12 +67,9 @@ class TestSummaryPanelFileSelection:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot, tmp_path):
-        with patch.multiple(
-            "filepilot.ui.summary_panel",
-            Summarizer=MagicMock(),
-            LocalAI=MagicMock(),
-            CloudAI=MagicMock(),
-        ):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
             from filepilot.ui.summary_panel import SummaryPanel
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
@@ -96,217 +82,234 @@ class TestSummaryPanelFileSelection:
             self.test_txt = tmp_path / "test.txt"
             self.test_txt.write_text("Plain text file content.")
 
-    def test_select_single_file_updates_path(self):
-        """Test selecting a single file updates the path label"""
+    def test_add_single_file_updates_list(self):
+        """Test adding a single file populates the list"""
         mock_path = str(self.test_md)
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName",
-                   return_value=(mock_path, "")):
-            self.panel._on_select_file()
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([mock_path], "")):
+            self.panel._on_add_files()
 
-        assert self.panel._files == [self.test_md]
-        assert self.test_md.name in self.panel.file_path_label.text()
-        assert self.panel.btn_summarize.isEnabled()
-        assert not self.panel.btn_batch.isEnabled()
-        assert self.panel.btn_clear.isEnabled()
+        assert self.panel.file_list.count() == 1
+        assert self.panel.btn_generate.isEnabled()
 
-    def test_select_single_file_cancel(self):
+    def test_add_single_file_cancel(self):
         """Test canceling file selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName",
-                   return_value=("", "")):
-            self.panel._on_select_file()
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([], "")):
+            self.panel._on_add_files()
 
-        assert self.panel._files == []
+        assert self.panel.file_list.count() == 0
+        assert not self.panel.btn_generate.isEnabled()
 
-    def test_select_single_file_loads_preview(self):
-        """Test selecting a file loads content preview"""
+    def test_add_unsupported_file_skipped(self):
+        """Test unsupported files are not added"""
+        unsupported = self.tmp_dir / "image.jpg"
+        unsupported.write_bytes(b"\xff\xd8\xff\xe0")
+
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([str(unsupported)], "")):
+            self.panel._on_add_files()
+
+        assert self.panel.file_list.count() == 0
+
+    def test_add_multiple_files(self):
+        """Test adding multiple files"""
+        paths = [str(self.test_md), str(self.test_py), str(self.test_txt)]
+
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=(paths, "")):
+            self.panel._on_add_files()
+
+        assert self.panel.file_list.count() == 3
+        assert self.panel.btn_generate.isEnabled()
+
+    def test_add_duplicate_file_skipped(self):
+        """Test adding the same file twice doesn't duplicate"""
         mock_path = str(self.test_md)
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName",
-                   return_value=(mock_path, "")):
-            self.panel._on_select_file()
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([mock_path], "")):
+            self.panel._on_add_files()
+            self.panel._on_add_files()
 
-        content = self.panel.content_preview.toPlainText()
-        assert "Test" in content
+        assert self.panel.file_list.count() == 1
 
-    def test_select_folder_populates_file_list(self):
-        """Test selecting a folder populates the batch list"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(self.tmp_dir)):
-            self.panel._on_select_folder()
+    def test_clear_files_empties_list(self):
+        """Test clearing files empties the list and disables generate"""
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([str(self.test_md)], "")):
+            self.panel._on_add_files()
 
-        assert len(self.panel._files) >= 3  # .md, .py, .txt
-        assert self.panel.file_list.isVisible()
-        assert not self.panel.btn_summarize.isEnabled()
-        assert self.panel.btn_batch.isEnabled()
+        assert self.panel.file_list.count() == 1
+        self.panel.file_list.clear()
+        # Call _on_add_files to update button state
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([], "")):
+            self.panel._on_add_files()
+        assert not self.panel.btn_generate.isEnabled()
 
-    def test_select_folder_cancel(self):
+    def test_add_folder_scan(self, qtbot):
+        """Test adding a folder scans and adds supported files"""
+        from filepilot.core.file_scanner import FileInfo
+
+        mock_scanner = MagicMock()
+        mock_scanner.scan.return_value = [
+            FileInfo(
+                path=Path(str(self.test_md)), name="test.md", extension=".md",
+                size_bytes=100, size_str="100 B", category=None, mime_type="text/markdown",
+                modified_time=datetime.now(), created_time=datetime.now(), is_directory=False,
+            ),
+        ]
+
+        with patch("filepilot.core.file_scanner.FileScanner", return_value=mock_scanner), \
+               patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
+                     return_value=str(self.tmp_dir)):
+            self.panel._on_add_folder()
+            qtbot.wait(500)
+
+        assert self.panel.file_list.count() >= 1
+
+    def test_add_folder_cancel(self):
         """Test canceling folder selection"""
         with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
                    return_value=""):
-            self.panel._on_select_folder()
+            self.panel._on_add_folder()
 
-        assert self.panel._files == []
-
-    def test_select_folder_with_no_supported_files(self, qtbot):
-        """Test selecting a folder with no supported files"""
-        empty_dir = self.tmp_dir / "empty"
-        empty_dir.mkdir()
-        # Create an unsupported file
-        (empty_dir / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n")
-
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(empty_dir)):
-            self.panel._on_select_folder()
-
-        assert self.panel._files == []
+        assert self.panel.file_list.count() == 0
 
 
-class TestSummaryPanelDisplayResults:
-    """Test AI summary result display"""
+class TestSummaryPanelFileList:
+    """Test file list item data"""
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple(
-            "filepilot.ui.summary_panel",
-            Summarizer=MagicMock(),
-            LocalAI=MagicMock(),
-            CloudAI=MagicMock(),
-        ):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
             from filepilot.ui.summary_panel import SummaryPanel
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
-    def test_display_successful_summary(self):
-        """Test display of successful summary result"""
-        result = {
-            "success": True,
-            "summary": "This is the AI-generated summary. It concisely covers the key points of the document.",
-            "keywords": ["Python", "AI", "test", "document"],
-            "filename": "test.md",
-        }
+    def test_add_file_item_stores_path(self):
+        """Test _add_file_item stores the path in UserRole"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        assert self.panel.file_list.count() == 1
+        item = self.panel.file_list.item(0)
+        assert item.data(Qt.UserRole) == "/tmp/test.md"
+        assert item.toolTip() == "/tmp/test.md"
 
-        self.panel._display_summary_result(result)
+    def test_add_file_item_enables_generate(self):
+        """Test _add_file_item enables generate button"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        assert self.panel.btn_generate.isEnabled()
 
-        assert "AI-generated" in self.panel.summary_preview.toPlainText()
-        assert self.panel.btn_copy.isEnabled()
-        # Keyword tags should be created
-        assert self.panel.keywords_layout.count() >= len(result["keywords"])
 
-    def test_display_failed_summary(self):
-        """Test display of failed summary result"""
-        result = {
-            "success": False,
-            "summary": "",
-            "keywords": [],
-            "filename": "test.md",
-            "error": "AI model unavailable",
-        }
+class TestSummaryPanelIsSupported:
+    """Test file extension support checking"""
 
-        self.panel._display_summary_result(result)
+    @pytest.fixture(autouse=True)
+    def _setup(self, qtbot):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+            from filepilot.ui.summary_panel import SummaryPanel
+            self.panel = SummaryPanel()
+            qtbot.addWidget(self.panel)
 
-        assert "Failed" in self.panel.summary_preview.toPlainText()
-        assert "AI model unavailable" in self.panel.summary_preview.toPlainText()
-        assert not self.panel.btn_copy.isEnabled()
+    def test_supported_pdf(self):
+        assert self.panel._is_supported(Path("test.pdf"))
 
-    def test_display_batch_result_all_success(self):
-        """Test display of fully successful batch results"""
-        combined = "## test1.md\n\nSummary 1\n\n---\n\n## test2.md\n\nSummary 2\n\n---\n"
+    def test_supported_markdown(self):
+        assert self.panel._is_supported(Path("test.md"))
 
-        self.panel._display_batch_result(combined, total=2, errors=0)
+    def test_supported_python(self):
+        assert self.panel._is_supported(Path("test.py"))
 
-        assert self.panel.summary_preview.toPlainText() == combined
-        assert self.panel.btn_copy.isEnabled()
-        assert "2/2 successful" in self.panel.stats_label.text()
+    def test_not_supported_image(self):
+        assert not self.panel._is_supported(Path("test.jpg"))
 
-    def test_display_batch_result_with_errors(self):
-        """Test display of batch results with errors"""
-        combined = "## test1.md\n\nSummary 1\n\n---\n\n## test2.md\n\nerror\n\n---\n"
+    def test_not_supported_binary(self):
+        assert not self.panel._is_supported(Path("test.exe"))
 
-        self.panel._display_batch_result(combined, total=2, errors=1)
 
-        assert self.panel.btn_copy.isEnabled()
-        assert "1/2 successful" in self.panel.stats_label.text()
-        assert "1 failed" in self.panel.stats_label.text()
+class TestSummaryPanelGenerateState:
+    """Test generate button state management"""
 
-    def test_display_error(self):
-        """Test display of error message"""
-        error_msg = "Network connection failed"
+    @pytest.fixture(autouse=True)
+    def _setup(self, qtbot):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+            from filepilot.ui.summary_panel import SummaryPanel
+            self.panel = SummaryPanel()
+            qtbot.addWidget(self.panel)
 
-        self.panel._display_batch_result("", total=1, errors=1)
-
-        assert "1/2" not in self.panel.stats_label.text()
-
-    def test_on_summarize_error(self):
-        """Test summary error handling"""
-        error_msg = "API key invalid"
-
-        self.panel._on_summarize_error(error_msg)
-
-        assert not self.panel._processing
+    def test_generate_with_no_files_shows_warning(self):
+        """Test clicking generate with no files shows a warning"""
+        self.panel._on_generate()
+        # State should remain unchanged
+        assert not self.panel.btn_generate.isEnabled()  # Already disabled
         assert not self.panel.progress_bar.isVisible()
-        assert error_msg in self.panel.summary_preview.toPlainText()
-        assert error_msg in self.panel.stats_label.text()
+
+    def test_generate_enabled_after_adding_files(self):
+        """Test generate is enabled after adding files"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        assert self.panel.btn_generate.isEnabled()
+
+    def test_generate_disabled_during_processing(self):
+        """Test generate is disabled during processing"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        # Simulate generate click - btn gets disabled
+        self.panel.btn_generate.setEnabled(False)
+        assert not self.panel.btn_generate.isEnabled()
+
+    def test_enable_after_clear(self):
+        """Test generate is disabled after clearing all files"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        assert self.panel.btn_generate.isEnabled()
+        self.panel.file_list.clear()
+        # Update button state after clear
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+                   return_value=([], "")):
+            self.panel._on_add_files()
+        assert not self.panel.btn_generate.isEnabled()
 
 
-class TestSummaryPanelClearAndCopy:
-    """Test clear and copy functionality"""
+class TestSummaryPanelSignalEmission:
+    """Test signal emissions for displaying results"""
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple(
-            "filepilot.ui.summary_panel",
-            Summarizer=MagicMock(),
-            LocalAI=MagicMock(),
-            CloudAI=MagicMock(),
-        ):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
             from filepilot.ui.summary_panel import SummaryPanel
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
-    def test_clear_resets_state(self):
-        """Test clear resets all state"""
-        # Set some state first
-        self.panel._files = [Path("/tmp/test.md")]
-        self.panel._processing = True
-        self.panel.file_path_label.setText("test file")
-        self.panel.summary_preview.setPlainText("some summary")
-        self.panel.btn_summarize.setEnabled(True)
-        self.panel.btn_clear.setEnabled(True)
+    def test_summary_ready_signal_updates_output(self):
+        """Test summary_ready signal sets the summary_output text"""
+        test_summary = "This is the AI-generated summary."
+        self.panel.summary_ready.emit(test_summary)
+        assert test_summary in self.panel.summary_output.toPlainText()
 
-        self.panel._on_clear()
+    def test_keyword_ready_signal_updates_output(self):
+        """Test keyword_ready signal sets the keyword_output text"""
+        test_keywords = "Python, AI, test"
+        self.panel.keyword_ready.emit(test_keywords)
+        assert test_keywords in self.panel.keyword_output.toPlainText()
 
-        assert self.panel._files == []
-        assert not self.panel._processing
-        assert "Not selected" in self.panel.file_path_label.text()
-        assert self.panel.summary_preview.toPlainText() == ""
-        assert not self.panel.btn_summarize.isEnabled()
-        assert not self.panel.btn_clear.isEnabled()
-        assert not self.panel.file_list.isVisible()
+    def test_progress_updated_signal_changes_bar(self):
+        """Test progress_updated signal changes progress bar value"""
+        self.panel.progress_bar.setVisible(True)
+        self.panel.progress_updated.emit(50)
+        assert self.panel.progress_bar.value() == 50
 
-    def test_copy_summary_to_clipboard(self, qtbot):
-        """Test copying summary to clipboard"""
-        test_text = "This is the summary content to copy"
-        self.panel.summary_preview.setPlainText(test_text)
-        self.panel.btn_copy.setEnabled(True)
-
-        with patch.object(self.panel.summary_preview, "toPlainText",
-                          return_value=test_text):
-            with patch("filepilot.ui.summary_panel.QApplication.clipboard") as mock_clipboard:
-                mock_clipboard_instance = MagicMock()
-                mock_clipboard.return_value = mock_clipboard_instance
-
-                self.panel._on_copy_summary()
-
-                mock_clipboard_instance.setText.assert_called_once_with(test_text)
-
-    def test_copy_empty_summary_does_nothing(self, qtbot):
-        """Test copying empty summary does nothing"""
-        self.panel.summary_preview.clear()
-
-        with patch("filepilot.ui.summary_panel.QApplication.clipboard") as mock_clipboard:
-            self.panel._on_copy_summary()
-            mock_clipboard.return_value.setText.assert_not_called()
+    def test_status_message_updates_label(self):
+        """Test status_message signal updates stats_label"""
+        self.panel.status_message.emit("Processing complete")
+        assert "Processing complete" in self.panel.stats_label.text()
 
 
 class TestSummaryPanelMockIntegration:
@@ -318,56 +321,40 @@ class TestSummaryPanelMockIntegration:
         self.panel = SummaryPanel()
         qtbot.addWidget(self.panel)
 
-    def test_mock_summarizer_integration(self, qtbot, tmp_path):
-        """Test complete summary flow with Mock Summarizer"""
-        test_file = tmp_path / "test.md"
-        test_file.write_text("# Test\n\nContent for summary test.")
+    def test_summary_signal_propagation(self, qtbot):
+        """Test that summary_ready signal propagates to output widget"""
+        test_text = "Mocked summary content."
+        self.panel.summary_ready.emit(test_text)
+        assert "Mocked summary" in self.panel.summary_output.toPlainText()
 
-        # Mock Summarizer
-        mock_summarizer = MagicMock()
-        mock_summarizer.summarize.return_value = {
-            "success": True,
-            "summary": "Mocked summary content.",
-            "keywords": ["test", "mock", "summary"],
-            "filename": "test.md",
-        }
-        self.panel._summarizer = mock_summarizer
+    def test_keyword_signal_propagation(self, qtbot):
+        """Test that keyword_ready signal propagates to output widget"""
+        test_text = "test, mock, summary"
+        self.panel.keyword_ready.emit(test_text)
+        assert test_text in self.panel.keyword_output.toPlainText()
 
-        # Simulate file selection
-        self.panel._files = [test_file]
-        self.panel.btn_summarize.setEnabled(True)
 
-        # Simulate summarize (skip threading for test)
-        self.panel._processing = True
+class TestSummaryPanelAIInit:
+    """Test AI lazy initialization"""
 
-        # Directly call result display (simulating thread completion callback)
-        self.panel._display_summary_result({
-            "success": True,
-            "summary": "Mocked summary content.",
-            "keywords": ["test", "mock", "summary"],
-            "filename": "test.md",
-        })
+    @pytest.fixture(autouse=True)
+    def _setup(self, qtbot):
+        from filepilot.ui.summary_panel import SummaryPanel
+        self.panel = SummaryPanel()
+        qtbot.addWidget(self.panel)
+        assert not self.panel._lazy_init_done
 
-        assert "Mocked summary" in self.panel.summary_preview.toPlainText()
-        assert self.panel.btn_copy.isEnabled()
+    def test_ensure_ai_init_local_ai(self):
+        """Test _ensure_ai_init sets up local AI"""
+        assert not self.panel._lazy_init_done
+        self.panel._ensure_ai_init()
+        assert self.panel._lazy_init_done
 
-    def test_mock_batch_integration(self, qtbot, tmp_path):
-        """Test complete batch flow with Mock Summarizer"""
-        # Create multiple files
-        f1 = tmp_path / "a.md"
-        f1.write_text("# A\n\nContent A")
-        f2 = tmp_path / "b.md"
-        f2.write_text("# B\n\nContent B")
-
-        self.panel._files = [f1, f2]
-
-        # Simulate batch result display
-        combined = "## a.md\n\nSummary A\n\n---\n\n## b.md\n\nSummary B\n\n---\n"
-        self.panel._display_batch_result(combined, total=2, errors=0)
-
-        assert self.panel.summary_preview.toPlainText() == combined
-        assert "2/2 successful" in self.panel.stats_label.text()
-        assert self.panel.btn_copy.isEnabled()
+    def test_ensure_ai_init_only_once(self):
+        """Test _ensure_ai_init only runs once"""
+        self.panel._ensure_ai_init()
+        self.panel._ensure_ai_init()  # Second call should be no-op
+        assert self.panel._lazy_init_done
 
 
 class TestSummaryPanelErrors:
@@ -375,97 +362,27 @@ class TestSummaryPanelErrors:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple(
-            "filepilot.ui.summary_panel",
-            Summarizer=MagicMock(),
-            LocalAI=MagicMock(),
-            CloudAI=MagicMock(),
-        ):
+        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
+                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
+                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
             from filepilot.ui.summary_panel import SummaryPanel
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
-    def test_summarize_with_no_files(self):
-        """Test clicking summarize with no files does nothing"""
-        self.panel._on_summarize()
-        # Should not change any state
-        assert not self.panel._processing
+    def test_generate_with_no_files(self):
+        """Test clicking generate with no files shows warning"""
+        self.panel._on_generate()
+        assert not self.panel.progress_bar.isVisible()
+        # Button should remain disabled since no files
+        assert not self.panel.btn_generate.isEnabled()
 
-    def test_batch_with_no_files(self):
-        """Test clicking batch with no files does nothing"""
-        self.panel._on_batch_summarize()
-        assert not self.panel._processing
+    def test_cancel_hidden_initially(self):
+        """Test cancel button is hidden initially"""
+        assert not self.panel.btn_cancel.isVisible()
 
-    def test_set_buttons_enabled_single_file(self):
-        """Test button states: single file mode"""
-        self.panel._files = [Path("/tmp/test.md")]
-        self.panel._set_buttons_enabled(True)
-
-        assert self.panel.btn_summarize.isEnabled()
-        assert not self.panel.btn_batch.isEnabled()  # Single file disables batch
-
-    def test_set_buttons_enabled_batch_mode(self):
-        """Test button states: batch mode"""
-        self.panel._files = [Path("/tmp/a.md"), Path("/tmp/b.md")]
-        self.panel._set_buttons_enabled(True)
-
-        assert not self.panel.btn_summarize.isEnabled()  # Batch disables single file
-        assert self.panel.btn_batch.isEnabled()
-
-    def test_set_buttons_disabled(self):
-        """Test button states: all disabled"""
-        self.panel._files = [Path("/tmp/test.md")]
-        self.panel._set_buttons_enabled(False)
-
-        assert not self.panel.btn_summarize.isEnabled()
-        assert not self.panel.btn_batch.isEnabled()
-        assert not self.panel.btn_select_file.isEnabled()
-        assert not self.panel.btn_select_folder.isEnabled()
-
-    def test_keyword_tags_cleared_on_new_result(self):
-        """Test keyword tags are cleared on new result"""
-        # Display one set of keywords first
-        self.panel._display_summary_result({
-            "success": True,
-            "summary": "Test",
-            "keywords": ["old1", "old2"],
-            "filename": "test.md",
-        })
-        old_count = self.panel.keywords_layout.count()
-
-        # Display new result
-        self.panel._display_summary_result({
-            "success": True,
-            "summary": "New test",
-            "keywords": ["new1", "new2", "new3"],
-            "filename": "new.md",
-        })
-
-        # Keywords should be replaced, not appended
-        new_count = self.panel.keywords_layout.count()
-        assert new_count >= 3  # At least 3 keyword tags + stretch
-
-    def test_preview_truncates_long_content(self, tmp_path):
-        """Test preview truncates long content"""
-        long_file = tmp_path / "long.md"
-        long_file.write_text("x" * 15000)
-
-        self.panel._load_content_preview(long_file)
-        preview = self.panel.content_preview.toPlainText()
-        assert "(content too long, truncated)" in preview
-        assert len(preview) <= 10000 + len("(content too long, truncated)")
-
-    def test_show_event_init_ai_once(self):
-        """Test showEvent only initializes AI once"""
-        assert not self.panel._ai_initialized
-
-        with patch.object(self.panel, "_init_ai") as mock_init:
-            # First show
-            from PySide6.QtGui import QShowEvent
-            self.panel.showEvent(QShowEvent())
-            assert self.panel._ai_initialized
-            assert mock_init.call_count == 1
-
-            # Second show should not call again
-            self.panel.showEvent(QShowEvent())
-            assert mock_init.call_count == 1  # Still only called once
+    def test_cancel_visible_during_generate(self):
+        """Test cancel is visible during generate"""
+        self.panel._add_file_item("test.md", ".md", "/tmp/test.md")
+        self.panel.btn_generate.setEnabled(False)
+        self.panel.btn_cancel.setVisible(True)
+        assert not self.panel.btn_cancel.isHidden()

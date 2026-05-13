@@ -7,7 +7,6 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -38,6 +37,13 @@ class DuplicatesPanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
+    def update_services(self, scanner: FileScanner | None = None, finder: DuplicateFinder | None = None):
+        """Update service references without recreating the panel"""
+        if scanner is not None:
+            self.scanner = scanner
+        if finder is not None:
+            self.finder = finder
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -60,10 +66,7 @@ class DuplicatesPanel(BasePanel):
         dir_layout = QHBoxLayout()
         dir_layout.addWidget(QLabel("📂 Scan folder:"))
         self.dir_label = QLabel("Not selected")
-        self.dir_label.setStyleSheet(
-            "color: #585b70; padding: 6px 10px; background: #181825; "
-            "border: 1px solid #313244; border-radius: 4px;"
-        )
+        self.dir_label.setObjectName("pathLabel")
         self.dir_label.setWordWrap(True)
         self.btn_browse = QPushButton("Browse...")
         self.btn_browse.clicked.connect(self._on_select_source)
@@ -76,27 +79,17 @@ class DuplicatesPanel(BasePanel):
 
         self.cb_hash = QCheckBox("Use hash verification (more accurate)")
         self.cb_hash.setChecked(True)
-        self.cb_hash.setStyleSheet("color: #cdd6f4;")
 
         self.cb_similar_name = QCheckBox("Find similar file names")
-        self.cb_similar_name.setStyleSheet("color: #cdd6f4;")
 
         action_layout.addWidget(self.cb_hash)
         action_layout.addWidget(self.cb_similar_name)
         action_layout.addStretch()
 
         self.btn_scan = QPushButton("🔍 Start Scan")
+        self.btn_scan.setObjectName("btnDanger")
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
-        self.btn_scan.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 10px 24px; font-size: 14px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
         action_layout.addWidget(self.btn_scan)
 
         self.btn_clear = QPushButton("Clear")
@@ -112,16 +105,9 @@ class DuplicatesPanel(BasePanel):
         progress_layout.addWidget(self.progress_bar, 1)
 
         self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-        """)
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
@@ -150,21 +136,6 @@ class DuplicatesPanel(BasePanel):
         self.result_tree.header().setStretchLastSection(True)
         self.result_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.result_tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.result_tree.setStyleSheet("""
-            QTreeWidget {
-                background-color: #1e1e2e; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                font-size: 13px;
-            }
-            QTreeWidget::item { padding: 6px 8px; border-radius: 4px; }
-            QTreeWidget::item:selected { background-color: #313244; color: #cba6f7; }
-            QTreeWidget::item:hover { background-color: #252538; }
-            QHeaderView::section {
-                background-color: #181825; color: #a6adc8;
-                border: none; border-bottom: 1px solid #313244;
-                padding: 8px 10px; font-weight: bold; font-size: 12px;
-            }
-        """)
         splitter.addWidget(self.result_tree)
 
         # Bottom: action buttons
@@ -173,17 +144,9 @@ class DuplicatesPanel(BasePanel):
         op_layout.setContentsMargins(0, 4, 0, 0)
 
         self.btn_delete = QPushButton("🗑️ Delete Selected Duplicates")
+        self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.clicked.connect(self._on_delete_selected)
         self.btn_delete.setEnabled(False)
-        self.btn_delete.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 8px 20px; font-size: 13px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
 
         self.btn_select_all_dup = QPushButton("Select All Duplicates")
         self.btn_select_all_dup.clicked.connect(self._on_select_all_duplicates)
@@ -205,7 +168,7 @@ class DuplicatesPanel(BasePanel):
 
         # ── Bottom status ──
         self.stats_label = QLabel("Select a folder and start scanning")
-        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
@@ -220,10 +183,9 @@ class DuplicatesPanel(BasePanel):
         if dir_path:
             self.source_dir = Path(dir_path)
             self.dir_label.setText(f"📂 {dir_path}")
-            self.dir_label.setStyleSheet(
-                "color: #cdd6f4; padding: 6px 10px; background: #181825; "
-                "border: 1px solid #313244; border-radius: 4px;"
-            )
+            self.dir_label.setProperty("selected", True)
+            self.dir_label.style().unpolish(self.dir_label)
+            self.dir_label.style().polish(self.dir_label)
             self.btn_scan.setEnabled(True)
 
     # ── Scan for duplicates ──
@@ -291,7 +253,7 @@ class DuplicatesPanel(BasePanel):
                 similar_groups = self.finder.find_similar_by_name(files)
 
             if not self._cancelled:
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
                 QMetaObject.invokeMethod(
                     self, "_display_results",
                     Qt.QueuedConnection,
@@ -345,7 +307,7 @@ class DuplicatesPanel(BasePanel):
                     child.setForeground(0, Qt.green)
 
                 child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                child.setCheckState(0, Qt.Unchecked if j > 0 else Qt.Unchecked)
+                child.setCheckState(0, Qt.Checked if j == 0 else Qt.Unchecked)
                 child.setData(0, Qt.UserRole, str(f.path))
 
         # ── Similar file name groups ──
@@ -424,7 +386,7 @@ class DuplicatesPanel(BasePanel):
             try:
                 Path(path_str).unlink()
                 deleted += 1
-            except (OSError, PermissionError) as e:
+            except (OSError, PermissionError):
                 errors += 1
 
         # Re-scan

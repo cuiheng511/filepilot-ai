@@ -1,31 +1,38 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
 *.egg-info/
 dist/
 build/
 *.egg
-.eggs/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# Virtual environments
-venv/
-env/
+# Virtual environment
 .venv/
 .env/
+venv/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Project specific
-*.db
-*.sqlite
+*.log
+*.spec
+/filepilot-ai.spec
+
+# Installers
+*.exe
+*.msi
+
+# Settings (contains API keys)
+.filepilot/settings.json

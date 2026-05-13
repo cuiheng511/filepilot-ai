@@ -3,7 +3,6 @@
 import json
 import os
 import subprocess
-import sys
 import urllib.request
 
 REPO_NAME = "filepilot-ai"
@@ -50,7 +49,7 @@ def create_github_repo():
         return result["clone_url"]
     elif result and "errors" in result:
         if any("already exists" in e.get("message", "") for e in result["errors"]):
-            print(f"鈿狅笍 Repository already exists, will push to existing repo")
+            print("鈿狅笍 Repository already exists, will push to existing repo")
             return f"https://github.com/{GITHUB_USER}/{REPO_NAME}.git"
     return None
 
@@ -125,7 +124,7 @@ def push_to_github():
         capture_output=True, text=True, timeout=120
     )
     if result.returncode == 0:
-        print(f"\n鉁?SUCCESS! Repository pushed to GitHub!")
+        print("\n鉁?SUCCESS! Repository pushed to GitHub!")
         print(f"   https://github.com/{GITHUB_USER}/{REPO_NAME}")
         return True
     else:
@@ -139,7 +138,7 @@ def push_to_github():
             capture_output=True, text=True, timeout=120, env=env
         )
         if result.returncode == 0:
-            print(f"\n鉁?SUCCESS! Repository pushed to GitHub!")
+            print("\n鉁?SUCCESS! Repository pushed to GitHub!")
             print(f"   https://github.com/{GITHUB_USER}/{REPO_NAME}")
             return True
         else:

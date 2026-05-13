@@ -33,7 +33,7 @@ class XlsxExtractor:
     def _fallback_extract(self, file_path: str | Path) -> str:
         """Fallback extraction method without openpyxl: use csv reader"""
         try:
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(file_path, encoding="utf-8", errors="replace") as f:
                 reader = csv.reader(f)
                 return "\n".join(" | ".join(row) for row in reader if any(cell.strip() for cell in row))
         except Exception:

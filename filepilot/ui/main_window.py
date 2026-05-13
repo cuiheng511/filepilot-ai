@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, Signal, Slot
-from PySide6.QtGui import QAction, QIcon, QFont
+from PySide6.QtCore import QSize, Qt, Slot
+from PySide6.QtGui import QAction, QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QResizeEvent
 from PySide6.QtWidgets import (
-    QApplication,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -19,16 +19,16 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QStatusBar,
     QToolBar,
-    QVBoxLayout,
     QWidget,
 )
 
+from filepilot.styles.manager import ThemeManager
+from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.file_browser import FileBrowserPanel
+from filepilot.ui.index_panel import IndexPanel
+from filepilot.ui.organize_panel import OrganizePanel
 from filepilot.ui.search_panel import SearchPanel
 from filepilot.ui.settings_dialog import SettingsDialog
-from filepilot.ui.organize_panel import OrganizePanel
-from filepilot.ui.duplicates_panel import DuplicatesPanel
-from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.summary_panel import SummaryPanel
 
 
@@ -46,14 +46,22 @@ class MainWindow(QMainWindow):
         self.settings = self._load_settings()
         self.services = services or {}
 
+        # Enable drag-and-drop of folders
+        self.setAcceptDrops(True)
+
         # Build UI
         self._setup_ui()
         self._setup_menu()
         self._setup_toolbar()
         self._setup_statusbar()
 
-        # Apply styles
-        self._apply_styles()
+        # Initialize theme manager (applies QSS globally with hot-reload)
+        themes_dir = Path(__file__).parent.parent / "styles" / "themes"
+        self._theme_mgr = ThemeManager(themes_dir)
+        self._theme_mgr.apply_theme("dark")
+        self._theme_mgr.styles_reloaded.connect(
+            lambda: self.status_label.setText("🎨 Styles reloaded")
+        )
 
         # Keyboard shortcuts
         self._setup_shortcuts()
@@ -123,8 +131,28 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(splitter)
 
+        # Drop highlight overlay — positioned on top of central widget
+        self.drop_overlay = QFrame(self.centralWidget())
+        self.drop_overlay.setObjectName("dropOverlay")
+        self.drop_overlay.setStyleSheet(
+            "QFrame#dropOverlay {"
+            "  border: 3px solid #4a9eff;"
+            "  background: rgba(74, 158, 255, 0.06);"
+            "  border-radius: 6px;"
+            "  margin: 2px;"
+            "}"
+        )
+        self.drop_overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.drop_overlay.hide()
+
         # Default to first item
         self.nav_list.setCurrentRow(0)
+
+    def resizeEvent(self, event: QResizeEvent):
+        """Keep drop overlay geometry in sync with central widget"""
+        super().resizeEvent(event)
+        if hasattr(self, "drop_overlay"):
+            self.drop_overlay.setGeometry(self.centralWidget().rect())
 
     def _add_nav_item(self, text: str, tooltip: str) -> QListWidgetItem:
         """Add a navigation item"""
@@ -208,111 +236,6 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("Ready")
         self.status_bar.addWidget(self.status_label)
 
-    def _apply_styles(self):
-        """Apply CSS styling"""
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1e1e2e;
-            }
-            QMenuBar {
-                background-color: #181825;
-                color: #cdd6f4;
-                border-bottom: 1px solid #313244;
-                padding: 2px;
-            }
-            QMenuBar::item:selected {
-                background-color: #313244;
-            }
-            QMenu {
-                background-color: #1e1e2e;
-                color: #cdd6f4;
-                border: 1px solid #313244;
-            }
-            QMenu::item:selected {
-                background-color: #313244;
-            }
-            #navSidebar {
-                background-color: #181825;
-                border: none;
-                border-right: 1px solid #313244;
-                padding: 8px;
-                outline: none;
-            }
-            #navSidebar::item {
-                color: #cdd6f4;
-                border-radius: 8px;
-                padding: 10px 12px;
-                margin: 2px 0px;
-            }
-            #navSidebar::item:selected {
-                background-color: #313244;
-                color: #cba6f7;
-                font-weight: bold;
-            }
-            #navSidebar::item:hover:!selected {
-                background-color: #252538;
-            }
-            QToolBar {
-                background-color: #1e1e2e;
-                border: none;
-                border-bottom: 1px solid #313244;
-                padding: 4px;
-                spacing: 6px;
-            }
-            QPushButton {
-                background-color: #313244;
-                color: #cdd6f4;
-                border: 1px solid #45475a;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #45475a;
-                border-color: #585b70;
-            }
-            QPushButton:pressed {
-                background-color: #585b70;
-            }
-            QPushButton:disabled {
-                background-color: #252538;
-                color: #585b70;
-            }
-            QStatusBar {
-                background-color: #181825;
-                color: #a6adc8;
-                border-top: 1px solid #313244;
-                font-size: 12px;
-            }
-            QProgressBar {
-                background-color: #313244;
-                border: none;
-                border-radius: 4px;
-                height: 8px;
-                text-align: center;
-                color: transparent;
-            }
-            QProgressBar::chunk {
-                background-color: #cba6f7;
-                border-radius: 4px;
-            }
-            QSplitter::handle {
-                background-color: #313244;
-                width: 1px;
-            }
-            QLabel#sectionTitle {
-                color: #cdd6f4;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 12px 0;
-            }
-            QLabel#sectionDesc {
-                color: #a6adc8;
-                font-size: 13px;
-                padding-bottom: 16px;
-            }
-        """)
-
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts Ctrl+1~6 to switch panels"""
         panel_actions = [
@@ -343,13 +266,24 @@ class MainWindow(QMainWindow):
         return settings
 
     def _save_settings(self):
-        """Save settings"""
+        """Save settings — API key stored in system keyring, rest in JSON"""
         import json
+
+        from filepilot.app import _save_api_key_to_keyring
+
         settings_path = Path.home() / ".filepilot" / "settings.json"
         settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save API key to system keyring, remove from JSON
+        api_key = self.settings.get("ai_api_key", "")
+        if api_key:
+            _save_api_key_to_keyring(api_key)
+        # Remove key from JSON payload (loaded via keyring on next startup)
+        save_data = {k: v for k, v in self.settings.items() if k != "ai_api_key"}
+
         try:
             settings_path.write_text(
-                json.dumps(self.settings, ensure_ascii=False, indent=2),
+                json.dumps(save_data, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
         except Exception:
@@ -363,6 +297,23 @@ class MainWindow(QMainWindow):
         if 0 <= index < len(names):
             self.status_label.setText(f"Current: {names[index]}")
 
+    def _open_directory(self, dir_path: str):
+        """Shared logic: open a directory and notify the browse panel"""
+        self.current_dir = Path(dir_path)
+        self.btn_scan.setEnabled(True)
+        self.btn_index.setEnabled(True)
+
+        # Save to recent directories
+        recent = self.settings.get("recent_dirs", [])
+        if dir_path in recent:
+            recent.remove(dir_path)
+        recent.insert(0, dir_path)
+        self.settings["recent_dirs"] = recent[:10]
+        self._save_settings()
+
+        # Notify browse panel
+        self.browse_panel.load_directory(dir_path)
+
     @Slot()
     def _on_open_folder(self):
         """Open folder dialog"""
@@ -370,21 +321,38 @@ class MainWindow(QMainWindow):
             self, "Select Folder", str(self.current_dir or Path.home())
         )
         if dir_path:
-            self.current_dir = Path(dir_path)
+            self._open_directory(dir_path)
             self.status_label.setText(f"Opened: {dir_path}")
-            self.btn_scan.setEnabled(True)
-            self.btn_index.setEnabled(True)
 
-            # Save to recent directories
-            recent = self.settings.get("recent_dirs", [])
-            if str(dir_path) in recent:
-                recent.remove(str(dir_path))
-            recent.insert(0, str(dir_path))
-            self.settings["recent_dirs"] = recent[:10]
-            self._save_settings()
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        """Accept drag events — show drop highlight when URLs are detected"""
+        if event.mimeData().hasUrls():
+            self.drop_overlay.show()
+            event.acceptProposedAction()
 
-            # Notify browse panel
-            self.browse_panel.load_directory(dir_path)
+    def dragLeaveEvent(self, event: QDragLeaveEvent):
+        """Hide drop highlight when drag leaves window"""
+        self.drop_overlay.hide()
+        event.accept()
+
+    def dropEvent(self, event: QDropEvent):
+        """Handle dropped folder or single file — open directory in file browser"""
+        self.drop_overlay.hide()
+        paths = [url.toLocalFile() for url in event.mimeData().urls() if url.toLocalFile()]
+
+        for p in paths:
+            if Path(p).is_dir():
+                self._open_directory(p)
+                self.status_label.setText(f"Opened: {p}")
+                event.acceptProposedAction()
+                return
+
+        # No directory found — open parent directory of the first dropped file
+        if len(paths) == 1 and Path(paths[0]).is_file():
+            parent = Path(paths[0]).parent
+            self._open_directory(str(parent))
+            self.status_label.setText(f"📂 {parent.name}  (from dropped file: {Path(paths[0]).name})")
+            event.acceptProposedAction()
 
     @Slot()
     def _on_scan(self):
@@ -406,7 +374,8 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self.settings = dialog.get_settings()
             self._save_settings()
-            self.status_label.setText("Settings saved")
+            self._recreate_services()
+            self.status_label.setText("Settings saved — AI engine updated")
 
     @Slot()
     def _on_about(self):
@@ -425,36 +394,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_toggle_theme(self, checked: bool):
         """Toggle dark/light theme"""
-        if checked:
-            # Dark theme
-            self.btn_theme.setText("🌙")
-            self._apply_styles()
-        else:
-            # Light theme
-            self.btn_theme.setText("☀️")
-            self.setStyleSheet(self._light_theme())
-        self.settings["theme"] = "dark" if checked else "light"
+        theme = "dark" if checked else "light"
+        self._theme_mgr.apply_theme(theme)
+        self.btn_theme.setText("🌙" if checked else "☀️")
+        self.settings["theme"] = theme
         self._save_settings()
-
-    def _light_theme(self) -> str:
-        return """
-            QMainWindow { background-color: #f5f5f5; }
-            QMenuBar { background-color: #e8e8e8; color: #333; border-bottom: 1px solid #ddd; padding: 2px; }
-            QMenuBar::item:selected { background-color: #d0d0d0; }
-            QMenu { background-color: #f5f5f5; color: #333; border: 1px solid #ddd; }
-            QMenu::item:selected { background-color: #d0d0d0; }
-            #navSidebar { background-color: #e8e8e8; border: none; border-right: 1px solid #ddd; padding: 8px; }
-            #navSidebar::item { color: #333; border-radius: 8px; padding: 10px 12px; margin: 2px 0px; }
-            #navSidebar::item:selected { background-color: #d0d0d0; color: #6c5ce7; font-weight: bold; }
-            #navSidebar::item:hover:!selected { background-color: #e0e0e0; }
-            QToolBar { background-color: #e8e8e8; border: none; border-bottom: 1px solid #ddd; padding: 4px; spacing: 6px; }
-            QPushButton { background-color: #e0e0e0; color: #333; border: 1px solid #ccc; border-radius: 6px; padding: 8px 16px; font-size: 13px; }
-            QPushButton:hover { background-color: #d0d0d0; border-color: #bbb; }
-            QPushButton:pressed { background-color: #c0c0c0; }
-            QPushButton:disabled { background-color: #f0f0f0; color: #999; }
-            QStatusBar { background-color: #e8e8e8; color: #666; border-top: 1px solid #ddd; font-size: 12px; }
-            QSplitter::handle { background-color: #ddd; width: 1px; }
-        """
 
     def _show_progress(self, visible: bool, value: int = 0, maximum: int = 100):
         """Show/hide progress bar"""
@@ -466,5 +410,35 @@ class MainWindow(QMainWindow):
     def _update_progress(self, value: int):
         """Update progress"""
         self.progress_bar.setValue(value)
+
+    def _recreate_services(self):
+        """Update service instances after settings change (no panel recreation needed)"""
+        from filepilot.app import create_services
+        new_services = create_services(self.settings)
+        self.services = new_services
+
+        # Push new service instances into existing panels — no rebuild, no restart
+        self.browse_panel.update_services(scanner=new_services.get("scanner"))
+        self.search_panel.update_services(
+            scanner=new_services.get("scanner"),
+            indexer=new_services.get("indexer"),
+        )
+        self.organize_panel.update_services(
+            scanner=new_services.get("scanner"),
+            organizer=new_services.get("organizer"),
+        )
+        self.duplicates_panel.update_services(
+            scanner=new_services.get("scanner"),
+            finder=new_services.get("duplicate_finder"),
+        )
+        self.summary_panel.update_services(
+            summarizer=new_services.get("summarizer"),
+            local_ai=new_services.get("local_ai"),
+            cloud_ai=new_services.get("cloud_ai"),
+        )
+        self.index_panel.update_services(
+            scanner=new_services.get("scanner"),
+            indexer=new_services.get("indexer"),
+        )
 
     # ===== Placeholder panels =====

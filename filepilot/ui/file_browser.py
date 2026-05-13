@@ -1,27 +1,21 @@
 """File browser panel — directory tree, file list, and preview"""
-"""File browser panel — directory tree, file list, and preview"""
 
-import json
-import mimetypes
 import csv
-import io
+import json
+import os
 from pathlib import Path
 from threading import Thread
-from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QFont, QColor, QBrush
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QProgressBar,
     QPushButton,
-    QSizePolicy,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -34,6 +28,10 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.ui.base_panel import BasePanel
+from filepilot.utils.file_utils import (
+    CATEGORY_ICONS,
+    get_category_name,
+)
 
 
 class FileBrowserPanel(BasePanel):
@@ -49,6 +47,11 @@ class FileBrowserPanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
+    def update_services(self, scanner: FileScanner | None = None):
+        """Update service references without recreating the panel"""
+        if scanner is not None:
+            self.scanner = scanner
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -62,7 +65,7 @@ class FileBrowserPanel(BasePanel):
         header_layout.addStretch()
 
         self.dir_label = QLabel("No folder opened")
-        self.dir_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 8px;")
+        self.dir_label.setObjectName("statusLabel")
         header_layout.addWidget(self.dir_label)
         layout.addLayout(header_layout)
 
@@ -90,21 +93,13 @@ class FileBrowserPanel(BasePanel):
         toolbar_layout.addStretch()
 
         self.cb_show_hidden = QCheckBox("Show hidden files")
-        self.cb_show_hidden.setStyleSheet("color: #a6adc8;")
         self.cb_show_hidden.stateChanged.connect(self._on_refresh)
         toolbar_layout.addWidget(self.cb_show_hidden)
 
         self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-        """)
         toolbar_layout.addWidget(self.btn_cancel)
 
         layout.addLayout(toolbar_layout)
@@ -129,21 +124,6 @@ class FileBrowserPanel(BasePanel):
         self.dir_tree.setIndentation(16)
         self.dir_tree.setRootIsDecorated(True)
         self.dir_tree.header().setStretchLastSection(True)
-        self.dir_tree.setStyleSheet("""
-            QTreeWidget {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                font-size: 13px;
-            }
-            QTreeWidget::item { padding: 6px 8px; border-radius: 4px; }
-            QTreeWidget::item:selected { background-color: #313244; color: #cba6f7; }
-            QTreeWidget::item:hover { background-color: #252538; }
-            QHeaderView::section {
-                background-color: #181825; color: #a6adc8;
-                border: none; border-bottom: 1px solid #313244;
-                padding: 8px 10px; font-weight: bold; font-size: 12px;
-            }
-        """)
         self.dir_tree.itemClicked.connect(self._on_dir_clicked)
         dir_layout.addWidget(self.dir_tree, 1)
 
@@ -163,20 +143,6 @@ class FileBrowserPanel(BasePanel):
         self.file_table.horizontalHeader().setStretchLastSection(True)
         self.file_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.file_table.verticalHeader().setVisible(False)
-        self.file_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                font-size: 13px; gridline-color: #252538;
-            }
-            QTableWidget::item { padding: 6px 10px; }
-            QTableWidget::item:selected { background-color: #313244; color: #cba6f7; }
-            QHeaderView::section {
-                background-color: #181825; color: #a6adc8;
-                border: none; border-bottom: 1px solid #313244;
-                padding: 8px 10px; font-weight: bold; font-size: 12px;
-            }
-        """)
         self.file_table.itemSelectionChanged.connect(self._on_file_selected)
         self.file_table.cellDoubleClicked.connect(self._on_file_double_click)
         file_layout.addWidget(self.file_table, 1)
@@ -190,13 +156,6 @@ class FileBrowserPanel(BasePanel):
         self.preview_area = QTextEdit()
         self.preview_area.setReadOnly(True)
         self.preview_area.setPlaceholderText("Select a file to preview its content or metadata...")
-        self.preview_area.setStyleSheet("""
-            QTextEdit {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                padding: 12px; font-size: 13px;
-            }
-        """)
         preview_layout.addWidget(self.preview_area, 1)
 
         main_splitter.addWidget(dir_widget)
@@ -220,7 +179,7 @@ class FileBrowserPanel(BasePanel):
 
         # ── Status ──
         self.stats_label = QLabel("Open a folder to start browsing")
-        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
@@ -275,7 +234,7 @@ class FileBrowserPanel(BasePanel):
             self.categories = self._categorize_files(files)
 
             if not self._cancelled:
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
                 QMetaObject.invokeMethod(
                     self, "_display_files", Qt.QueuedConnection, Q_ARG(list, files)
                 )
@@ -300,21 +259,7 @@ class FileBrowserPanel(BasePanel):
         """Categorize files by type"""
         categories: dict[str, list[FileInfo]] = {}
         for f in files:
-            ext = f.suffix.lower()
-            if ext in (".pdf",):
-                cat = "PDF"
-            elif ext in (".md", ".markdown", ".mdx", ".rst"):
-                cat = "Markdown"
-            elif ext in (".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c", ".h", ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua"):
-                cat = "Code"
-            elif ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico"):
-                cat = "Image"
-            elif ext in (".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"):
-                cat = "Office"
-            elif ext in (".txt", ".log", ".cfg", ".ini", ".conf", ".yaml", ".yml", ".toml", ".json", ".xml"):
-                cat = "Text"
-            else:
-                cat = "Other"
+            cat = get_category_name(f.suffix.lower())
             categories.setdefault(cat, []).append(f)
         return categories
 
@@ -326,24 +271,12 @@ class FileBrowserPanel(BasePanel):
 
         hidden = self.cb_show_hidden.isChecked()
         filtered = [f for f in files if hidden or not f.name.startswith(".")]
-
         self.file_table.setRowCount(len(filtered))
-        icon_map = {
-            "PDF": "📕", "Markdown": "📝", "Code": "💻",
-            "Image": "🖼️", "Office": "📊", "Text": "📄", "Other": "📁",
-        }
 
         for row, f in enumerate(filtered):
-            ext = f.suffix.lower()
-            cat = "Other"
-            if ext in (".pdf",): cat = "PDF"
-            elif ext in (".md", ".markdown", ".mdx", ".rst"): cat = "Markdown"
-            elif ext in (".py", ".js", ".ts"): cat = "Code"
-            elif ext in (".jpg", ".jpeg", ".png", ".gif"): cat = "Image"
-            elif ext in (".docx", ".xlsx", ".pptx"): cat = "Office"
-            elif ext in (".txt", ".log", ".cfg"): cat = "Text"
+            cat = get_category_name(f.suffix.lower())
 
-            icon = icon_map.get(cat, "📁")
+            icon = CATEGORY_ICONS.get(cat, "📁")
             name_item = QTableWidgetItem(f"{icon}  {f.name}")
             name_item.setData(Qt.UserRole, str(f.path))
 
@@ -431,38 +364,35 @@ class FileBrowserPanel(BasePanel):
 
     def _preview_file(self, path: Path):
         """Preview file content or metadata"""
-        ext = path.suffix.lower()
+        cat = get_category_name(path.suffix.lower())
+        stats_html = (
+            f"<p>Size: {path.stat().st_size} bytes</p>"
+            f"<p>Modified: {path.stat().st_mtime:.0f}</p>"
+        )
 
-        if ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp"):
+        if cat == "Image":
             self.preview_area.setHtml(
-                f"<p><b>Image file:</b> {path.name}</p>"
+                f"<p><b>🖼️ Image file:</b> {path.name}</p>"
                 f"<p><i>File preview is not supported in text mode. "
-                f"Open the file in an external viewer.</i></p>"
-                f"<p>Size: {path.stat().st_size} bytes</p>"
+                f"Open the file in an external viewer.</i></p>{stats_html}"
             )
-        elif ext in (".pdf",):
+        elif cat == "PDF":
             self.preview_area.setHtml(
-                f"<p><b>PDF file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>"
-                f"<p>Size: {path.stat().st_size} bytes</p>"
+                f"<p><b>📕 PDF file:</b> {path.name}</p>"
+                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}"
             )
-        elif ext in (".md", ".markdown", ".mdx", ".rst"):
+        elif cat in ("Markdown", "Code", "Text"):
             try:
                 content = path.read_text(encoding="utf-8", errors="replace")
                 self.preview_area.setPlainText(content[:5000])
             except Exception:
                 self.preview_area.setPlainText("[Error reading file]")
         else:
-            # Try to preview as text
-            try:
-                content = path.read_text(encoding="utf-8", errors="replace")
-                self.preview_area.setPlainText(content[:5000])
-            except (UnicodeDecodeError, Exception):
-                self.preview_area.setHtml(
-                    f"<p><b>Binary file:</b> {path.name}</p>"
-                    f"<p>Size: {path.stat().st_size} bytes</p>"
-                    f"<p>Modified: {path.stat().st_mtime}</p>"
-                )
+            # Binary/media/office files — stats only
+            self.preview_area.setHtml(
+                f"<p><b>📄 {path.name}</b></p>{stats_html}"
+                f"<p><i>Preview not available for this file type.</i></p>"
+            )
 
     @Slot()
     def _on_file_double_click(self, row: int, column: int):
@@ -471,9 +401,15 @@ class FileBrowserPanel(BasePanel):
         if path_item:
             file_path = Path(path_item.data(Qt.UserRole))
             if file_path.exists():
-                import subprocess
+import subprocess
                 try:
-                    subprocess.Popen(["xdg-open", str(file_path)], shell=True)
+                    fp = str(file_path)
+                    if sys.platform == "win32":
+                        os.startfile(fp)
+                    elif sys.platform == "darwin":
+                        subprocess.Popen(["open", fp])
+                    else:
+                        subprocess.Popen(["xdg-open", fp])
                 except Exception:
                     pass
 

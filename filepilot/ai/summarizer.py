@@ -1,13 +1,10 @@
 """Content Summarizer — Supports local and cloud AI"""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-from filepilot.ai.local_ai import LocalAI
 from filepilot.ai.cloud_ai import CloudAI
-from filepilot.extractors.pdf_extractor import PDFExtractor
-from filepilot.extractors.markdown_extractor import MarkdownExtractor
-from filepilot.utils.file_utils import get_file_category
+from filepilot.ai.local_ai import LocalAI
 
 
 class Summarizer:
@@ -85,6 +82,34 @@ class Summarizer:
         result["summary"] = summary
         result["keywords"] = keywords
         return result
+
+    def summarize_text(self, text: str, max_length: int = 200) -> str:
+        """Generate summary from plain text content directly
+
+        Unlike `summarize()` which takes a file path and extracts content,
+        this method accepts pre-extracted text. Useful when you already
+        have the file content in memory.
+
+        Args:
+            text: Pre-extracted text content to summarize
+            max_length: Maximum summary length in characters
+
+        Returns:
+            Generated summary string, or empty string on failure
+        """
+        return self._generate_summary(text, max_length)
+
+    def extract_keywords(self, content: str, top_n: int = 10) -> list[str]:
+        """Extract keywords from text content (public method)
+
+        Args:
+            content: Text content to extract keywords from
+            top_n: Number of top keywords to return
+
+        Returns:
+            List of keyword strings
+        """
+        return self._extract_keywords(content, top_n)
 
     def batch_summarize(
         self,

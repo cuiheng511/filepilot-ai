@@ -38,6 +38,53 @@ for cat in FileCategory:
         _EXTENSION_MAP[ext.strip().lower()] = cat
 
 
+# ── UI-focused category sets (simplified groups for file_browser) ──
+CAT_PDF      = {".pdf"}
+CAT_MARKDOWN = {".md", ".markdown", ".mdx", ".rst"}
+CAT_CODE     = {".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c",
+               ".h", ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift",
+               ".kt", ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua"}
+CAT_IMAGE    = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico"}
+CAT_VIDEO    = {".mp4", ".avi", ".mov", ".mkv"}
+CAT_AUDIO    = {".mp3", ".wav", ".flac"}
+CAT_OFFICE   = {".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"}
+CAT_TEXT     = {".txt", ".log", ".cfg", ".ini", ".conf", ".yaml", ".yml",
+               ".toml", ".json", ".xml"}
+
+
+# ── Icon lookup for UI panels (category_name → emoji) ──
+CATEGORY_ICONS: dict[str, str] = {
+    "PDF": "📕", "Markdown": "📝", "Code": "💻",
+    "Image": "🖼️", "Video": "🎬", "Audio": "🎵",
+    "Office": "📊", "Text": "📄", "Other": "📁",
+}
+
+
+def get_category_name(ext: str) -> str:
+    """Map a file extension to a category name (case-insensitive)
+
+    Returns one of: PDF, Markdown, Code, Image, Video, Audio, Office, Text, Other
+    """
+    ext = ext.lower()
+    if ext in CAT_PDF:
+        return "PDF"
+    if ext in CAT_MARKDOWN:
+        return "Markdown"
+    if ext in CAT_CODE:
+        return "Code"
+    if ext in CAT_IMAGE:
+        return "Image"
+    if ext in CAT_VIDEO:
+        return "Video"
+    if ext in CAT_AUDIO:
+        return "Audio"
+    if ext in CAT_OFFICE:
+        return "Office"
+    if ext in CAT_TEXT:
+        return "Text"
+    return "Other"
+
+
 def get_file_category(file_path: str | Path) -> FileCategory:
     """Get the file category based on its extension"""
     ext = Path(file_path).suffix.lower()

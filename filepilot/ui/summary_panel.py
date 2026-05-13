@@ -1,16 +1,12 @@
 """AI summary generation panel"""
 
-import mimetypes
 from pathlib import Path
 from threading import Thread
-from typing import Any
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -24,14 +20,9 @@ from PySide6.QtWidgets import (
 )
 
 from filepilot.ui.base_panel import BasePanel
+from filepilot.utils.file_utils import CAT_CODE, CAT_MARKDOWN, CAT_OFFICE, CAT_PDF, CAT_TEXT
 
-
-SUPPORTED_EXTS = {
-    ".pdf", ".md", ".markdown", ".mdx", ".txt", ".rst",
-    ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c", ".h",
-    ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt",
-    ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua",
-}
+SUPPORTED_EXTS = CAT_CODE | CAT_PDF | CAT_MARKDOWN | CAT_TEXT | CAT_OFFICE
 
 
 class SummaryPanel(BasePanel):
@@ -39,6 +30,7 @@ class SummaryPanel(BasePanel):
 
     summary_ready = Signal(str)
     keyword_ready = Signal(str)
+    _add_file_requested = Signal(str, str, str)  # name, suffix, path_str
 
     def __init__(self, summarizer=None, local_ai=None, cloud_ai=None, parent=None):
         super().__init__(parent)
@@ -52,6 +44,17 @@ class SummaryPanel(BasePanel):
 
         self._setup_ui()
         self._connect_signals()
+        self._add_file_requested.connect(self._add_file_item)
+
+    def update_services(self, summarizer=None, local_ai=None, cloud_ai=None):
+        """Update service references without recreating the panel"""
+        if summarizer is not None:
+            self._summarizer = summarizer
+        if local_ai is not None:
+            self._local_ai = local_ai
+        if cloud_ai is not None:
+            self._cloud_ai = cloud_ai
+        self._lazy_init_done = False
 
     def _ensure_ai_init(self):
         """Lazy initialization of AI engines (imported late to avoid circular imports)"""
@@ -100,15 +103,7 @@ class SummaryPanel(BasePanel):
         left_layout.addWidget(QLabel("📂 Selected Files:"))
 
         self.file_list = QListWidget()
-        self.file_list.setStyleSheet("""
-            QListWidget {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                padding: 8px; font-size: 13px;
-            }
-            QListWidget::item { padding: 6px 12px; border-radius: 4px; }
-            QListWidget::item:selected { background-color: #313244; color: #cba6f7; }
-        """)
+        self.file_list.setAlternatingRowColors(True)
         left_layout.addWidget(self.file_list, 1)
 
         btn_layout = QHBoxLayout()
@@ -131,34 +126,24 @@ class SummaryPanel(BasePanel):
         right_layout.addWidget(QLabel("🤖 AI Settings:"))
 
         self.ai_status_label = QLabel("AI status: checking...")
-        self.ai_status_label.setStyleSheet("color: #f9e2af; font-size: 12px; padding: 8px;")
+        self.ai_status_label.setObjectName("aiStatusLabel")
         self.ai_status_label.setWordWrap(True)
         right_layout.addWidget(self.ai_status_label)
 
         self.cb_local_first = QCheckBox("Prefer local AI (Ollama)")
         self.cb_local_first.setChecked(True)
-        self.cb_local_first.setStyleSheet("color: #cdd6f4;")
         right_layout.addWidget(self.cb_local_first)
 
         self.cb_include_code = QCheckBox("Include code snippets in summary")
         self.cb_include_code.setChecked(True)
-        self.cb_include_code.setStyleSheet("color: #cdd6f4;")
         right_layout.addWidget(self.cb_include_code)
 
         right_layout.addStretch()
 
         self.btn_generate = QPushButton("🚀 Generate Summary")
+        self.btn_generate.setObjectName("btnSuccess")
         self.btn_generate.clicked.connect(self._on_generate)
         self.btn_generate.setEnabled(False)
-        self.btn_generate.setStyleSheet("""
-            QPushButton {
-                background-color: #a6e3a1; color: #1e1e2e;
-                border: none; border-radius: 8px;
-                padding: 14px 28px; font-size: 15px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #94e2d5; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
         right_layout.addWidget(self.btn_generate)
 
         self.btn_cancel = QPushButton("✕ Cancel")
@@ -174,13 +159,6 @@ class SummaryPanel(BasePanel):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                background-color: #313244; border: none; border-radius: 4px;
-                height: 8px; text-align: center; color: transparent;
-            }
-            QProgressBar::chunk { background-color: #a6e3a1; border-radius: 4px; }
-        """)
         progress_layout.addWidget(self.progress_bar, 1)
         layout.addLayout(progress_layout)
 
@@ -195,13 +173,6 @@ class SummaryPanel(BasePanel):
         self.summary_output = QTextEdit()
         self.summary_output.setReadOnly(True)
         self.summary_output.setPlaceholderText("Click \"Generate Summary\" to start...")
-        self.summary_output.setStyleSheet("""
-            QTextEdit {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                padding: 12px; font-size: 13px;
-            }
-        """)
         summary_layout.addWidget(self.summary_output, 1)
         result_splitter.addWidget(summary_widget)
 
@@ -213,13 +184,6 @@ class SummaryPanel(BasePanel):
         self.keyword_output = QTextEdit()
         self.keyword_output.setReadOnly(True)
         self.keyword_output.setPlaceholderText("Keywords will appear here...")
-        self.keyword_output.setStyleSheet("""
-            QTextEdit {
-                background-color: #181825; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                padding: 12px; font-size: 13px;
-            }
-        """)
         keyword_layout.addWidget(self.keyword_output, 1)
         result_splitter.addWidget(keyword_widget)
 
@@ -229,7 +193,7 @@ class SummaryPanel(BasePanel):
 
         # ── Status bar ──
         self.stats_label = QLabel("Add files and click \"Generate Summary\"")
-        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
@@ -284,11 +248,8 @@ class SummaryPanel(BasePanel):
                     continue
                 existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
                 if str(path) not in existing:
-                    from PySide6.QtCore import QMetaObject, Qt
-                    QMetaObject.invokeMethod(
-                        self, "_add_file_item", Qt.QueuedConnection,
-                        str(path.name), str(path.suffix), str(path)
-                    )
+                    # Thread-safe UI update via signal
+                    self._add_file_requested.emit(path.name, path.suffix, str(path))
                     count += 1
             if count > 0:
                 self.status_message.emit(f"✅ Added {count} supported files")
@@ -357,7 +318,7 @@ class SummaryPanel(BasePanel):
                     text = fp.read_text(encoding="utf-8", errors="replace")
                     contents.append((fp.name, text))
                 except Exception:
-                    contents.append((fp.name, f"[Error reading file]"))
+                    contents.append((fp.name, "[Error reading file]"))
                 self.progress_updated.emit(int((i + 1) / total * 40))
 
             if self._cancelled:
@@ -400,7 +361,7 @@ class SummaryPanel(BasePanel):
                     # Fallback: use summarizer
                     summary = "Summary: "
                     for name, text in contents:
-                        s = self._summarizer.summarize(text, max_sentences=3)
+                        s = self._summarizer.summarize_text(text, max_length=512)
                         if s:
                             summary += f"\n\n### {name}\n{s}"
                     self.progress_updated.emit(70)
@@ -408,7 +369,7 @@ class SummaryPanel(BasePanel):
                     keywords_text = "Keywords: "
                     kw_set = set()
                     for name, text in contents:
-                        kw = self._summarizer.extract_keywords(text, top_k=5)
+                        kw = self._summarizer.extract_keywords(text, top_n=5)
                         kw_set.update(kw)
                     keywords_text += ", ".join(list(kw_set)[:15])
             except Exception as e:

@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QHeaderView,
+    QLabel,
     QLineEdit,
     QProgressBar,
     QPushButton,
@@ -51,6 +51,13 @@ class OrganizePanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
+    def update_services(self, scanner: FileScanner | None = None, organizer: FileOrganizer | None = None):
+        """Update service references without recreating the panel"""
+        if scanner is not None:
+            self.scanner = scanner
+        if organizer is not None:
+            self.organizer = organizer
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -78,7 +85,7 @@ class OrganizePanel(BasePanel):
         src_layout = QHBoxLayout()
         src_layout.addWidget(QLabel("\U0001f4c2 Source Folder:"))
         self.src_path_label = QLabel("Not selected")
-        self.src_path_label.setStyleSheet("color: #585b70; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
+        self.src_path_label.setObjectName("pathLabel")
         self.src_path_label.setWordWrap(True)
         self.btn_src = QPushButton("Browse...")
         self.btn_src.clicked.connect(self._on_select_source)
@@ -90,7 +97,7 @@ class OrganizePanel(BasePanel):
         dst_layout = QHBoxLayout()
         dst_layout.addWidget(QLabel("\U0001f3af Target Folder:"))
         self.dst_path_label = QLabel("Not selected (default: source_folder/_organized)")
-        self.dst_path_label.setStyleSheet("color: #585b70; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
+        self.dst_path_label.setObjectName("pathLabel")
         self.dst_path_label.setWordWrap(True)
         self.btn_dst = QPushButton("Browse...")
         self.btn_dst.clicked.connect(self._on_select_target)
@@ -112,9 +119,6 @@ class OrganizePanel(BasePanel):
         self.cb_extension = QCheckBox("\U0001f4ce By Extension")
         self.cb_size = QCheckBox("\U0001f4cf By File Size")
 
-        for cb in [self.cb_category, self.cb_date, self.cb_extension, self.cb_size]:
-            cb.setStyleSheet("color: #cdd6f4; spacing: 8px;")
-
         rule_layout.addWidget(self.cb_category)
         rule_layout.addWidget(self.cb_date)
         rule_layout.addWidget(self.cb_extension)
@@ -128,17 +132,6 @@ class OrganizePanel(BasePanel):
         rename_layout.addWidget(QLabel("\u270f\ufe0f Rename Template:"))
         self.rename_input = QLineEdit()
         self.rename_input.setPlaceholderText("Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}")
-        self.rename_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #181825;
-                color: #cdd6f4;
-                border: 1px solid #313244;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-            QLineEdit:focus { border-color: #cba6f7; }
-        """)
         rename_layout.addWidget(self.rename_input, 1)
 
         self.template_btn = QPushButton("Template Help")
@@ -162,37 +155,17 @@ class OrganizePanel(BasePanel):
         self.btn_preview.setEnabled(False)
 
         self.btn_execute = QPushButton("\U0001f680 Execute")
+        self.btn_execute.setObjectName("btnSuccess")
         self.btn_execute.clicked.connect(self._on_execute)
         self.btn_execute.setEnabled(False)
-        self.btn_execute.setStyleSheet("""
-            QPushButton {
-                background-color: #a6e3a1;
-                color: #1e1e2e;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 24px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #94e2d5; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
 
         self.btn_clear = QPushButton("Clear Results")
         self.btn_clear.clicked.connect(self._clear_results)
 
         self.btn_undo = QPushButton("\u21a9\ufe0f Undo")
+        self.btn_undo.setObjectName("btnWarning")
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_undo.setEnabled(False)
-        self.btn_undo.setStyleSheet("""
-            QPushButton {
-                background-color: #f9e2af; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 10px 24px; font-size: 14px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #f5c2e7; }
-            QPushButton:disabled { background-color: #313244; color: #585b70; }
-        """)
 
         action_layout.addWidget(self.btn_preview)
         action_layout.addWidget(self.btn_execute)
@@ -208,16 +181,9 @@ class OrganizePanel(BasePanel):
         progress_layout.addWidget(self.progress_bar, 1)
 
         self.btn_cancel = QPushButton("\u2715 Cancel")
+        self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #f38ba8; color: #1e1e2e;
-                border: none; border-radius: 6px;
-                padding: 6px 16px; font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background-color: #eba0ac; }
-        """)
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
@@ -231,25 +197,11 @@ class OrganizePanel(BasePanel):
         self.result_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.result_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.result_table.verticalHeader().setVisible(False)
-        self.result_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #1e1e2e; color: #cdd6f4;
-                border: 1px solid #313244; border-radius: 8px;
-                gridline-color: #313244; font-size: 12px;
-            }
-            QTableWidget::item { padding: 4px 8px; }
-            QTableWidget::item:selected { background-color: #313244; color: #cba6f7; }
-            QHeaderView::section {
-                background-color: #181825; color: #a6adc8;
-                border: none; border-bottom: 1px solid #313244;
-                padding: 6px 8px; font-weight: bold; font-size: 12px;
-            }
-        """)
         layout.addWidget(self.result_table, 1)
 
         # ── Status Bar ──
         self.stats_label = QLabel("Select a source folder to start preview")
-        self.stats_label.setStyleSheet("color: #585b70; font-size: 12px; padding: 4px 0;")
+        self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
     def _connect_signals(self):
@@ -264,14 +216,18 @@ class OrganizePanel(BasePanel):
         if dir_path:
             self.source_dir = Path(dir_path)
             self.src_path_label.setText(f"\U0001f4c2 {dir_path}")
-            self.src_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
+            self.src_path_label.setProperty("selected", True)
+            self.src_path_label.style().unpolish(self.src_path_label)
+            self.src_path_label.style().polish(self.src_path_label)
 
             # Default target = source folder/_organized
             if not self.target_dir:
                 default_target = self.source_dir / "_organized"
                 self.target_dir = default_target
                 self.dst_path_label.setText(f"\U0001f3af {default_target}")
-                self.dst_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
+                self.dst_path_label.setProperty("selected", True)
+                self.dst_path_label.style().unpolish(self.dst_path_label)
+                self.dst_path_label.style().polish(self.dst_path_label)
 
             self.btn_preview.setEnabled(True)
 
@@ -281,7 +237,9 @@ class OrganizePanel(BasePanel):
         if dir_path:
             self.target_dir = Path(dir_path)
             self.dst_path_label.setText(f"\U0001f3af {dir_path}")
-            self.dst_path_label.setStyleSheet("color: #cdd6f4; padding: 6px 10px; background: #181825; border: 1px solid #313244; border-radius: 4px;")
+            self.dst_path_label.setProperty("selected", True)
+            self.dst_path_label.style().unpolish(self.dst_path_label)
+            self.dst_path_label.style().polish(self.dst_path_label)
 
     @Slot()
     def _on_template_help(self):
@@ -376,7 +334,7 @@ class OrganizePanel(BasePanel):
                 rename_pattern=pattern or None,
             )
 
-            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
             QMetaObject.invokeMethod(
                 self, "_display_preview",
                 Qt.QueuedConnection,
@@ -478,7 +436,7 @@ class OrganizePanel(BasePanel):
             )
 
             if not self._cancelled:
-                from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
                 QMetaObject.invokeMethod(
                     self, "_display_execution",
                     Qt.QueuedConnection,
@@ -517,7 +475,6 @@ class OrganizePanel(BasePanel):
 
         # Save undo log
         if done > 0:
-            import json as _json
             undo_path = Path.home() / ".filepilot" / "last_undo.json"
             undo_path.parent.mkdir(parents=True, exist_ok=True)
             self.organizer.save_undo_log(undo_path)

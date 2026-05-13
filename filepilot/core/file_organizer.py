@@ -98,6 +98,7 @@ class FileOrganizer:
         self._organized_count = 0
         self._errors: list[tuple[str, str]] = []
         self.preview_mode = True  # 默认预览模式
+        self._undo_log: list[dict] = []  # 撤销日志
 
     def organize(
         self,
@@ -157,6 +158,7 @@ class FileOrganizer:
                     dest_dir.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(file_info.path), str(dest_path))
                     self._organized_count += 1
+                    self._undo_log.append({"source": str(file_info.path), "dest": str(dest_path)})
 
                 if progress_callback:
                     progress_callback(i + 1, file_info.name)
@@ -230,3 +232,36 @@ class FileOrganizer:
             "organized_count": self._organized_count,
             "errors": len(self._errors),
         }
+
+    def save_undo_log(self, path: str | Path) -> None:
+        """保存撤销日志到文件"""
+        import json
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self._undo_log, f, ensure_ascii=False, indent=2)
+
+    def undo(self, undo_log_path: str | Path) -> dict:
+        """根据撤销日志回退文件操作
+
+        Returns:
+            {"restored": int, "errors": int}
+        """
+        import json
+        with open(undo_log_path, encoding="utf-8") as f:
+            entries = json.load(f)
+
+        restored = 0
+        errors = 0
+        for entry in entries:
+            dest = Path(entry["dest"])
+            source = Path(entry["source"])
+            try:
+                if dest.exists():
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(dest), str(source))
+                    restored += 1
+                else:
+                    errors += 1
+            except (OSError, shutil.Error):
+                errors += 1
+
+        return {"restored": restored, "errors": errors}

@@ -186,6 +186,15 @@ class MainWindow(QMainWindow):
         self.btn_index.setEnabled(False)
         toolbar.addWidget(self.btn_index)
 
+        toolbar.addSeparator()
+
+        self.btn_theme = QPushButton("🌙")
+        self.btn_theme.setToolTip("切换亮/暗主题")
+        self.btn_theme.setCheckable(True)
+        self.btn_theme.setChecked(True)
+        self.btn_theme.clicked.connect(self._on_toggle_theme)
+        toolbar.addWidget(self.btn_theme)
+
     def _setup_statusbar(self):
         """设置状态栏"""
         self.status_bar = QStatusBar()
@@ -412,6 +421,40 @@ class MainWindow(QMainWindow):
             "<hr>"
             "<p>Built with ❤️ using PySide6 + Whoosh + Ollama</p>"
         )
+
+    @Slot()
+    def _on_toggle_theme(self, checked: bool):
+        """切换亮/暗主题"""
+        if checked:
+            # 暗色主题
+            self.btn_theme.setText("🌙")
+            self._apply_styles()
+        else:
+            # 亮色主题
+            self.btn_theme.setText("☀️")
+            self.setStyleSheet(self._light_theme())
+        self.settings["theme"] = "dark" if checked else "light"
+        self._save_settings()
+
+    def _light_theme(self) -> str:
+        return """
+            QMainWindow { background-color: #f5f5f5; }
+            QMenuBar { background-color: #e8e8e8; color: #333; border-bottom: 1px solid #ddd; padding: 2px; }
+            QMenuBar::item:selected { background-color: #d0d0d0; }
+            QMenu { background-color: #f5f5f5; color: #333; border: 1px solid #ddd; }
+            QMenu::item:selected { background-color: #d0d0d0; }
+            #navSidebar { background-color: #e8e8e8; border: none; border-right: 1px solid #ddd; padding: 8px; }
+            #navSidebar::item { color: #333; border-radius: 8px; padding: 10px 12px; margin: 2px 0px; }
+            #navSidebar::item:selected { background-color: #d0d0d0; color: #6c5ce7; font-weight: bold; }
+            #navSidebar::item:hover:!selected { background-color: #e0e0e0; }
+            QToolBar { background-color: #e8e8e8; border: none; border-bottom: 1px solid #ddd; padding: 4px; spacing: 6px; }
+            QPushButton { background-color: #e0e0e0; color: #333; border: 1px solid #ccc; border-radius: 6px; padding: 8px 16px; font-size: 13px; }
+            QPushButton:hover { background-color: #d0d0d0; border-color: #bbb; }
+            QPushButton:pressed { background-color: #c0c0c0; }
+            QPushButton:disabled { background-color: #f0f0f0; color: #999; }
+            QStatusBar { background-color: #e8e8e8; color: #666; border-top: 1px solid #ddd; font-size: 12px; }
+            QSplitter::handle { background-color: #ddd; width: 1px; }
+        """
 
     def _show_progress(self, visible: bool, value: int = 0, maximum: int = 100):
         """显示/隐藏进度条"""

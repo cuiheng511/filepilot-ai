@@ -88,6 +88,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
+      - name: Verify critical dependencies
+        run: |
+          python -c "
+import watchdog, PySide6
+print(f'watchdog {watchdog.__version__}')
+print(f'PySide6 {PySide6.__version__}')
+print('All critical deps OK')
+"
+
       - name: Run tests with coverage (Linux)
         if: runner.os == 'Linux'
         run: |

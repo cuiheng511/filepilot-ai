@@ -26,9 +26,9 @@ def main():
 
     for py_file in sorted(project_root.rglob("*.py")):
         # Skip files in .git or __pycache__ directories
-        if any(part.startswith(".") for part in py_file.parts):
-            if part.name == ".git" or part.name == "__pycache__":
-                continue
+        skip_dirs = {".git", "__pycache__", ".venv"}
+        if any(p in skip_dirs for p in py_file.parts):
+            continue
         valid, error = check_syntax(py_file)
         if not valid:
             errors.append(error)

@@ -22,11 +22,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
-from filepilot.i18n import t, load_language_from_settings
 from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.file_browser import FileBrowserPanel
 from filepilot.ui.index_panel import IndexPanel
+from filepilot.ui.notification import NotificationToast
 from filepilot.ui.organize_panel import OrganizePanel
 from filepilot.ui.search_panel import SearchPanel
 from filepilot.ui.settings_dialog import SettingsDialog
@@ -148,6 +149,9 @@ class MainWindow(QMainWindow):
 
         # Default to first item
         self.nav_list.setCurrentRow(0)
+
+        # Notification toast
+        self._toast = NotificationToast(self.centralWidget())
 
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
@@ -411,6 +415,11 @@ class MainWindow(QMainWindow):
     def _update_progress(self, value: int):
         """Update progress"""
         self.progress_bar.setValue(value)
+
+    def _notify(self, text: str, level: str = "info", duration_ms: int = 3000):
+        """Show a non-blocking notification toast"""
+        if hasattr(self, "_toast"):
+            self._toast.show_message(text, level, duration_ms)
 
     def _recreate_services(self):
         """Update service instances after settings change (no panel recreation needed)"""

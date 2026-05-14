@@ -3,6 +3,7 @@
 from pathlib import Path
 from threading import Thread
 
+import send2trash
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from filepilot.core.duplicate_finder import DuplicateFinder
@@ -264,7 +266,7 @@ class DuplicatesPanel(BasePanel):
 
         Thread(target=worker, daemon=True).start()
 
-    @Slot()
+    @Slot(list, list, list)
     def _display_results(self, groups: list[list[FileInfo]], similar_groups: list[list[FileInfo]], files: list = None):
         """Display deduplication results"""
         if files is not None:
@@ -384,7 +386,7 @@ class DuplicatesPanel(BasePanel):
         errors = 0
         for path_str in selected_paths:
             try:
-                Path(path_str).unlink()
+                send2trash.send2trash(path_str)
                 deleted += 1
             except (OSError, PermissionError):
                 errors += 1

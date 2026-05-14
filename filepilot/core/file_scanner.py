@@ -34,7 +34,6 @@ class FileInfo:
     is_directory: bool = False
     hash_sha256: str | None = None
 
-    @property
     def relative_path(self, base_path: Path | None = None) -> str:
         """Get relative path"""
         if base_path:

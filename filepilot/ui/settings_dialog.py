@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-from filepilot.i18n import t
-
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -16,6 +14,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from filepilot.i18n import t
 
 
 class SettingsDialog(QDialog):

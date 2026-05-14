@@ -17,6 +17,9 @@ a = Analysis(
         'filepilot.core.duplicate_finder',
         'filepilot.core.file_organizer',
         'filepilot.core.indexer',
+        'filepilot.core.file_watcher',
+        'filepilot.core.task_queue',
+        'filepilot.core.config',
         'filepilot.extractors.pdf_extractor',
         'filepilot.extractors.markdown_extractor',
         'filepilot.extractors.code_extractor',
@@ -66,7 +69,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon=r'filepilot\resources\app.ico',
 )
 
 coll = COLLECT(

@@ -3,6 +3,8 @@
 import csv
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 from threading import Thread
 
@@ -215,7 +217,6 @@ class FileBrowserPanel(BasePanel):
 
         def scan_worker():
             files = []
-            total_estimate = 0
 
             for f in self.scanner.scan(
                 str(dir_path),
@@ -297,8 +298,8 @@ class FileBrowserPanel(BasePanel):
         self._update_stat("📊 Total Files", str(len(filtered)))
 
         # Category stats
-        for cat, flist in self.categories.items():
-            key = f"📁 {cat}"
+        for cat in self.categories:
+            _ = f"📁 {cat}"
 
         self.btn_refresh.setEnabled(True)
         self.btn_export.setEnabled(True)
@@ -394,10 +395,9 @@ class FileBrowserPanel(BasePanel):
                 f"<p><i>Preview not available for this file type.</i></p>"
             )
 
-    @Slot()
+    @Slot(int, int)
     def _on_file_double_click(self, row: int, column: int):
         """Handle file double-click — try to open externally"""
-        import subprocess
         path_item = self.file_table.item(row, 0)
         if path_item:
             file_path = Path(path_item.data(Qt.UserRole))

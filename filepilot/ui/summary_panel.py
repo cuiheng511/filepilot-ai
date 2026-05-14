@@ -238,6 +238,8 @@ class SummaryPanel(BasePanel):
         self.current_dir = Path(dir_path)
         self.status_message.emit(f"Scanning folder: {dir_path}")
 
+        existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
+
         def scan_worker():
             from filepilot.core.file_scanner import FileScanner
             scanner = FileScanner()
@@ -246,11 +248,11 @@ class SummaryPanel(BasePanel):
                 path = Path(f.path)
                 if not self._is_supported(path):
                     continue
-                existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
-                if str(path) not in existing:
-                    # Thread-safe UI update via signal
-                    self._add_file_requested.emit(path.name, path.suffix, str(path))
-                    count += 1
+                if str(path) in existing:
+                    continue
+                # Thread-safe UI update via signal
+                self._add_file_requested.emit(path.name, path.suffix, str(path))
+                count += 1
             if count > 0:
                 self.status_message.emit(f"✅ Added {count} supported files")
             else:
@@ -368,7 +370,7 @@ class SummaryPanel(BasePanel):
 
                     keywords_text = "Keywords: "
                     kw_set = set()
-                    for name, text in contents:
+                    for _name, text in contents:
                         kw = self._summarizer.extract_keywords(text, top_n=5)
                         kw_set.update(kw)
                     keywords_text += ", ".join(list(kw_set)[:15])

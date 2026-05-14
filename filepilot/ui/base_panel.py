@@ -31,6 +31,7 @@ class BasePanel(QWidget):
         self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.setVisible(False)
         self.btn_cancel.clicked.connect(self._on_cancel)
+        self._cancelling: bool = False
 
         # Stat card dict (only panels using _make_stat_card need to initialize)
         self.stat_cards: dict[str, QLabel] = {}

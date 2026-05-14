@@ -41,7 +41,6 @@ class Summarizer:
             Summary result dictionary
         """
         path = Path(file_path)
-        ext = path.suffix.lower()
         result = {
             "path": str(path),
             "filename": path.name,

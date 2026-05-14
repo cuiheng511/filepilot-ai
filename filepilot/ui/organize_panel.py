@@ -3,8 +3,6 @@
 from pathlib import Path
 from threading import Thread
 
-from filepilot.i18n import t
-
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -29,6 +27,7 @@ from filepilot.core.file_organizer import (
     SizeRule,
 )
 from filepilot.core.file_scanner import FileInfo, FileScanner
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 

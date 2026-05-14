@@ -28,7 +28,7 @@ Thumbs.db
 # Project specific
 *.log
 *.spec
-/filepilot-ai.spec
+!/FilePilot.spec
 
 # Installers
 *.exe

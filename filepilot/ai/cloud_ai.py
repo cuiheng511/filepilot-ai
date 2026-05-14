@@ -4,10 +4,21 @@ import json
 import logging
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from filepilot.ai.base import AIProvider
 
 logger = logging.getLogger("filepilot.ai.cloud")
+
+
+def _session_with_retries() -> requests.Session:
+    session = requests.Session()
+    retries = Retry(total=2, backoff_factor=1, allowed_methods=["POST"])
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 class OpenAIProvider(AIProvider):
@@ -54,10 +65,11 @@ class OpenAIProvider(AIProvider):
             "model": self.model, "messages": messages,
             "temperature": temperature, "max_tokens": max_tokens, "stream": stream,
         }
+        session = _session_with_retries()
         try:
             if stream:
                 full = []
-                with requests.post(f"{self.api_base}/chat/completions",
+                with session.post(f"{self.api_base}/chat/completions",
                                    headers=self._headers(), json=payload, stream=True, timeout=120) as resp:
                     for line in resp.iter_lines():
                         if line:
@@ -74,12 +86,12 @@ class OpenAIProvider(AIProvider):
                                     continue
                 return "".join(full)
             else:
-                resp = requests.post(f"{self.api_base}/chat/completions",
+                resp = session.post(f"{self.api_base}/chat/completions",
                                      headers=self._headers(), json=payload, timeout=60)
                 if resp.status_code == 200:
                     return resp.json()["choices"][0]["message"]["content"]
-        except requests.RequestException:
-            self._available = False
+        except requests.RequestException as e:
+            logger.warning("OpenAI API request failed: %s", e)
         return ""
 
     def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
@@ -88,13 +100,14 @@ class OpenAIProvider(AIProvider):
     def embed(self, text, model: str | None = None) -> list[float]:
         if not self._available:
             return []
+        session = _session_with_retries()
         try:
-            resp = requests.post(f"{self.api_base}/embeddings", headers=self._headers(),
+            resp = session.post(f"{self.api_base}/embeddings", headers=self._headers(),
                                  json={"input": text, "model": model or "text-embedding-3-small"}, timeout=30)
             if resp.status_code == 200:
                 return resp.json()["data"][0]["embedding"]
-        except (requests.RequestException, KeyError):
-            pass
+        except (requests.RequestException, KeyError) as e:
+            logger.warning("OpenAI embed request failed: %s", e)
         return []
 
 
@@ -144,10 +157,11 @@ class AnthropicProvider(AIProvider):
         }
         if system_prompt:
             payload["system"] = system_prompt
+        session = _session_with_retries()
         try:
             if stream:
                 full = []
-                with requests.post(f"{self.api_base}/v1/messages",
+                with session.post(f"{self.api_base}/v1/messages",
                                    headers=self._headers(), json=payload, stream=True, timeout=120) as resp:
                     for line in resp.iter_lines():
                         if line:
@@ -165,13 +179,13 @@ class AnthropicProvider(AIProvider):
                                     continue
                 return "".join(full)
             else:
-                resp = requests.post(f"{self.api_base}/v1/messages",
+                resp = session.post(f"{self.api_base}/v1/messages",
                                      headers=self._headers(), json=payload, timeout=60)
                 if resp.status_code == 200:
                     data = resp.json()
                     return "".join(b.get("text", "") for b in data.get("content", []))
-        except requests.RequestException:
-            self._available = False
+        except requests.RequestException as e:
+            logger.warning("Anthropic API request failed: %s", e)
         return ""
 
     def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
@@ -193,13 +207,14 @@ class AnthropicProvider(AIProvider):
         }
         if system:
             payload["system"] = system
+        session = _session_with_retries()
         try:
-            resp = requests.post(f"{self.api_base}/v1/messages",
+            resp = session.post(f"{self.api_base}/v1/messages",
                                  headers=self._headers(), json=payload, timeout=60)
             if resp.status_code == 200:
                 return "".join(b.get("text", "") for b in resp.json().get("content", []))
-        except requests.RequestException:
-            self._available = False
+        except requests.RequestException as e:
+            logger.warning("Anthropic chat request failed: %s", e)
         return ""
 
 

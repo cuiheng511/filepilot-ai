@@ -3,6 +3,7 @@ from .duplicates_panel import DuplicatesPanel
 from .file_browser import FileBrowserPanel
 from .index_panel import IndexPanel
 from .main_window import MainWindow
+from .notification import NotificationToast
 from .organize_panel import OrganizePanel
 from .search_panel import SearchPanel
 from .settings_dialog import SettingsDialog
@@ -18,4 +19,5 @@ __all__ = [
     "DuplicatesPanel",
     "IndexPanel",
     "SummaryPanel",
+    "NotificationToast",
 ]

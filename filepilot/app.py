@@ -11,6 +11,7 @@ from filepilot.ai.summarizer import Summarizer
 from filepilot.core.duplicate_finder import DuplicateFinder
 from filepilot.core.file_organizer import FileOrganizer
 from filepilot.core.file_scanner import FileScanner
+from filepilot.core.file_watcher import FileWatcher
 from filepilot.core.indexer import FileIndexer
 
 
@@ -114,6 +115,7 @@ def create_services(settings: dict) -> dict:
         "scanner": FileScanner(),
         "organizer": FileOrganizer(),
         "duplicate_finder": DuplicateFinder(),
+        "watcher": FileWatcher(),
         "indexer": FileIndexer(
             index_dir=settings.get("index_dir", "~/.filepilot/index")
         ),

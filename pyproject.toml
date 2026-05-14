@@ -18,6 +18,11 @@ dependencies = [
     "pyyaml>=6.0",
     "markdown>=3.5.0",
     "keyring>=24.0.0",
+    "python-docx>=1.1.0",
+    "openpyxl>=3.1.0",
+    "python-pptx>=0.6.21",
+    "send2trash>=1.8.0",
+    "watchdog>=4.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -66,11 +71,16 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # allow unused imports in __init__.py
+"__init__.py" = ["F401"]
+"check_syntax.py" = ["T201"]
+"cli.py" = ["T201"]
 "tests/*.py" = [
     "T20",   # allow print() in tests
     "N802",  # allow test function names like test_MyFeature
     "PT009", # allow unittest-style assert
+]
+"filepilot/ui/main_window.py" = [
+    "N802",  # Qt event overrides (resizeEvent, dragEnterEvent, etc.)
 ]
 
 [tool.ruff.format]

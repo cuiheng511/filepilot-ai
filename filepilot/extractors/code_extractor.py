@@ -35,7 +35,7 @@ class CodeExtractor:
         if not content:
             return {}
         lines = content.split("\n")
-        non_empty_lines = [l for l in lines if l.strip()]
+        non_empty_lines = [line for line in lines if line.strip()]
         ext = Path(file_path).suffix.lower()
         language = self._detect_language(ext)
         definitions = self._extract_definitions(content, language)

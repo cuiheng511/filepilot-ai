@@ -29,7 +29,9 @@ class IndexPanel(BasePanel):
     indexing_finished = Signal()
     indexing_error = Signal(str)
 
-    def __init__(self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None):
+    def __init__(
+        self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None
+    ):
         super().__init__(parent)
         self.source_dir: Path | None = None
         self.indexer = indexer or FileIndexer()
@@ -40,7 +42,9 @@ class IndexPanel(BasePanel):
         self._connect_signals()
         self._refresh_stats()
 
-    def update_services(self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None):
+    def update_services(
+        self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None
+    ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
@@ -60,7 +64,7 @@ class IndexPanel(BasePanel):
         desc = QLabel(
             "Manage Whoosh full-text search index. Build the index to enable fast "
             "full-text search and natural language retrieval.\n"
-            "Supports incremental updates without rebuilding the entire index."
+            "Supports incremental updates without rebuilding the entire index.",
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -146,7 +150,7 @@ class IndexPanel(BasePanel):
         info_label = QLabel(
             "\U0001f4a1 Tip: Select a folder first, then click Build Index.\n"
             "       After modifying files, just click Incremental Update.\n"
-            "       The indexed file list will appear here."
+            "       The indexed file list will appear here.",
         )
         info_label.setObjectName("infoBox")
         info_label.setWordWrap(True)
@@ -158,7 +162,7 @@ class IndexPanel(BasePanel):
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(5)
         self.file_table.setHorizontalHeaderLabels(
-            ["Filename", "Path", "Category", "Size", "Modified Date"]
+            ["Filename", "Path", "Category", "Size", "Modified Date"],
         )
         self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.file_table.setSelectionMode(QTableWidget.ExtendedSelection)
@@ -191,7 +195,9 @@ class IndexPanel(BasePanel):
     @Slot()
     def _on_select_source(self):
         dir_path = QFileDialog.getExistingDirectory(
-            self, "Select folder to index", str(self.source_dir or Path.home())
+            self,
+            "Select folder to index",
+            str(self.source_dir or Path.home()),
         )
         if dir_path:
             self.source_dir = Path(dir_path)
@@ -353,7 +359,7 @@ class IndexPanel(BasePanel):
         stats = self.indexer.get_stats()
         self.status_message.emit(
             f"\u2705 Index complete: {stats['indexed_files']} files indexed, "
-            f"size: {stats['index_size']}"
+            f"size: {stats['index_size']}",
         )
 
     @Slot(str)

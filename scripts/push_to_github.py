@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Push filepilot-ai to GitHub using token authentication."""
+
 import base64
 import json
 import os
@@ -58,9 +59,7 @@ def create_github_repo():
 def run_git_command(args, cwd=None):
     """Run a git command."""
     cmd = ["git"] + args
-    result = subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, timeout=60
-    )
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
         print(f"  ⚠️  {result.stderr.strip()}")
     else:
@@ -100,8 +99,7 @@ def push_to_github():
 
     # Step 3: Check if there's anything to commit
     result = subprocess.run(
-        ["git", "status", "--porcelain"],
-        capture_output=True, text=True, timeout=10
+        ["git", "status", "--porcelain"], capture_output=True, text=True, timeout=10
     )
     if not result.stdout.strip():
         print("ℹ️ No changes to commit")
@@ -122,7 +120,9 @@ def push_to_github():
     print("🚀 Pushing to GitHub...")
     result = subprocess.run(
         ["git", "-c", f"http.extraHeader={auth_header}", "push", "-u", "origin", "main"],
-        capture_output=True, text=True, timeout=120
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     if result.returncode == 0:
         print("\n✅ SUCCESS! Repository pushed to GitHub!")
@@ -146,7 +146,10 @@ def push_to_github():
                 "origin",
                 "main",
             ],
-            capture_output=True, text=True, timeout=120, env=env
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
         )
         if result.returncode == 0:
             print("\n✅ SUCCESS! Repository pushed to GitHub!")

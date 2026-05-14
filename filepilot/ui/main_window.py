@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot import __version__
 from filepilot.core.file_watcher import FileWatcher
 from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
@@ -67,7 +68,7 @@ class MainWindow(QMainWindow):
         self._theme_mgr = ThemeManager(themes_dir)
         self._theme_mgr.apply_theme("dark")
         self._theme_mgr.styles_reloaded.connect(
-            lambda: self.status_label.setText("🎨 Styles reloaded")
+            lambda: self.status_label.setText("🎨 Styles reloaded"),
         )
 
         # Keyboard shortcuts
@@ -121,12 +122,12 @@ class MainWindow(QMainWindow):
         )
         self.index_panel = IndexPanel(indexer=indexer, scanner=scanner)
 
-        self.content_stack.addWidget(self.browse_panel)      # 0
-        self.content_stack.addWidget(self.search_panel)      # 1
-        self.content_stack.addWidget(self.organize_panel)    # 2
+        self.content_stack.addWidget(self.browse_panel)  # 0
+        self.content_stack.addWidget(self.search_panel)  # 1
+        self.content_stack.addWidget(self.organize_panel)  # 2
         self.content_stack.addWidget(self.duplicates_panel)  # 3
-        self.content_stack.addWidget(self.summary_panel)     # 4
-        self.content_stack.addWidget(self.index_panel)       # 5
+        self.content_stack.addWidget(self.summary_panel)  # 4
+        self.content_stack.addWidget(self.index_panel)  # 5
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -147,7 +148,7 @@ class MainWindow(QMainWindow):
             "  background: rgba(74, 158, 255, 0.06);"
             "  border-radius: 6px;"
             "  margin: 2px;"
-            "}"
+            "}",
         )
         self.drop_overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.drop_overlay.hide()
@@ -304,6 +305,7 @@ class MainWindow(QMainWindow):
     def _load_settings(self) -> dict:
         """Load settings (unified via app.load_settings)"""
         from filepilot.app import load_settings as _load
+
         settings = _load()
         # Add MainWindow default values
         settings.setdefault("recent_dirs", [])
@@ -312,6 +314,7 @@ class MainWindow(QMainWindow):
     def _save_settings(self):
         """Save settings — API key stored encrypted, rest in JSON"""
         from filepilot.core import config
+
         config.save(self.settings)
 
     @Slot()
@@ -319,7 +322,7 @@ class MainWindow(QMainWindow):
         """Navigation changed"""
         self.content_stack.setCurrentIndex(index)
         names = ["Browse", "Search", "Organize", "Duplicates", "Summary", "Index"]
-        if 0 <= index < len(names):
+        if 0 <= index < len(names) and hasattr(self, "status_label"):
             self.status_label.setText(f"Current: {names[index]}")
 
     def _open_directory(self, dir_path: str):
@@ -348,7 +351,9 @@ class MainWindow(QMainWindow):
     def _on_open_folder(self):
         """Open folder dialog"""
         dir_path = QFileDialog.getExistingDirectory(
-            self, "Select Folder", str(self.current_dir or Path.home())
+            self,
+            "Select Folder",
+            str(self.current_dir or Path.home()),
         )
         if dir_path:
             self._open_directory(dir_path)
@@ -372,13 +377,56 @@ class MainWindow(QMainWindow):
             get_file_modified_time,
             get_file_size_str,
         )
+
         ext = path.suffix.lower()
         if ext and ext.lstrip(".").lower() in (
-            "pdf", "md", "markdown", "mdx", "py", "js", "ts", "jsx", "tsx",
-            "java", "cpp", "c", "h", "hpp", "cs", "go", "rs", "rb", "php",
-            "swift", "kt", "scala", "sql", "sh", "bash", "ps1", "bat", "pl",
-            "lua", "r", "m", "dart", "vue", "svelte", "docx", "xlsx", "pptx",
-            "txt", "log", "ini", "cfg", "toml", "yaml", "yml", "json", "xml", "csv",
+            "pdf",
+            "md",
+            "markdown",
+            "mdx",
+            "py",
+            "js",
+            "ts",
+            "jsx",
+            "tsx",
+            "java",
+            "cpp",
+            "c",
+            "h",
+            "hpp",
+            "cs",
+            "go",
+            "rs",
+            "rb",
+            "php",
+            "swift",
+            "kt",
+            "scala",
+            "sql",
+            "sh",
+            "bash",
+            "ps1",
+            "bat",
+            "pl",
+            "lua",
+            "r",
+            "m",
+            "dart",
+            "vue",
+            "svelte",
+            "docx",
+            "xlsx",
+            "pptx",
+            "txt",
+            "log",
+            "ini",
+            "cfg",
+            "toml",
+            "yaml",
+            "yml",
+            "json",
+            "xml",
+            "csv",
         ):
             try:
                 stat = path.stat()
@@ -435,7 +483,9 @@ class MainWindow(QMainWindow):
         if len(paths) == 1 and Path(paths[0]).is_file():
             parent = Path(paths[0]).parent
             self._open_directory(str(parent))
-            self.status_label.setText(f"📂 {parent.name}  (from dropped file: {Path(paths[0]).name})")
+            self.status_label.setText(
+                f"📂 {parent.name}  (from dropped file: {Path(paths[0]).name})"
+            )
             event.acceptProposedAction()
 
     @Slot()
@@ -467,12 +517,12 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About FilePilot AI",
-            "<h2>FilePilot AI v0.1.0</h2>"
+            f"<h2>FilePilot AI v{__version__}</h2>"
             "<p>Smart file manager — automatically organize, categorize, and search your local files.</p>"
             "<p>Features: file type recognition, auto-rename, auto-categorize<br>"
             "PDF/Markdown summarization, file indexing, deduplication, AI search</p>"
             "<hr>"
-            "<p>Built with ❤️ using PySide6 + Whoosh + Ollama</p>"
+            "<p>Built with ❤️ using PySide6 + Whoosh + Ollama</p>",
         )
 
     @Slot()
@@ -503,6 +553,7 @@ class MainWindow(QMainWindow):
     def _recreate_services(self):
         """Update service instances after settings change (no panel recreation needed)"""
         from filepilot.app import create_services
+
         new_services = create_services(self.settings)
         self.services = new_services
 

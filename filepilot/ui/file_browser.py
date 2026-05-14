@@ -74,7 +74,7 @@ class FileBrowserPanel(BasePanel):
 
         desc = QLabel(
             "Browse files, preview content, and manage your folders. "
-            "Drag and drop folders to open them."
+            "Drag and drop folders to open them.",
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -197,7 +197,7 @@ class FileBrowserPanel(BasePanel):
 
         root = QTreeWidgetItem(self.dir_tree)
         root.setText(0, self.current_dir.name)
-        root.setData(0, Qt.UserRole, str(self.current_dir))
+        root.setData(0, Qt.UserRole, str(self.current_dir))  # type: ignore[attr-defined]
         root.setExpanded(True)
 
         self._populate_dir_tree(self.current_dir, root)
@@ -237,8 +237,12 @@ class FileBrowserPanel(BasePanel):
 
             if not self._cancelled:
                 from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
                 QMetaObject.invokeMethod(
-                    self, "_display_files", Qt.QueuedConnection, Q_ARG(list, files)
+                    self,
+                    "_display_files",
+                    Qt.QueuedConnection,
+                    Q_ARG(list, files),
                 )
 
         Thread(target=scan_worker, daemon=True).start()
@@ -252,8 +256,8 @@ class FileBrowserPanel(BasePanel):
                 if entry.is_dir():
                     child = QTreeWidgetItem(parent_item)
                     child.setText(0, f"📁 {entry.name}")
-                    child.setData(0, Qt.UserRole, str(entry))
-                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
+                    child.setData(0, Qt.UserRole, str(entry))  # type: ignore[attr-defined]
+                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)  # type: ignore[attr-defined]
         except PermissionError:
             pass
 
@@ -261,7 +265,7 @@ class FileBrowserPanel(BasePanel):
         """Categorize files by type"""
         categories: dict[str, list[FileInfo]] = {}
         for f in files:
-            cat = get_category_name(f.suffix.lower())
+            cat = get_category_name(f.path.suffix.lower())
             categories.setdefault(cat, []).append(f)
         return categories
 
@@ -276,11 +280,11 @@ class FileBrowserPanel(BasePanel):
         self.file_table.setRowCount(len(filtered))
 
         for row, f in enumerate(filtered):
-            cat = get_category_name(f.suffix.lower())
+            cat = get_category_name(f.path.suffix.lower())
 
             icon = CATEGORY_ICONS.get(cat, "📁")
             name_item = QTableWidgetItem(f"{icon}  {f.name}")
-            name_item.setData(Qt.UserRole, str(f.path))
+            name_item.setData(Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
 
             size_item = QTableWidgetItem(f.size_str)
             type_item = QTableWidgetItem(cat)
@@ -320,9 +324,9 @@ class FileBrowserPanel(BasePanel):
     @Slot()
     def _on_dir_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle directory tree click"""
-        dir_path = item.data(0, Qt.UserRole)
+        dir_path = item.data(0, Qt.UserRole)  # type: ignore[attr-defined]
         if dir_path and Path(dir_path).is_dir():
-            if item.childCount() == 0 and item.data(0, Qt.UserRole):
+            if item.childCount() == 0 and item.data(0, Qt.UserRole):  # type: ignore[attr-defined]
                 self._populate_dir_tree(Path(dir_path), item)
             self.current_dir = Path(dir_path)
             self.dir_label.setText(f"📂 {dir_path}")
@@ -372,20 +376,19 @@ class FileBrowserPanel(BasePanel):
         """Preview file content or metadata"""
         cat = get_category_name(path.suffix.lower())
         stats_html = (
-            f"<p>Size: {path.stat().st_size} bytes</p>"
-            f"<p>Modified: {path.stat().st_mtime:.0f}</p>"
+            f"<p>Size: {path.stat().st_size} bytes</p><p>Modified: {path.stat().st_mtime:.0f}</p>"
         )
 
         if cat == "Image":
             self.preview_area.setHtml(
                 f"<p><b>🖼️ Image file:</b> {path.name}</p>"
                 f"<p><i>File preview is not supported in text mode. "
-                f"Open the file in an external viewer.</i></p>{stats_html}"
+                f"Open the file in an external viewer.</i></p>{stats_html}",
             )
         elif cat == "PDF":
             self.preview_area.setHtml(
                 f"<p><b>📕 PDF file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}"
+                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}",
             )
         elif cat in ("Markdown", "Code", "Text"):
             try:
@@ -397,7 +400,7 @@ class FileBrowserPanel(BasePanel):
             # Binary/media/office files — stats only
             self.preview_area.setHtml(
                 f"<p><b>📄 {path.name}</b></p>{stats_html}"
-                f"<p><i>Preview not available for this file type.</i></p>"
+                f"<p><i>Preview not available for this file type.</i></p>",
             )
 
     @Slot(int, int)
@@ -405,7 +408,7 @@ class FileBrowserPanel(BasePanel):
         """Handle file double-click — try to open externally"""
         path_item = self.file_table.item(row, 0)
         if path_item:
-            file_path = Path(path_item.data(Qt.UserRole))
+            file_path = Path(path_item.data(Qt.UserRole))  # type: ignore[attr-defined]
             if file_path.exists():
                 try:
                     fp = str(file_path)
@@ -426,7 +429,8 @@ class FileBrowserPanel(BasePanel):
             return
 
         file_path, selected_filter = QFileDialog.getSaveFileName(
-            self, "Export File List",
+            self,
+            "Export File List",
             str(Path.home() / "file_list.csv"),
             "CSV (*.csv);;JSON (*.json)",
         )
@@ -443,7 +447,7 @@ class FileBrowserPanel(BasePanel):
                         "size": f.size_bytes,
                         "size_str": f.size_str,
                         "modified": f.modified_time.isoformat(),
-                        "suffix": f.suffix,
+                        "suffix": f.extension,
                     }
                     for f in self.files
                 ]
@@ -453,10 +457,16 @@ class FileBrowserPanel(BasePanel):
                     writer = csv.writer(fp)
                     writer.writerow(["Name", "Path", "Size (bytes)", "Size", "Modified", "Type"])
                     for f in self.files:
-                        writer.writerow([
-                            f.name, str(f.path), f.size_bytes, f.size_str,
-                            f.modified_time.isoformat(), f.suffix,
-                        ])
+                        writer.writerow(
+                            [
+                                f.name,
+                                str(f.path),
+                                f.size_bytes,
+                                f.size_str,
+                                f.modified_time.isoformat(),
+                                f.extension,
+                            ]
+                        )
             self.status_message.emit(f"✅ Exported to {path.name}")
         except Exception as e:
             self.status_message.emit(f"❌ Export failed: {e}")

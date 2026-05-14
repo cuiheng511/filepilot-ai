@@ -110,7 +110,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_title": "📊 磁盘占用分析",
         "disk_total": "总大小",
         "disk_dirs": "目录数",
-
         # Tray Menu
         "tray_tooltip": "FilePilot AI - 后台文件监控",
         "tray_pause": "⏸️ 暂停监控",
@@ -197,14 +196,12 @@ _translations: dict[str, dict[str, str]] = {
         "disk_title": "📊 Disk Usage",
         "disk_total": "Total Size",
         "disk_dirs": "Directories",
-
         # Tray Menu
         "tray_tooltip": "FilePilot AI - Background File Monitor",
         "tray_pause": "\u23f8\ufe0f Pause Watching",
         "tray_watching_paused": "\u23f8\ufe0f Background watching paused",
         "tray_watching_resumed": "\u25b6\ufe0f Background watching resumed",
     },
-
     # ── Japanese (日本語) ──
     "ja": {
         "app_name": "FilePilot AI",
@@ -277,7 +274,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "合計サイズ",
         "disk_dirs": "ディレクトリ数",
     },
-
     # ── Korean (한국어) ──
     "ko": {
         "app_name": "FilePilot AI",
@@ -350,7 +346,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "총 크기",
         "disk_dirs": "디렉토리 수",
     },
-
     # ── French (Français) ──
     "fr": {
         "app_name": "FilePilot AI",
@@ -423,7 +418,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Taille totale",
         "disk_dirs": "Répertoires",
     },
-
     # ── German (Deutsch) ──
     "de": {
         "app_name": "FilePilot AI",
@@ -496,7 +490,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Gesamtgröße",
         "disk_dirs": "Verzeichnisse",
     },
-
     # ── Spanish (Español) ──
     "es": {
         "app_name": "FilePilot AI",
@@ -569,7 +562,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Tamaño total",
         "disk_dirs": "Directorios",
     },
-
     # ── Portuguese (Português) ──
     "pt": {
         "app_name": "FilePilot AI",
@@ -642,7 +634,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Tamanho total",
         "disk_dirs": "Diretórios",
     },
-
     # ── Russian (Русский) ──
     "ru": {
         "app_name": "FilePilot AI",
@@ -715,7 +706,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Общий размер",
         "disk_dirs": "Каталоги",
     },
-
     # ── Vietnamese (Tiếng Việt) ──
     "vi": {
         "app_name": "FilePilot AI",
@@ -788,7 +778,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Tổng kích thước",
         "disk_dirs": "Thư mục",
     },
-
     # ── Thai (ไทย) ──
     "th": {
         "app_name": "FilePilot AI",
@@ -861,7 +850,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "รวมทั้งหมด",
         "disk_dirs": "ไดเรกทอรี",
     },
-
     # ── Arabic (العربية) ──
     "ar": {
         "app_name": "FilePilot AI",
@@ -934,7 +922,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "الحجم الإجمالي",
         "disk_dirs": "المجلدات",
     },
-
     # ── Italian (Italiano) ──
     "it": {
         "app_name": "FilePilot AI",
@@ -1007,7 +994,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Dimensione totale",
         "disk_dirs": "Directory",
     },
-
     # ── Indonesian (Bahasa Indonesia) ──
     "id": {
         "app_name": "FilePilot AI",
@@ -1080,7 +1066,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Ukuran total",
         "disk_dirs": "Direktori",
     },
-
     # ── Turkish (Türkçe) ──
     "tr": {
         "app_name": "FilePilot AI",
@@ -1153,7 +1138,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Toplam boyut",
         "disk_dirs": "Dizinler",
     },
-
     # ── Polish (Polski) ──
     "pl": {
         "app_name": "FilePilot AI",
@@ -1226,7 +1210,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Całkowity rozmiar",
         "disk_dirs": "Katalogi",
     },
-
     # ── Dutch (Nederlands) ──
     "nl": {
         "app_name": "FilePilot AI",
@@ -1299,7 +1282,6 @@ _translations: dict[str, dict[str, str]] = {
         "disk_total": "Totale grootte",
         "disk_dirs": "Mappen",
     },
-
     # ── Ukrainian (Українська) ──
     "uk": {
         "app_name": "FilePilot AI",
@@ -1383,6 +1365,7 @@ def set_language(lang: str) -> None:
         # Also update config
         try:
             from filepilot.core.config import load, save
+
             cfg = load()
             cfg["language"] = lang
             save(cfg)
@@ -1404,6 +1387,7 @@ def t(key: str, **kwargs) -> str:
 
     Returns:
         Translated string, returns key itself if not found
+
     """
     text = _translations.get(_current_lang, {}).get(key)
     if text is None:
@@ -1419,6 +1403,7 @@ def t(key: str, **kwargs) -> str:
 def load_language_from_settings() -> None:
     """Load language from user settings"""
     from filepilot.core.config import load as load_config
+
     try:
         cfg = load_config()
         lang = cfg.get("language", "en")

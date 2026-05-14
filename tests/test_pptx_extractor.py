@@ -3,7 +3,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 from filepilot.extractors.pptx_extractor import PptxExtractor
 
 

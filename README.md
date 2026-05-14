@@ -1,354 +1,280 @@
 <div align="center">
 
-<img src="filepilot/resources/app.ico" width="96" alt="FilePilot AI" />
+<img src="filepilot/resources/app.png" width="132" alt="FilePilot AI logo" />
 
 # FilePilot AI
 
-**Smart File Manager — Scan · Search · Deduplicate · Summarize · Organize**
+**A local-first AI file manager for scanning, searching, deduplicating, summarizing, and organizing your files.**
 
-A local-first desktop assistant that helps you understand large folders, find files faster, detect duplicates, and generate AI-powered summaries — all without leaving your machine.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![PySide6](https://img.shields.io/badge/Desktop-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
+[![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
+[![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
+[![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![PySide6](https://img.shields.io/badge/UI-PySide6%20(Qt6)-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
-[![Whoosh](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/cuiheng511/filepilot-ai/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/cuiheng511/filepilot-ai/actions)
-[![Tests](https://img.shields.io/badge/Tests-198%2F198%20passed-brightgreen?style=for-the-badge)]()
-[![i18n](https://img.shields.io/badge/Languages-18-blueviolet?style=for-the-badge)](filepilot/i18n.py)
+Version 0.3.0
 
 </div>
 
 ---
 
-## Why FilePilot AI?
+## Overview
 
-> How many files on your drive have you forgotten about? How much space is wasted on duplicates?
+FilePilot AI is a desktop assistant for people who live inside large folders. It helps you inspect local storage, build a searchable file index, detect duplicate content, generate AI summaries, and reorganize messy directories with a preview-first workflow.
 
-FilePilot AI is a **fully local** intelligent file management tool. It doesn't upload your data, doesn't track your behavior — it just helps you keep your files organized.
+The app is designed around one principle: your files stay on your machine unless you explicitly choose a cloud AI provider for summarization.
 
----
+## Demo
 
-## ✨ Features
+<div align="center">
+
+![FilePilot AI demo](docs/assets/filepilot-demo.gif)
+
+</div>
+
+## Highlights
 
 <table>
 <tr>
-<td width="33%" align="center">
+<td width="33%">
 
-### 📂 Smart Scanning
+### Smart scanning
 
-Recursive directory traversal<br/>
-File type detection<br/>
-Disk usage breakdown<br/>
-Drag-and-drop folders
-
-</td>
-<td width="33%" align="center">
-
-### 🔍 Full-Text Search
-
-Whoosh-powered local index<br/>
-Fuzzy + content search<br/>
-Filter by type / date / size<br/>
-Result highlighting
+- Recursive directory scanning
+- File type and category detection
+- Size, date, MIME, and hash metadata
+- Hidden-file and depth controls
 
 </td>
-<td width="33%" align="center">
+<td width="33%">
 
-### 🤖 AI Summaries
+### Fast local search
 
-PDF / Markdown / Code summaries<br/>
-Automatic keyword extraction<br/>
-Local + cloud AI support<br/>
-Batch processing
+- Whoosh full-text index
+- Keyword and fuzzy matching
+- Type, date, and size filters
+- Exportable search results
+
+</td>
+<td width="33%">
+
+### AI summaries
+
+- PDF, Markdown, code, image, DOCX, XLSX, and PPTX extractors
+- Local or cloud AI providers
+- Batch-friendly summary workflow
+- Unified provider interface
 
 </td>
 </tr>
 <tr>
-<td align="center">
+<td width="33%">
 
-### 🔗 Duplicate Detection
+### Duplicate cleanup
 
-Three-stage dedup algorithm<br/>
-Size grouping → partial hash → full SHA256<br/>
-One-click space reclaim<br/>
-Similar filename detection
-
-</td>
-<td align="center">
-
-### 📋 Smart Organization
-
-Classify by type / date / size / extension<br/>
-Smart rename templates<br/>
-Preview before execute<br/>
-One-click undo
+- Size grouping
+- Partial hash pre-check
+- Full SHA256 verification
+- Recycle-bin based deletion
 
 </td>
-<td align="center">
+<td width="33%">
 
-### 🎨 Modern UI
+### Safe organization
 
-Dark / light theme toggle<br/>
-QSS hot-reload<br/>
-Keyboard shortcuts (Ctrl+1~6)<br/>
-Floating notification toasts<br/>
-**18 languages supported**
+- Organize by type, date, extension, and size
+- Rename templates
+- Preview before moving
+- Undo log support
+
+</td>
+<td width="33%">
+
+### Desktop workflow
+
+- PySide6 native interface
+- Light and dark themes
+- Tray and background watcher
+- Toast notifications and 18 UI languages
 
 </td>
 </tr>
 </table>
 
----
+## Screenshots
 
-## 🌍 Supported Languages
+| Browse | Search |
+| --- | --- |
+| ![Browse local folders](docs/assets/screenshots/01-browse.png) | ![Search indexed files](docs/assets/screenshots/02-search.png) |
 
-FilePilot AI ships with full UI translations for **18 languages**:
+| Organize | Duplicates |
+| --- | --- |
+| ![Preview file organization](docs/assets/screenshots/03-organize.png) | ![Detect duplicate files](docs/assets/screenshots/04-duplicates.png) |
 
-| | Language | | Language | | Language |
-|---|---------|---|---------|---|---------|
-| 🇬🇧 | English | 🇨🇳 | 中文 (Chinese) | 🇯🇵 | 日本語 (Japanese) |
-| 🇰🇷 | 한국어 (Korean) | 🇫🇷 | Français (French) | 🇩🇪 | Deutsch (German) |
-| 🇪🇸 | Español (Spanish) | 🇧🇷 | Português (Portuguese) | 🇷🇺 | Русский (Russian) |
-| 🇻🇳 | Tiếng Việt (Vietnamese) | 🇹🇭 | ไทย (Thai) | 🇸🇦 | العربية (Arabic) |
-| 🇮🇹 | Italiano (Italian) | 🇮🇩 | Bahasa Indonesia | 🇹🇷 | Türkçe (Turkish) |
-| 🇵🇱 | Polski (Polish) | 🇳🇱 | Nederlands (Dutch) | 🇺🇦 | Українська (Ukrainian) |
+| AI Summary | Index |
+| --- | --- |
+| ![Generate AI summaries](docs/assets/screenshots/05-summary.png) | ![Manage search index](docs/assets/screenshots/06-index.png) |
 
-Switch languages in **Settings → General → Language**. Changes take effect immediately.
+## Icon
 
----
+The application icon lives in:
 
-## 🏗️ Architecture
+- `filepilot/resources/app.png`
+- `filepilot/resources/app.ico`
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        FilePilot AI                          │
-├──────────┬──────────┬──────────┬──────────┬────────────────┤
-│  UI      │  AI      │  Core    │Extractors│   Utilities    │
-│ PySide6  │ Provider │ Scanner  │ PDF      │ file_utils     │
-│ Panels   │ Ollama   │ Indexer  │ Markdown │ config         │
-│ Themes   │ OpenAI   │ Organizer│ Code     │ task_queue     │
-│ Toast    │ Anthropic│ Finder   │ DOCX     │ file_watcher   │
-│ i18n     │ llama.cpp│ Watcher  │ XLSX/PPTX│ logging        │
-└──────────┴──────────┴──────────┴──────────┴────────────────┘
-```
+The current icon uses a folder, document, and connected AI nodes to make the product signal clear at small desktop sizes.
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Requirements
 
-- **Python 3.10+** (Windows / macOS / Linux)
-- **Optional:** Ollama or llama.cpp for local AI
-- **Optional:** OpenAI / Anthropic API key for cloud AI
+- Python 3.10 or newer
+- Windows, macOS, or Linux
+- Optional: Ollama, llama.cpp, or LM Studio for local AI
+- Optional: OpenAI, Anthropic, or any OpenAI-compatible endpoint for cloud AI
 
-### Install & Run
+### Install and Run
 
 ```bash
-# Clone
 git clone https://github.com/cuiheng511/filepilot-ai.git
 cd filepilot-ai
 
-# Setup virtual environment
 python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-# .venv\Scripts\activate         # Windows
 
-# Install dependencies
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
-
-# Launch GUI
 python -m filepilot.main
 ```
 
-### CLI Mode
+### Development Setup
 
 ```bash
-# Scan a directory
+pip install -e ".[test,dev]"
+pytest
+ruff check .
+ruff format --check .
+mypy filepilot
+```
+
+## CLI Examples
+
+```bash
+# Scan a folder
 python -m filepilot.cli scan ~/Documents
 
 # Find duplicate files
 python -m filepilot.cli duplicates ~/Downloads
 
-# Export file inventory
+# Export an inventory report
 python -m filepilot.cli export ~/Projects --format csv -o report.csv
 
-# Disk usage analysis
+# Analyze disk usage
 python -m filepilot.cli disk-usage ~/
 
 # Search indexed files
 python -m filepilot.cli search ~/Documents "machine learning"
 
-# Organize files (dry-run first)
+# Preview an organization plan before moving anything
 python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category date
 ```
 
----
+## AI Providers
 
-## 🤖 AI Providers
+| Provider | Mode | Notes |
+| --- | --- | --- |
+| Ollama | Local | Good default for private summaries on your own machine |
+| llama.cpp / LM Studio | Local | Works with compatible local HTTP servers |
+| OpenAI | Cloud | Uses OpenAI-compatible chat completions |
+| Anthropic | Cloud | Claude provider support |
+| Custom endpoint | Cloud or local | Supports OpenAI-compatible APIs such as self-hosted gateways |
 
-FilePilot supports **5 providers** through a unified `AIProvider` interface:
+Cloud providers only receive the content you choose to summarize. Local scanning, indexing, organization, and duplicate detection do not require AI.
 
-| Provider | Type | Recommended Models | Setup |
-|----------|------|-------------------|-------|
-| **Ollama** | 🏠 Local | `qwen2.5:7b`, `llama3.1:8b` | `ollama pull qwen2.5:7b` |
-| **llama.cpp** | 🏠 Local | Any GGUF model | Start llama.cpp server |
-| **OpenAI** | ☁️ Cloud | `gpt-4o-mini`, `gpt-4o` | Settings → AI Engine → API Key |
-| **Anthropic** | ☁️ Cloud | `claude-sonnet-4-20250514` | Settings → AI Engine → API Key |
-| **Custom** | ☁️ Cloud | DeepSeek, Moonshot, etc. | Any OpenAI-compatible endpoint |
+## Project Structure
 
-> **Security:** API keys are stored in your OS credential manager (Windows Credential Manager / macOS Keychain / Linux Secret Service), never written to config files.
-
----
-
-## 📁 Project Structure
-
-```
+```text
 filepilot-ai/
-├── filepilot/
-│   ├── ai/                  # AI engine layer
-│   │   ├── base.py          #   AIProvider abstract base class
-│   │   ├── local_ai.py      #   Ollama / llama.cpp providers
-│   │   ├── cloud_ai.py      #   OpenAI / Anthropic (with retry)
-│   │   └── summarizer.py    #   Intelligent summary generator
-│   ├── core/                # Core business logic
-│   │   ├── file_scanner.py  #   Directory scanning
-│   │   ├── indexer.py       #   Whoosh full-text index
-│   │   ├── file_organizer.py#   File classification & rename
-│   │   ├── duplicate_finder.py # Content-hash deduplication
-│   │   ├── file_watcher.py  #   Directory monitoring (watchdog)
-│   │   ├── task_queue.py    #   Background task queue
-│   │   └── config.py        #   Unified settings persistence
-│   ├── extractors/          # Content extractors
-│   │   ├── pdf_extractor.py
-│   │   ├── markdown_extractor.py
-│   │   ├── code_extractor.py
-│   │   ├── image_extractor.py
-│   │   ├── docx_extractor.py
-│   │   ├── xlsx_extractor.py
-│   │   └── pptx_extractor.py
-│   ├── styles/              # Theme system
-│   │   ├── manager.py       #   ThemeManager (hot-reload)
-│   │   └── themes/          #   dark.qss / light.qss
-│   ├── ui/                  # Desktop UI (PySide6)
-│   │   ├── main_window.py   #   Main window + navigation
-│   │   ├── notification.py  #   Floating toast notifications
-│   │   ├── base_panel.py    #   Panel base class
-│   │   └── ...              #   6 feature panels
-│   ├── app.py               # App bootstrap & service injection
-│   ├── cli.py               # CLI entry point
-│   ├── i18n.py              # Internationalization (12 languages)
-│   └── log.py               # Logging configuration
-├── tests/                   # 198 unit tests
-├── .github/
-│   ├── workflows/ci.yml     # CI: 2 platforms × 3 Python versions
-│   └── dependabot.yml       # Automatic dependency updates
-├── FilePilot.spec           # PyInstaller build config
-├── CONTRIBUTING.md          # Contribution guide
-└── CHANGELOG.md             # Release notes
+|-- filepilot/
+|   |-- ai/                  # AI providers and summarization
+|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher
+|   |-- extractors/          # PDF, Markdown, code, image, DOCX, XLSX, PPTX
+|   |-- resources/           # Application icons
+|   |-- styles/              # Theme manager and QSS themes
+|   |-- ui/                  # PySide6 panels, tray, settings, notifications
+|   |-- app.py               # Application bootstrap
+|   |-- cli.py               # Command-line interface
+|   |-- i18n.py              # Translation catalog
+|   `-- main.py              # GUI entry point
+|-- tests/                   # Unit and UI tests
+|-- scripts/                 # Helper scripts
+|-- .github/workflows/       # CI pipeline
+|-- FilePilot.spec           # PyInstaller build config
+|-- pyproject.toml           # Package metadata and tooling
+`-- requirements.txt         # Runtime dependencies
 ```
 
----
+## Architecture
 
-## 🛠️ Development
+```mermaid
+flowchart LR
+    UI["PySide6 UI"] --> Core["Core services"]
+    CLI["CLI"] --> Core
+    Core --> Scanner["File scanner"]
+    Core --> Indexer["Whoosh indexer"]
+    Core --> Duplicates["Duplicate finder"]
+    Core --> Organizer["Organizer"]
+    Core --> Watcher["Directory watcher"]
+    Scanner --> Extractors["Content extractors"]
+    Extractors --> Summarizer["AI summarizer"]
+    Summarizer --> Providers["Local and cloud AI providers"]
+```
+
+## Security and Privacy
+
+| Area | Design |
+| --- | --- |
+| Local-first workflow | File scanning, indexing, duplicate detection, and organization run locally |
+| Optional AI | Summarization can use local models or explicit cloud providers |
+| Key storage | API keys use OS keyring when available, with encrypted fallback storage |
+| Deletion safety | Duplicate removal uses the system recycle bin through `send2trash` |
+| Telemetry | No analytics, tracking, or background phone-home behavior |
+
+## Quality Gates
+
+The repository is set up for:
+
+- `pytest` for unit and UI tests
+- `ruff check .` for linting
+- `ruff format --check .` for formatting
+- `mypy filepilot` for type checking
+- `pip check` for dependency consistency
+
+## Build
 
 ```bash
-# Install dev + test dependencies
-pip install -e ".[test,dev]"
-
-# Run tests
-pytest                                    # Full suite
-pytest --cov=filepilot --cov-report=html  # With coverage report
-
-# Lint & format
-ruff check .          # Lint
-ruff format --check . # Format check
-mypy filepilot/       # Type checking
-
-# Build standalone executable
 pyinstaller FilePilot.spec --noconfirm
 ```
 
-### CI Pipeline
+The PyInstaller spec includes icons, image resources, theme files, extractor dependencies, and watcher dependencies.
 
-| Job | Runner | Description |
-|-----|--------|-------------|
-| **Lint** | Ubuntu × py3.10–3.12 | `ruff check` + `ruff format --check` |
-| **Test** | Ubuntu + Windows × py3.10–3.12 | `pytest --cov` + Codecov upload |
-| **Build** | Windows (after lint+test pass) | PyInstaller package + artifact upload |
+## Roadmap
 
----
+- Application screenshots and demo GIFs
+- Windows and macOS signed installers
+- Summary cache with invalidation
+- Large-folder indexing performance tuning
+- More organization templates
+- More end-to-end packaging tests
 
-## 🗺️ Roadmap
+## Contributing
 
-- [x] File scanning & browsing
-- [x] Full-text search indexing
-- [x] AI summary generation
-- [x] Duplicate file detection
-- [x] Auto-organization with undo
-- [x] CLI tool
-- [x] Dark / light themes
-- [x] Multi-language i18n (18 languages)
-- [x] Background task queue
-- [x] Directory watching (watchdog)
-- [x] Notification toast system
-- [ ] Windows / macOS installers
-- [ ] Application screenshots & demo GIFs
-- [ ] Persistent AI summary caching
-- [ ] Large-folder indexing optimization
-- [ ] Additional language support (Hindi, Malay, Czech)
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, style rules, and pull request guidance.
 
----
+## License
 
-## 🔒 Security & Privacy
-
-| Principle | Details |
-|-----------|---------|
-| **Local-first** | Scanning, indexing, dedup, and extraction run entirely on your machine |
-| **AI is optional** | Cloud providers only receive content you explicitly send for summarization |
-| **Zero telemetry** | No analytics, no tracking, no phone-home |
-| **Secure key storage** | API keys stored in OS credential manager via `keyring`, never in config files |
-| **Safe deletion** | Duplicate removal uses system recycle bin (`send2trash`) |
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-
-- Development environment setup
-- Code style guidelines (ruff + mypy)
-- Commit conventions (Conventional Commits)
-- Pull request workflow
-
----
-
-## 📄 License
-
-[MIT License](LICENSE) — free to use, modify, and distribute.
-
----
-
-## 🙏 Acknowledgements
-
-| Project | Purpose |
-|---------|---------|
-| [PySide6](https://pypi.org/project/PySide6/) | Qt6 desktop UI framework |
-| [Whoosh](https://whoosh.readthedocs.io/) | Pure-Python full-text search engine |
-| [Ollama](https://ollama.com/) | Local LLM runtime |
-| [PyMuPDF](https://pymupdf.readthedocs.io/) | PDF text extraction |
-| [watchdog](https://github.com/gorakhargosh/watchdog) | Filesystem monitoring |
-| [send2trash](https://github.com/arsenetar/send2trash) | Cross-platform safe deletion |
-| [python-docx](https://python-docx.readthedocs.io/) | Word document extraction |
-| [openpyxl](https://openpyxl.readthedocs.io/) | Excel spreadsheet extraction |
-| [python-pptx](https://python-pptx.readthedocs.io/) | PowerPoint extraction |
-
----
-
-<div align="center">
-
-**Built with ❤️ in Python**
-
-[⬆ Back to top](#filepilot-ai)
-
-</div>
+FilePilot AI is released under the [MIT License](LICENSE).

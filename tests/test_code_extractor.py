@@ -1,6 +1,5 @@
 """Tests for CodeExtractor"""
 
-
 from filepilot.extractors.code_extractor import CodeExtractor
 
 
@@ -113,9 +112,7 @@ class TestCodeExtractor:
     def test_extract_comments(self, tmp_path):
         test_file = tmp_path / "commented.py"
         test_file.write_text(
-            "# This is a comment\n"
-            '"""Module docstring"""\n'
-            "x = 1  # inline comment\n",
+            '# This is a comment\n"""Module docstring"""\nx = 1  # inline comment\n',
             encoding="utf-8",
         )
 

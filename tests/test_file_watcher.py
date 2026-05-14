@@ -17,7 +17,7 @@ def watcher():
 
 
 @pytest.fixture
-def _watched_dir(tmp_path):
+def watched_dir(tmp_path):
     """Return a temporary directory to watch."""
     d = tmp_path / "watch_me"
     d.mkdir(parents=True, exist_ok=True)
@@ -25,9 +25,9 @@ def _watched_dir(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def _setup_watcher(watcher, _watched_dir):
+def _setup_watcher(watcher, watched_dir):
     """Auto-watch the temp directory for every test and clean up after."""
-    watcher.watch(str(_watched_dir))
+    watcher.watch(str(watched_dir))
     yield
     watcher.unwatch_all()
 
@@ -99,17 +99,16 @@ def qt_app():
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
-    yield app
+    return app
 
 
 class TestFileWatcherIntegration:
-
-    def test_file_created_signal(self, watcher, _watched_dir, qt_app):
+    def test_file_created_signal(self, watcher, watched_dir, qt_app):
         """Watching a directory emits file_created when a file appears."""
         collector = _SignalCollector(watcher, qt_app)
         time.sleep(0.2)
 
-        target = _watched_dir / "new_file.txt"
+        target = watched_dir / "new_file.txt"
         target.write_text("hello watcher", encoding="utf-8")
         collector.wait_created()
 
@@ -117,9 +116,9 @@ class TestFileWatcherIntegration:
         names = [os.path.basename(p) for p in collector.created]
         assert "new_file.txt" in names
 
-    def test_file_modified_signal(self, watcher, _watched_dir, qt_app):
+    def test_file_modified_signal(self, watcher, watched_dir, qt_app):
         """Modifying an existing file triggers file_modified."""
-        target = _watched_dir / "data.txt"
+        target = watched_dir / "data.txt"
         target.write_text("initial", encoding="utf-8")
         time.sleep(0.2)
 
@@ -131,9 +130,9 @@ class TestFileWatcherIntegration:
 
         assert len(collector.modified) >= 1
 
-    def test_file_deleted_signal(self, watcher, _watched_dir, qt_app):
+    def test_file_deleted_signal(self, watcher, watched_dir, qt_app):
         """Deleting a file triggers file_deleted."""
-        target = _watched_dir / "to_delete.txt"
+        target = watched_dir / "to_delete.txt"
         target.write_text("bye", encoding="utf-8")
         time.sleep(0.2)
 
@@ -145,12 +144,12 @@ class TestFileWatcherIntegration:
 
         assert len(collector.deleted) >= 1
 
-    def test_unwatch_stops_emissions(self, watcher, _watched_dir, qt_app):
+    def test_unwatch_stops_emissions(self, watcher, watched_dir, qt_app):
         """After unwatch, no more signals should fire."""
         watcher.unwatch_all()
         collector = _SignalCollector(watcher, qt_app)
 
-        target = _watched_dir / "late.txt"
+        target = watched_dir / "late.txt"
         target.write_text("after unmount", encoding="utf-8")
         time.sleep(0.5)
 
@@ -160,13 +159,13 @@ class TestFileWatcherIntegration:
         """is_available returns True when watchdog is importable."""
         assert watcher.is_available is True
 
-    def test_repeated_watch_ignored(self, watcher, _watched_dir):
+    def test_repeated_watch_ignored(self, watcher, watched_dir):
         """Calling watch() twice for same dir is a no-op (second returns early)."""
         # _setup_watcher already called once
-        watcher.watch(str(_watched_dir))
+        watcher.watch(str(watched_dir))
         assert len(watcher._watched_dirs) == 1
 
-    def test_stop_is_alias_for_unwatch_all(self, watcher, _watched_dir):
+    def test_stop_is_alias_for_unwatch_all(self, watcher, watched_dir):
         """stop() clears all watchers."""
         watcher.stop()
         assert len(watcher._watched_dirs) == 0
@@ -179,10 +178,10 @@ class TestFileWatcherIntegration:
 
         assert any("does not exist" in e for e in collector.errors)
 
-    def test_watched_dirs_tracking(self, watcher, _watched_dir):
+    def test_watched_dirs_tracking(self, watcher, watched_dir):
         """_watched_dirs dict tracks active observers."""
         assert len(watcher._watched_dirs) == 1
-        path_str = str(_watched_dir.resolve())
+        path_str = str(watched_dir.resolve())
         assert path_str in watcher._watched_dirs
         watcher.unwatch(path_str)
         assert len(watcher._watched_dirs) == 0

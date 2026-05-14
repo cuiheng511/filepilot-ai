@@ -56,7 +56,7 @@ class NotificationToast(QWidget):
         self.setStyleSheet(
             f"#notificationToast {{ background: {self._bg_color.name()}; "
             f"border: 1px solid {self._bg_color.lighter(130).name()}; "
-            f"border-radius: 6px; }}"
+            f"border-radius: 6px; }}",
         )
         self.adjustSize()
         self._position()

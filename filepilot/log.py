@@ -14,6 +14,7 @@ def setup_logging(level: str = "INFO", log_file: str | None = None) -> logging.L
 
     Returns:
         root logger
+
     """
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"

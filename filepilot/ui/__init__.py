@@ -11,13 +11,13 @@ from .summary_panel import SummaryPanel
 
 __all__ = [
     "BasePanel",
-    "MainWindow",
+    "DuplicatesPanel",
     "FileBrowserPanel",
+    "IndexPanel",
+    "MainWindow",
+    "NotificationToast",
+    "OrganizePanel",
     "SearchPanel",
     "SettingsDialog",
-    "OrganizePanel",
-    "DuplicatesPanel",
-    "IndexPanel",
     "SummaryPanel",
-    "NotificationToast",
 ]

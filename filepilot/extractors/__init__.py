@@ -7,11 +7,11 @@ from .pptx_extractor import PptxExtractor
 from .xlsx_extractor import XlsxExtractor
 
 __all__ = [
-    "PDFExtractor",
-    "MarkdownExtractor",
-    "ImageExtractor",
     "CodeExtractor",
     "DocxExtractor",
-    "XlsxExtractor",
+    "ImageExtractor",
+    "MarkdownExtractor",
+    "PDFExtractor",
     "PptxExtractor",
+    "XlsxExtractor",
 ]

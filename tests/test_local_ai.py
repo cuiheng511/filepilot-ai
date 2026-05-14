@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from filepilot.ai.local_ai import OllamaProvider, LlamaCppProvider, LocalAI
+from filepilot.ai.local_ai import LlamaCppProvider, LocalAI, OllamaProvider
 
 
 class TestOllamaProvider:
@@ -136,7 +136,7 @@ class TestOllamaProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "models": [{"name": "llama3:8b"}, {"name": "qwen2.5:7b"}]
+            "models": [{"name": "llama3:8b"}, {"name": "qwen2.5:7b"}],
         }
         mock_get.return_value = mock_resp
 
@@ -176,7 +176,7 @@ class TestLlamaCppProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Hello from llama.cpp!"}}]
+            "choices": [{"message": {"content": "Hello from llama.cpp!"}}],
         }
         mock_post.return_value = mock_resp
 
@@ -203,7 +203,7 @@ class TestLlamaCppProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "data": [{"embedding": [0.4, 0.5, 0.6]}]
+            "data": [{"embedding": [0.4, 0.5, 0.6]}],
         }
         mock_post.return_value = mock_resp
 

@@ -64,14 +64,17 @@ class SummaryPanel(BasePanel):
 
         if self._summarizer is None:
             from filepilot.ai.summarizer import Summarizer
+
             self._summarizer = Summarizer()
 
         if self._local_ai is None:
             from filepilot.ai.local_ai import LocalAI
+
             self._local_ai = LocalAI()
 
         if self._cloud_ai is None:
             from filepilot.ai.cloud_ai import CloudAI
+
             self._cloud_ai = CloudAI()
 
     def _setup_ui(self):
@@ -86,7 +89,7 @@ class SummaryPanel(BasePanel):
 
         desc = QLabel(
             "Extract summaries and keywords from PDF, Markdown, and code files. "
-            "Supports both local (Ollama) and cloud (OpenAI) AI engines."
+            "Supports both local (Ollama) and cloud (OpenAI) AI engines.",
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -172,7 +175,7 @@ class SummaryPanel(BasePanel):
         summary_layout.addWidget(QLabel("📋 Summary:"))
         self.summary_output = QTextEdit()
         self.summary_output.setReadOnly(True)
-        self.summary_output.setPlaceholderText("Click \"Generate Summary\" to start...")
+        self.summary_output.setPlaceholderText('Click "Generate Summary" to start...')
         summary_layout.addWidget(self.summary_output, 1)
         result_splitter.addWidget(summary_widget)
 
@@ -192,7 +195,7 @@ class SummaryPanel(BasePanel):
         layout.addWidget(result_splitter, 2)
 
         # ── Status bar ──
-        self.stats_label = QLabel("Add files and click \"Generate Summary\"")
+        self.stats_label = QLabel('Add files and click "Generate Summary"')
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
@@ -211,14 +214,18 @@ class SummaryPanel(BasePanel):
     @Slot()
     def _on_add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
-            self, "Select files for summarization", str(self.current_dir or str(Path.home())),
-            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt);;All files (*.*)"
+            self,
+            "Select files for summarization",
+            str(self.current_dir or str(Path.home())),
+            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt);;All files (*.*)",
         )
         for fp in files:
             path = Path(fp)
             if path.suffix.lower() not in SUPPORTED_EXTS:
                 continue
-            existing = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
+            existing = [
+                self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())
+            ]
             if str(path) not in existing:
                 item = QListWidgetItem(f"{path.name} ({path.suffix})")
                 item.setData(Qt.UserRole, str(path))
@@ -230,7 +237,9 @@ class SummaryPanel(BasePanel):
     @Slot()
     def _on_add_folder(self):
         dir_path = QFileDialog.getExistingDirectory(
-            self, "Select folder to scan", str(self.current_dir or Path.home())
+            self,
+            "Select folder to scan",
+            str(self.current_dir or Path.home()),
         )
         if not dir_path:
             return
@@ -242,6 +251,7 @@ class SummaryPanel(BasePanel):
 
         def scan_worker():
             from filepilot.core.file_scanner import FileScanner
+
             scanner = FileScanner()
             count = 0
             for f in scanner.scan(dir_path):
@@ -263,7 +273,7 @@ class SummaryPanel(BasePanel):
     @Slot()
     def _add_file_item(self, name: str, suffix: str, path_str: str):
         item = QListWidgetItem(f"{name} ({suffix})")
-        item.setData(Qt.UserRole, path_str)
+        item.setData(Qt.UserRole, path_str)  # type: ignore[attr-defined]
         item.setToolTip(path_str)
         self.file_list.addItem(item)
         self.btn_generate.setEnabled(self.file_list.count() > 0)
@@ -343,21 +353,21 @@ class SummaryPanel(BasePanel):
             try:
                 if prefer_local and self._local_ai:
                     summary = self._local_ai.generate(
-                        f"Please generate a concise summary of the following content:\n\n{combined_text}"
+                        f"Please generate a concise summary of the following content:\n\n{combined_text}",
                     )
                     self.progress_updated.emit(70)
 
                     keywords_text = self._local_ai.generate(
-                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}"
+                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}",
                     )
                 elif self._cloud_ai:
                     summary = self._cloud_ai.generate(
-                        f"Please generate a concise summary of the following content:\n\n{combined_text}"
+                        f"Please generate a concise summary of the following content:\n\n{combined_text}",
                     )
                     self.progress_updated.emit(70)
 
                     keywords_text = self._cloud_ai.generate(
-                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}"
+                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}",
                     )
                 else:
                     # Fallback: use summarizer
@@ -381,8 +391,8 @@ class SummaryPanel(BasePanel):
             self.progress_updated.emit(90)
 
             if not self._cancelled:
-                self.summary_ready.emit(summary if summary else "No summary generated")
-                self.keyword_ready.emit(keywords_text if keywords_text else "No keywords extracted")
+                self.summary_ready.emit(summary or "No summary generated")
+                self.keyword_ready.emit(keywords_text or "No keywords extracted")
                 self.status_message.emit(f"✅ Summary complete — processed {len(files)} files")
                 self.btn_generate.setEnabled(True)
                 self.progress_bar.setVisible(False)

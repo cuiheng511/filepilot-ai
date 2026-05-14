@@ -17,6 +17,7 @@ class TestOrganizePanelInitialState:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
 
@@ -59,6 +60,7 @@ class TestOrganizePanelInitialState:
     def test_rule_map_has_all_rules(self):
         """Test rule map contains all rules"""
         from filepilot.ui.organize_panel import OrganizePanel
+
         assert "category" in OrganizePanel.RULE_MAP
         assert "date" in OrganizePanel.RULE_MAP
         assert "extension" in OrganizePanel.RULE_MAP
@@ -76,13 +78,15 @@ class TestOrganizePanelFolderSelection:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
 
     def test_select_source_updates_label(self, tmp_path):
         """Test selecting source folder updates the label"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(tmp_path)):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
             self.panel._on_select_source()
 
         assert self.panel.source_dir == tmp_path
@@ -91,8 +95,9 @@ class TestOrganizePanelFolderSelection:
 
     def test_select_source_sets_default_target(self, tmp_path):
         """Test selecting source folder auto-sets default target"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(tmp_path)):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
             self.panel._on_select_source()
 
         assert self.panel.target_dir == tmp_path / "_organized"
@@ -104,23 +109,24 @@ class TestOrganizePanelFolderSelection:
         self.panel.target_dir = custom_target
         self.panel.dst_path_label.setText(f"🎯 {custom_target}")
 
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(tmp_path)):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
             self.panel._on_select_source()
 
         assert self.panel.target_dir == custom_target  # Should not be overridden
 
     def test_select_source_cancel(self):
         """Test canceling source folder selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=""):
+        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""):
             self.panel._on_select_source()
         assert self.panel.source_dir is None
 
     def test_select_target_updates_label(self, tmp_path):
         """Test selecting target folder updates the label"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(tmp_path)):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
             self.panel._on_select_target()
 
         assert self.panel.target_dir == tmp_path
@@ -128,8 +134,7 @@ class TestOrganizePanelFolderSelection:
 
     def test_select_target_cancel(self):
         """Test canceling target folder selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=""):
+        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""):
             self.panel._on_select_target()
         assert self.panel.target_dir is None
 
@@ -145,12 +150,14 @@ class TestOrganizePanelRules:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
 
     def test_get_selected_rules_default(self):
         """Test default selection of category rule"""
         from filepilot.core.file_organizer import CategoryRule
+
         rules = self.panel._get_selected_rules()
         assert len(rules) == 1
         assert isinstance(rules[0], CategoryRule)
@@ -167,6 +174,7 @@ class TestOrganizePanelRules:
     def test_get_selected_rules_fallback_to_category(self):
         """Test fallback to category rule when none selected"""
         from filepilot.core.file_organizer import CategoryRule
+
         self.panel.cb_category.setChecked(False)
         self.panel.cb_date.setChecked(False)
         self.panel.cb_extension.setChecked(False)
@@ -179,6 +187,7 @@ class TestOrganizePanelRules:
     def test_category_rule_toggle(self):
         """Test category rule checkbox toggle"""
         from filepilot.core.file_organizer import CategoryRule
+
         self.panel.cb_category.setChecked(False)
         rules = self.panel._get_selected_rules()
         # Should fallback to CategoryRule
@@ -202,6 +211,7 @@ class TestOrganizePanelPreviewAndExecute:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
             self.panel.source_dir = tmp_path
@@ -218,10 +228,18 @@ class TestOrganizePanelPreviewAndExecute:
     def test_display_preview_shows_operations(self):
         """Test preview result display"""
         operations = [
-            {"source": "a.pdf", "destination": "/organized/PDF/a.pdf",
-             "category": "PDF", "size": "1 MB"},
-            {"source": "b.py", "destination": "/organized/Code/b.py",
-             "category": "Code", "size": "2 KB"},
+            {
+                "source": "a.pdf",
+                "destination": "/organized/PDF/a.pdf",
+                "category": "PDF",
+                "size": "1 MB",
+            },
+            {
+                "source": "b.py",
+                "destination": "/organized/Code/b.py",
+                "category": "Code",
+                "size": "2 KB",
+            },
         ]
 
         self.panel._display_preview(operations, files=[MagicMock()])
@@ -246,11 +264,26 @@ class TestOrganizePanelPreviewAndExecute:
 
         assert self.panel.files == mock_files
 
+    def test_display_preview_uses_custom_target_dir(self, tmp_path):
+        """Preview status should show the selected target without appending _organized."""
+        custom_target = tmp_path / "custom"
+        self.panel.source_dir = tmp_path / "source"
+        self.panel.target_dir = custom_target
+
+        self.panel._display_preview([], files=[])
+
+        assert f"target: {custom_target}" in self.panel.stats_label.text()
+
     def test_display_execution_shows_results(self):
         """Test execution result display"""
         operations = [
-            {"source": "a.pdf", "destination": "/organized/PDF/a.pdf",
-             "category": "PDF", "size": "1 MB", "dry_run": False},
+            {
+                "source": "a.pdf",
+                "destination": "/organized/PDF/a.pdf",
+                "category": "PDF",
+                "size": "1 MB",
+                "dry_run": False,
+            },
         ]
         self.panel.organizer.stats = {"organized_count": 1, "errors": 0}
 
@@ -262,8 +295,13 @@ class TestOrganizePanelPreviewAndExecute:
     def test_display_execution_with_errors(self):
         """Test execution result display (with errors)"""
         operations = [
-            {"source": "a.pdf", "destination": "/organized/PDF/a.pdf",
-             "category": "PDF", "size": "1 MB", "dry_run": False},
+            {
+                "source": "a.pdf",
+                "destination": "/organized/PDF/a.pdf",
+                "category": "PDF",
+                "size": "1 MB",
+                "dry_run": False,
+            },
         ]
         self.panel.organizer.stats = {"organized_count": 1, "errors": 1}
 
@@ -283,6 +321,7 @@ class TestOrganizePanelClear:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
 
@@ -309,6 +348,7 @@ class TestOrganizePanelMockIntegration:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
             self.panel.source_dir = tmp_path
@@ -327,8 +367,12 @@ class TestOrganizePanelMockIntegration:
 
         self.panel.scanner.scan.return_value = [mock_file]
         self.panel.organizer.organize.return_value = [
-            {"source": "report.pdf", "destination": "/organized/PDF/report.pdf",
-             "category": "PDF", "size": "1 KB"},
+            {
+                "source": "report.pdf",
+                "destination": "/organized/PDF/report.pdf",
+                "category": "PDF",
+                "size": "1 KB",
+            },
         ]
 
         # Simulate display preview (skipping threading)
@@ -345,8 +389,13 @@ class TestOrganizePanelMockIntegration:
         mock_file = MagicMock()
         self.panel.files = [mock_file]
         self.panel.organizer.organize.return_value = [
-            {"source": "report.pdf", "destination": "/organized/PDF/report.pdf",
-             "category": "PDF", "size": "1 KB", "dry_run": False},
+            {
+                "source": "report.pdf",
+                "destination": "/organized/PDF/report.pdf",
+                "category": "PDF",
+                "size": "1 KB",
+                "dry_run": False,
+            },
         ]
         self.panel.organizer.stats = {"organized_count": 1, "errors": 0}
 
@@ -368,6 +417,7 @@ class TestOrganizePanelEdgeCases:
             FileOrganizer=MagicMock(),
         ):
             from filepilot.ui.organize_panel import OrganizePanel
+
             self.panel = OrganizePanel()
             qtbot.addWidget(self.panel)
 
@@ -391,4 +441,7 @@ class TestOrganizePanelEdgeCases:
 
     def test_rename_input_placeholder(self):
         """Test rename input placeholder text"""
-        assert "Supports: {name} {date} {time} {ext} {category}" in self.panel.rename_input.placeholderText()
+        assert (
+            "Supports: {name} {date} {time} {ext} {category}"
+            in self.panel.rename_input.placeholderText()
+        )

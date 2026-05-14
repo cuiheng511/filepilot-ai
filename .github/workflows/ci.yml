@@ -92,7 +92,7 @@ jobs:
         run: |
           python -c "
 import watchdog, PySide6
-print(f'watchdog {watchdog.__version__}')
+print(f'watchdog {getattr(watchdog, \"__version__\", \"installed\")}')
 print(f'PySide6 {PySide6.__version__}')
 print('All critical deps OK')
 "

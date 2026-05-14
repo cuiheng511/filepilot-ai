@@ -14,10 +14,13 @@ class TestSummaryPanelInitialState:
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
         """Create panel and add to qtbot"""
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
@@ -55,6 +58,7 @@ class TestSummaryPanelInitialState:
     def test_supported_extensions(self):
         """Test supported file extension set"""
         from filepilot.ui.summary_panel import SUPPORTED_EXTS
+
         assert ".pdf" in SUPPORTED_EXTS
         assert ".md" in SUPPORTED_EXTS
         assert ".py" in SUPPORTED_EXTS
@@ -67,10 +71,13 @@ class TestSummaryPanelFileSelection:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot, tmp_path):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
             self.tmp_dir = tmp_path
@@ -86,8 +93,9 @@ class TestSummaryPanelFileSelection:
         """Test adding a single file populates the list"""
         mock_path = str(self.test_md)
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([mock_path], "")):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([mock_path], "")
+        ):
             self.panel._on_add_files()
 
         assert self.panel.file_list.count() == 1
@@ -95,8 +103,7 @@ class TestSummaryPanelFileSelection:
 
     def test_add_single_file_cancel(self):
         """Test canceling file selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([], "")):
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([], "")):
             self.panel._on_add_files()
 
         assert self.panel.file_list.count() == 0
@@ -107,8 +114,9 @@ class TestSummaryPanelFileSelection:
         unsupported = self.tmp_dir / "image.jpg"
         unsupported.write_bytes(b"\xff\xd8\xff\xe0")
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([str(unsupported)], "")):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([str(unsupported)], "")
+        ):
             self.panel._on_add_files()
 
         assert self.panel.file_list.count() == 0
@@ -117,8 +125,7 @@ class TestSummaryPanelFileSelection:
         """Test adding multiple files"""
         paths = [str(self.test_md), str(self.test_py), str(self.test_txt)]
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=(paths, "")):
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=(paths, "")):
             self.panel._on_add_files()
 
         assert self.panel.file_list.count() == 3
@@ -128,8 +135,9 @@ class TestSummaryPanelFileSelection:
         """Test adding the same file twice doesn't duplicate"""
         mock_path = str(self.test_md)
 
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([mock_path], "")):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([mock_path], "")
+        ):
             self.panel._on_add_files()
             self.panel._on_add_files()
 
@@ -137,15 +145,15 @@ class TestSummaryPanelFileSelection:
 
     def test_clear_files_empties_list(self):
         """Test clearing files empties the list and disables generate"""
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([str(self.test_md)], "")):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([str(self.test_md)], "")
+        ):
             self.panel._on_add_files()
 
         assert self.panel.file_list.count() == 1
         self.panel.file_list.clear()
         # Call _on_add_files to update button state
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([], "")):
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([], "")):
             self.panel._on_add_files()
         assert not self.panel.btn_generate.isEnabled()
 
@@ -156,15 +164,25 @@ class TestSummaryPanelFileSelection:
         mock_scanner = MagicMock()
         mock_scanner.scan.return_value = [
             FileInfo(
-                path=Path(str(self.test_md)), name="test.md", extension=".md",
-                size_bytes=100, size_str="100 B", category=None, mime_type="text/markdown",
-                modified_time=datetime.now(), created_time=datetime.now(), is_directory=False,
+                path=Path(str(self.test_md)),
+                name="test.md",
+                extension=".md",
+                size_bytes=100,
+                size_str="100 B",
+                category=None,
+                mime_type="text/markdown",
+                modified_time=datetime.now(),
+                created_time=datetime.now(),
+                is_directory=False,
             ),
         ]
 
-        with patch("filepilot.core.file_scanner.FileScanner", return_value=mock_scanner), \
-               patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                     return_value=str(self.tmp_dir)):
+        with (
+            patch("filepilot.core.file_scanner.FileScanner", return_value=mock_scanner),
+            patch(
+                "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(self.tmp_dir)
+            ),
+        ):
             self.panel._on_add_folder()
             qtbot.wait(500)
 
@@ -172,8 +190,7 @@ class TestSummaryPanelFileSelection:
 
     def test_add_folder_cancel(self):
         """Test canceling folder selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=""):
+        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""):
             self.panel._on_add_folder()
 
         assert self.panel.file_list.count() == 0
@@ -184,10 +201,13 @@ class TestSummaryPanelFileList:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
@@ -210,10 +230,13 @@ class TestSummaryPanelIsSupported:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
@@ -238,10 +261,13 @@ class TestSummaryPanelGenerateState:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
@@ -270,8 +296,7 @@ class TestSummaryPanelGenerateState:
         assert self.panel.btn_generate.isEnabled()
         self.panel.file_list.clear()
         # Update button state after clear
-        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames",
-                   return_value=([], "")):
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([], "")):
             self.panel._on_add_files()
         assert not self.panel.btn_generate.isEnabled()
 
@@ -281,10 +306,13 @@ class TestSummaryPanelSignalEmission:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 
@@ -318,6 +346,7 @@ class TestSummaryPanelMockIntegration:
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
         from filepilot.ui.summary_panel import SummaryPanel
+
         self.panel = SummaryPanel()
         qtbot.addWidget(self.panel)
 
@@ -340,6 +369,7 @@ class TestSummaryPanelAIInit:
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
         from filepilot.ui.summary_panel import SummaryPanel
+
         self.panel = SummaryPanel()
         qtbot.addWidget(self.panel)
         assert not self.panel._lazy_init_done
@@ -362,10 +392,13 @@ class TestSummaryPanelErrors:
 
     @pytest.fixture(autouse=True)
     def _setup(self, qtbot):
-        with patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()), \
-                patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()), \
-                patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()):
+        with (
+            patch.multiple("filepilot.ai.summarizer", Summarizer=MagicMock()),
+            patch.multiple("filepilot.ai.local_ai", LocalAI=MagicMock()),
+            patch.multiple("filepilot.ai.cloud_ai", CloudAI=MagicMock()),
+        ):
             from filepilot.ui.summary_panel import SummaryPanel
+
             self.panel = SummaryPanel()
             qtbot.addWidget(self.panel)
 

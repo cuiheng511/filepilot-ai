@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Read all panel files and print their content."""
+
 import os
 
 base = os.path.join(os.path.dirname(__file__), "filepilot", "ui")

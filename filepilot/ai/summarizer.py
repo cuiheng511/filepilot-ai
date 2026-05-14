@@ -39,6 +39,7 @@ class Summarizer:
 
         Returns:
             Summary result dictionary
+
         """
         path = Path(file_path)
         result = {
@@ -95,6 +96,7 @@ class Summarizer:
 
         Returns:
             Generated summary string, or empty string on failure
+
         """
         return self._generate_summary(text, max_length)
 
@@ -107,6 +109,7 @@ class Summarizer:
 
         Returns:
             List of keyword strings
+
         """
         return self._extract_keywords(content, top_n)
 
@@ -133,26 +136,32 @@ class Summarizer:
 
         if ext == ".pdf":
             from filepilot.extractors.pdf_extractor import PDFExtractor
+
             return PDFExtractor().extract_text(file_path)
 
-        elif ext in (".md", ".markdown", ".mdx"):
+        if ext in (".md", ".markdown", ".mdx"):
             from filepilot.extractors.markdown_extractor import MarkdownExtractor
+
             return MarkdownExtractor().extract_text(file_path)
 
-        elif ext == ".docx":
+        if ext == ".docx":
             from filepilot.extractors.docx_extractor import DocxExtractor
+
             return DocxExtractor().extract_text(file_path)
 
-        elif ext in (".xlsx", ".xls"):
+        if ext in (".xlsx", ".xls"):
             from filepilot.extractors.xlsx_extractor import XlsxExtractor
+
             return XlsxExtractor().extract_text(file_path)
 
-        elif ext in (".pptx", ".ppt"):
+        if ext in (".pptx", ".ppt"):
             from filepilot.extractors.pptx_extractor import PptxExtractor
+
             return PptxExtractor().extract_text(file_path)
 
-        elif ext in (".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs", ".go"):
+        if ext in (".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs", ".go"):
             from filepilot.extractors.code_extractor import CodeExtractor
+
             extractor = CodeExtractor()
             meta = extractor.extract_metadata(file_path)
             code = extractor.extract_text(file_path)
@@ -163,11 +172,10 @@ class Summarizer:
                 context_parts.append(f"Functions/Classes: {', '.join(def_names)}")
             return f"{' | '.join(context_parts)}\n\n{code[:6000]}"
 
-        else:
-            try:
-                return file_path.read_text(encoding="utf-8", errors="replace")
-            except Exception:
-                return ""
+        try:
+            return file_path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            return ""
 
     def _generate_summary(self, content: str, max_length: int) -> str:
         """Generate content summary using AI"""
@@ -205,20 +213,66 @@ class Summarizer:
         from collections import Counter
 
         # Tokenize content
-        words = re.findall(r'[\u4e00-\u9fff\w]+', content.lower())
+        words = re.findall(r"[\u4e00-\u9fff\w]+", content.lower())
         # Filter common stop words
         stop_words = {
-            "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都",
-            "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你",
-            "会", "着", "没有", "看", "好", "自己", "这", "他", "她", "它",
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "being", "have", "has", "had", "do", "does", "did", "will",
-            "would", "could", "should", "may", "might", "shall", "can",
+            "的",
+            "了",
+            "在",
+            "是",
+            "我",
+            "有",
+            "和",
+            "就",
+            "不",
+            "人",
+            "都",
+            "一",
+            "一个",
+            "上",
+            "也",
+            "很",
+            "到",
+            "说",
+            "要",
+            "去",
+            "你",
+            "会",
+            "着",
+            "没有",
+            "看",
+            "好",
+            "自己",
+            "这",
+            "他",
+            "她",
+            "它",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "shall",
+            "can",
         }
 
-        word_counts = Counter(
-            word for word in words
-            if word not in stop_words and len(word) > 1
-        )
+        word_counts = Counter(word for word in words if word not in stop_words and len(word) > 1)
 
         return [word for word, _ in word_counts.most_common(top_n)]

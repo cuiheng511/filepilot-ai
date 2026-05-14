@@ -8,18 +8,44 @@ class CodeExtractor:
     """Extract text and metadata from source code files."""
 
     SUPPORTED_EXTENSIONS = {
-        ".py", ".js", ".ts", ".java", ".cpp", ".c", ".h", ".hpp",
-        ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".scala",
-        ".sql", ".sh", ".bash", ".ps1", ".bat", ".pl", ".lua", ".r",
-        ".m", ".dart", ".tsx", ".jsx", ".vue", ".svelte",
+        ".py",
+        ".js",
+        ".ts",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".go",
+        ".rs",
+        ".rb",
+        ".php",
+        ".swift",
+        ".kt",
+        ".scala",
+        ".sql",
+        ".sh",
+        ".bash",
+        ".ps1",
+        ".bat",
+        ".pl",
+        ".lua",
+        ".r",
+        ".m",
+        ".dart",
+        ".tsx",
+        ".jsx",
+        ".vue",
+        ".svelte",
     }
 
     COMMENT_PATTERNS: dict[str, list[str]] = {
-        "python": [r'#.*$', r'""".*?"""', r"'''.*?'''"],
-        "javascript": [r'//.*$', r'/\*.*?\*/'],
-        "typescript": [r'//.*$', r'/\*.*?\*/'],
-        "java": [r'//.*$', r'/\*.*?\*/'],
-        "default": [r'//.*$', r'/\*.*?\*/', r'#.*$'],
+        "python": [r"#.*$", r'""".*?"""', r"'''.*?'''"],
+        "javascript": [r"//.*$", r"/\*.*?\*/"],
+        "typescript": [r"//.*$", r"/\*.*?\*/"],
+        "java": [r"//.*$", r"/\*.*?\*/"],
+        "default": [r"//.*$", r"/\*.*?\*/", r"#.*$"],
     }
 
     def extract_text(self, file_path: str | Path) -> str:
@@ -56,10 +82,15 @@ class CodeExtractor:
         """Detect the programming language from file extension."""
         lang_map = {
             ".py": "python",
-            ".js": "javascript", ".jsx": "javascript",
-            ".ts": "typescript", ".tsx": "typescript",
+            ".js": "javascript",
+            ".jsx": "javascript",
+            ".ts": "typescript",
+            ".tsx": "typescript",
             ".java": "java",
-            ".cpp": "cpp", ".c": "c", ".h": "c", ".hpp": "cpp",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".h": "c",
+            ".hpp": "cpp",
             ".cs": "csharp",
             ".go": "go",
             ".rs": "rust",
@@ -69,7 +100,8 @@ class CodeExtractor:
             ".kt": "kotlin",
             ".scala": "scala",
             ".sql": "sql",
-            ".sh": "bash", ".bash": "bash",
+            ".sh": "bash",
+            ".bash": "bash",
             ".ps1": "powershell",
             ".vue": "vue",
         }
@@ -79,19 +111,26 @@ class CodeExtractor:
         """Extract function/class definitions from source code."""
         definitions: list[dict] = []
         if language == "python":
-            for m in re.finditer(r'^(?:async\s+)?def\s+(\w+)\s*\(', content, re.MULTILINE):
+            for m in re.finditer(r"^(?:async\s+)?def\s+(\w+)\s*\(", content, re.MULTILINE):
                 definitions.append({"type": "function", "name": m.group(1)})
-            for m in re.finditer(r'^class\s+(\w+)', content, re.MULTILINE):
+            for m in re.finditer(r"^class\s+(\w+)", content, re.MULTILINE):
                 definitions.append({"type": "class", "name": m.group(1)})
         elif language in ("javascript", "typescript"):
-            for m in re.finditer(r'(?:export\s+)?(?:function|class|const|let|var)\s+(\w+)', content, re.MULTILINE):
+            for m in re.finditer(
+                r"(?:export\s+)?(?:function|class|const|let|var)\s+(\w+)", content, re.MULTILINE
+            ):
                 definitions.append({"type": "declaration", "name": m.group(1)})
-            for m in re.finditer(r'(?:export\s+)?(?:async\s+)?function\s+(\w+)', content, re.MULTILINE):
+            for m in re.finditer(
+                r"(?:export\s+)?(?:async\s+)?function\s+(\w+)", content, re.MULTILINE
+            ):
                 definitions.append({"type": "function", "name": m.group(1)})
         elif language == "java":
-            for m in re.finditer(r'(?:public|private|protected)?\s*(?:static\s+)?(?:class|interface|enum)\s+(\w+)', content):
+            for m in re.finditer(
+                r"(?:public|private|protected)?\s*(?:static\s+)?(?:class|interface|enum)\s+(\w+)",
+                content,
+            ):
                 definitions.append({"type": "class", "name": m.group(1)})
-            for m in re.finditer(r'(?:public|private|protected)?\s*\w+\s+(\w+)\s*\(', content):
+            for m in re.finditer(r"(?:public|private|protected)?\s*\w+\s+(\w+)\s*\(", content):
                 definitions.append({"type": "method", "name": m.group(1)})
         return definitions
 
@@ -99,13 +138,15 @@ class CodeExtractor:
         """Extract import statements from source code."""
         imports: list[str] = []
         if language == "python":
-            for m in re.finditer(r'^(?:from\s+\S+\s+)?import\s+\S+', content, re.MULTILINE):
+            for m in re.finditer(r"^(?:from\s+\S+\s+)?import\s+\S+", content, re.MULTILINE):
                 imports.append(m.group(0).strip())
         elif language in ("javascript", "typescript"):
-            for m in re.finditer(r'^(?:import\s+.*?|const\s+\w+\s*=\s*require\(.*?\))', content, re.MULTILINE):
+            for m in re.finditer(
+                r"^(?:import\s+.*?|const\s+\w+\s*=\s*require\(.*?\))", content, re.MULTILINE
+            ):
                 imports.append(m.group(0).strip())
         elif language == "java":
-            for m in re.finditer(r'^import\s+[\w.*]+;', content, re.MULTILINE):
+            for m in re.finditer(r"^import\s+[\w.*]+;", content, re.MULTILINE):
                 imports.append(m.group(0).strip())
         elif language == "go":
             for m in re.finditer(r'^import\s+["\w./]+', content, re.MULTILINE):

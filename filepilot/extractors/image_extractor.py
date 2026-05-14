@@ -60,10 +60,13 @@ class ImageExtractor:
                 parts.append(f"Device: {exif['Make']} {exif['Model']}")
         return "\n".join(parts)
 
-    def get_thumbnail(self, file_path: str | Path, size: tuple[int, int] = (200, 200)) -> bytes | None:
+    def get_thumbnail(
+        self, file_path: str | Path, size: tuple[int, int] = (200, 200)
+    ) -> bytes | None:
         """Generate a thumbnail for the image"""
         try:
             from PIL import Image
+
             with Image.open(str(file_path)) as img:
                 img.thumbnail(size)
                 buf = io.BytesIO()

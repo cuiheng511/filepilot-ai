@@ -1,8 +1,8 @@
 """Config module unit tests — load/save/keyring round-trip"""
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import json
 
 import pytest
 
@@ -35,8 +35,8 @@ def _make_json(settings_dict: dict, path: Path):
 
 # ── load() ──────────────────────────────────────────────────────────────
 
-class TestLoad:
 
+class TestLoad:
     def test_no_file_returns_defaults(self):
         result = config.load()
         assert result == config.DEFAULTS
@@ -77,8 +77,8 @@ class TestLoad:
 
 # ── load() + keyring ────────────────────────────────────────────────────
 
-class TestLoadWithKeyring:
 
+class TestLoadWithKeyring:
     def test_keyring_key_overrides_file_value(self):
         _make_json({"ai_api_key": "old_value"}, config.SETTINGS_FILE)
 
@@ -122,8 +122,8 @@ class TestLoadWithKeyring:
 
 # ── _get_keyring_key() ────────────────────────────────────────────────
 
-class TestGetKeyringKey:
 
+class TestGetKeyringKey:
     def test_returns_key_when_present(self):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = "mykey"
@@ -131,7 +131,8 @@ class TestGetKeyringKey:
             result = config._get_keyring_key()
         assert result == "mykey"
         mock_kr.get_password.assert_called_once_with(
-            config.KEYRING_SERVICE, config.KEYRING_KEY
+            config.KEYRING_SERVICE,
+            config.KEYRING_KEY,
         )
 
     def test_returns_empty_on_exception(self):
@@ -150,8 +151,8 @@ class TestGetKeyringKey:
 
 # ── _save_keyring_key() ────────────────────────────────────────────────
 
-class TestSaveKeyringKey:
 
+class TestSaveKeyringKey:
     def test_empty_key_returns_true_without_calling_keyring(self):
         mock_kr = MagicMock()
         with patch.dict("sys.modules", {"keyring": mock_kr}):
@@ -165,7 +166,9 @@ class TestSaveKeyringKey:
             result = config._save_keyring_key("secret123")
         assert result is True
         mock_kr.set_password.assert_called_once_with(
-            config.KEYRING_SERVICE, config.KEYRING_KEY, "secret123"
+            config.KEYRING_SERVICE,
+            config.KEYRING_KEY,
+            "secret123",
         )
 
     def test_keyring_exception_returns_false(self):
@@ -185,13 +188,15 @@ class TestSaveKeyringKey:
 
 # ── save() ──────────────────────────────────────────────────────────────
 
-class TestSave:
 
+class TestSave:
     def test_creates_settings_dir(self, tmp_settings_dir):
         target_dir = tmp_settings_dir / "sub" / "deep"
         target_file = target_dir / "settings.json"
-        with patch.object(config, "SETTINGS_DIR", target_dir), \
-             patch.object(config, "SETTINGS_FILE", target_file):
+        with (
+            patch.object(config, "SETTINGS_DIR", target_dir),
+            patch.object(config, "SETTINGS_FILE", target_file),
+        ):
             config.save(dict(config.DEFAULTS))
 
         assert target_dir.is_dir()
@@ -246,14 +251,16 @@ class TestSave:
         settings = dict(config.DEFAULTS)
         settings["ai_api_key"] = ""
 
-        with patch.object(config.SETTINGS_FILE.__class__, "write_text", side_effect=OSError("disk full")):
+        with patch.object(
+            config.SETTINGS_FILE.__class__, "write_text", side_effect=OSError("disk full")
+        ):
             config.save(settings)
 
 
 # ── Round-trip ──────────────────────────────────────────────────────────
 
-class TestSaveLoadRoundtrip:
 
+class TestSaveLoadRoundtrip:
     def test_roundtrip_preserves_values(self):
         original = dict(config.DEFAULTS)
         original["ai_provider"] = "openai"
@@ -275,8 +282,10 @@ class TestSaveLoadRoundtrip:
         original = dict(config.DEFAULTS)
         original["ai_api_key"] = "sk-roundtrip-test"
 
-        with patch.object(config, "_save_keyring_key", return_value=True) as mock_save, \
-             patch.object(config, "_get_keyring_key", return_value="sk-roundtrip-test") as mock_get:
+        with (
+            patch.object(config, "_save_keyring_key", return_value=True) as mock_save,
+            patch.object(config, "_get_keyring_key", return_value="sk-roundtrip-test") as mock_get,
+        ):
             config.save(original)
             result = config.load()
 

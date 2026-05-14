@@ -1,18 +1,18 @@
 """File Organizer — Auto-categorize, smart rename"""
 
 import shutil
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from filepilot.core.file_scanner import FileInfo
-from filepilot.utils.file_utils import FileCategory, safe_filename
+from filepilot.utils.file_utils import FileCategory, is_file_locked, safe_filename
 
 
 @dataclass
 class OrganizeRule:
     """Organize rule"""
+
     name: str
     enabled: bool = True
 
@@ -23,6 +23,7 @@ class OrganizeRule:
 
 class CategoryRule(OrganizeRule):
     """Organize by file category"""
+
     category_map: dict[FileCategory, str] = {
         FileCategory.DOCUMENT: "Documents",
         FileCategory.IMAGE: "Images",
@@ -66,7 +67,7 @@ class ExtensionRule(OrganizeRule):
 
     def apply(self, file_info: FileInfo) -> str | None:
         ext = file_info.extension.lstrip(".").upper()
-        return ext if ext else "NO_EXT"
+        return ext or "NO_EXT"
 
 
 class SizeRule(OrganizeRule):
@@ -79,14 +80,13 @@ class SizeRule(OrganizeRule):
         size = file_info.size_bytes
         if size < 1024:
             return "<1KB"
-        elif size < 100 * 1024:
+        if size < 100 * 1024:
             return "1KB-100KB"
-        elif size < 1024 * 1024:
+        if size < 1024 * 1024:
             return "100KB-1MB"
-        elif size < 100 * 1024 * 1024:
+        if size < 100 * 1024 * 1024:
             return "1MB-100MB"
-        else:
-            return ">100MB"
+        return ">100MB"
 
 
 class FileOrganizer:
@@ -123,10 +123,12 @@ class FileOrganizer:
 
         Returns:
             List of operation records
+
         """
         rules = rules or self.rules
         target = Path(target_root)
         operations: list[dict] = []
+        reserved_destinations: set[Path] = set()
         self._organized_count = 0
         self._errors = []
 
@@ -141,7 +143,8 @@ class FileOrganizer:
                 dest_path = dest_dir / dest_name
 
                 # Handle name conflicts
-                dest_path = self._resolve_conflict(dest_path)
+                dest_path = self._resolve_conflict(dest_path, reserved_destinations)
+                reserved_destinations.add(dest_path)
 
                 op = {
                     "source": str(file_info.path),
@@ -154,7 +157,7 @@ class FileOrganizer:
 
                 if not dry_run:
                     # Check if file is locked by another process (Windows)
-                    locked, lock_msg = self._is_file_locked(file_info.path)
+                    locked, lock_msg = is_file_locked(file_info.path)
                     if locked:
                         self._errors.append((file_info.name, lock_msg))
                         if progress_callback:
@@ -218,9 +221,10 @@ class FileOrganizer:
 
         return safe_filename(new_name) + file_info.extension
 
-    def _resolve_conflict(self, path: Path) -> Path:
+    def _resolve_conflict(self, path: Path, reserved: set[Path] | None = None) -> Path:
         """Handle filename conflicts by adding numeric suffix"""
-        if not path.exists():
+        reserved = reserved or set()
+        if not path.exists() and path not in reserved:
             return path
 
         stem = path.stem
@@ -230,33 +234,9 @@ class FileOrganizer:
 
         while True:
             new_path = parent / f"{stem}_{counter}{suffix}"
-            if not new_path.exists():
+            if not new_path.exists() and new_path not in reserved:
                 return new_path
             counter += 1
-
-    @staticmethod
-    def _is_file_locked(path: Path) -> tuple[bool, str]:
-        """Check if a file is locked by another process
-
-        On Windows, attempt to open the file with exclusive write access.
-        If another process holds the file open, this will raise PermissionError.
-
-        Returns:
-            (is_locked, message) tuple
-        """
-        if sys.platform == "win32":
-            try:
-                with open(path, "r+b"):
-                    pass
-                return False, ""
-            except PermissionError:
-                return True, f"File is in use by another process: {path.name}"
-            except OSError as e:
-                # File might not exist or other OS error
-                return False, str(e)
-        # On Linux/macOS, advisory locking is cooperative;
-        # shutil.move will still raise on actual permission errors
-        return False, ""
 
     @property
     def stats(self) -> dict:
@@ -268,6 +248,7 @@ class FileOrganizer:
     def save_undo_log(self, path: str | Path) -> None:
         """Save undo log to file"""
         import json
+
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self._undo_log, f, ensure_ascii=False, indent=2)
 
@@ -276,8 +257,10 @@ class FileOrganizer:
 
         Returns:
             {"restored": int, "errors": int}
+
         """
         import json
+
         with open(undo_log_path, encoding="utf-8") as f:
             entries = json.load(f)
 

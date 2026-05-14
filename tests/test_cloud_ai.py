@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from filepilot.ai.cloud_ai import OpenAIProvider, AnthropicProvider, CloudAI
+from filepilot.ai.cloud_ai import AnthropicProvider, CloudAI, OpenAIProvider
 
 
 class TestOpenAIProvider:
@@ -43,7 +43,7 @@ class TestOpenAIProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Hello! How can I help?"}}]
+            "choices": [{"message": {"content": "Hello! How can I help?"}}],
         }
         mock_session.post.return_value = mock_resp
 
@@ -64,7 +64,7 @@ class TestOpenAIProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "Summary here"}}]
+            "choices": [{"message": {"content": "Summary here"}}],
         }
         mock_session.post.return_value = mock_resp
 
@@ -94,7 +94,7 @@ class TestOpenAIProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "data": [{"embedding": [0.1, 0.2, 0.3]}]
+            "data": [{"embedding": [0.1, 0.2, 0.3]}],
         }
         mock_session.post.return_value = mock_resp
 
@@ -153,7 +153,7 @@ class TestAnthropicProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "content": [{"text": "Hello from Claude!"}]
+            "content": [{"text": "Hello from Claude!"}],
         }
         mock_session.post.return_value = mock_resp
 
@@ -168,7 +168,7 @@ class TestAnthropicProvider:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "content": [{"text": "OK"}]
+            "content": [{"text": "OK"}],
         }
         mock_session.post.return_value = mock_resp
 
@@ -182,10 +182,12 @@ class TestAnthropicProvider:
         """Anthropic chat() extracts system from messages list"""
         provider = AnthropicProvider(api_key="sk-ant-test")
         # chat will try HTTP - returns empty on failure (no real network)
-        result = provider.chat([
-            {"role": "system", "content": "You are helpful"},
-            {"role": "user", "content": "Hi"},
-        ])
+        result = provider.chat(
+            [
+                {"role": "system", "content": "You are helpful"},
+                {"role": "user", "content": "Hi"},
+            ]
+        )
         assert result == ""
 
 

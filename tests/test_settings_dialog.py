@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 from filepilot.i18n import SUPPORTED_LANGUAGES
 from filepilot.ui.settings_dialog import SettingsDialog
 
@@ -30,23 +29,28 @@ def _make_settings():
 
 class _ComboBox:
     """Lightweight mock of QComboBox that tracks currentIndex."""
+
     def __init__(self, initial_index=0):
         self._idx = initial_index
+
     def currentIndex(self):
         return self._idx
+
     def setCurrentIndex(self, idx):
         self._idx = idx
+
     def count(self):
         return 5
+
     def currentText(self):
         return f"mocked_text ({self._idx})"
+
     def itemText(self, idx):
         return f"Item {idx}"
 
 
 def _make_dialog(settings_dict=None):
     """Create a SettingsDialog instance bypassing Qt __init__."""
-
     settings_dict = settings_dict or _make_settings()
     obj = SettingsDialog.__new__(SettingsDialog)
     obj._settings = settings_dict.copy()
@@ -62,7 +66,9 @@ def _make_dialog(settings_dict=None):
 
     # API base
     obj.api_base_input = MagicMock()
-    obj.api_base_input.text.return_value = settings_dict.get("ai_api_base", "http://localhost:11434")
+    obj.api_base_input.text.return_value = settings_dict.get(
+        "ai_api_base", "http://localhost:11434"
+    )
 
     # API key
     obj.api_key_input = MagicMock()
@@ -74,7 +80,9 @@ def _make_dialog(settings_dict=None):
 
     # Index dir
     obj.index_dir = MagicMock()
-    obj.index_dir.text.return_value = settings_dict.get("index_dir", str(Path.home() / ".filepilot" / "index"))
+    obj.index_dir.text.return_value = settings_dict.get(
+        "index_dir", str(Path.home() / ".filepilot" / "index")
+    )
 
     # Language combo
     lang_keys = list(SUPPORTED_LANGUAGES.keys())
@@ -86,17 +94,19 @@ def _make_dialog(settings_dict=None):
 
 # ── Language switching ──────────────────────────────────────────────
 
-class TestLanguageSwitching:
 
+class TestLanguageSwitching:
     def test_language_change_calls_set_language(self):
         d = _make_dialog()
         # Set current lang to something different so the change is detected
         d._current_lang = "en"
         d.lang_combo.setCurrentIndex(2)  # Japanese
         mock_sl = MagicMock()
-        with patch("filepilot.ui.settings_dialog.set_language", mock_sl):
-            with patch("PySide6.QtWidgets.QDialog.accept", lambda self: None):
-                d.accept()
+        with (
+            patch("filepilot.ui.settings_dialog.set_language", mock_sl),
+            patch("PySide6.QtWidgets.QDialog.accept", lambda self: None),
+        ):
+            d.accept()
         mock_sl.assert_called_once_with("ja")
 
     def test_no_language_change_skips_set_language(self):
@@ -104,9 +114,11 @@ class TestLanguageSwitching:
         d._current_lang = "en"
         # Don't change the lang combo — stays at English (index 0)
         mock_sl = MagicMock()
-        with patch("filepilot.ui.settings_dialog.set_language", mock_sl):
-            with patch("PySide6.QtWidgets.QDialog.accept", lambda self: None):
-                d.accept()
+        with (
+            patch("filepilot.ui.settings_dialog.set_language", mock_sl),
+            patch("PySide6.QtWidgets.QDialog.accept", lambda self: None),
+        ):
+            d.accept()
         mock_sl.assert_not_called()
 
     def test_get_settings_reflects_language(self):
@@ -122,20 +134,33 @@ class TestLanguageSwitching:
 
 # ── Provider mapping ────────────────────────────────────────────────
 
-class TestGetSettings:
 
+class TestGetSettings:
     def test_all_keys_present(self):
         d = _make_dialog()
         r = d.get_settings()
-        for k in ("ai_mode", "ai_provider", "ai_model", "ai_api_base",
-                  "ai_api_key", "index_dir", "max_file_size_mb", "language"):
+        for k in (
+            "ai_mode",
+            "ai_provider",
+            "ai_model",
+            "ai_api_base",
+            "ai_api_key",
+            "index_dir",
+            "max_file_size_mb",
+            "language",
+        ):
             assert k in r
 
-    @pytest.mark.parametrize(("idx", "provider", "mode"), [
-        (0, "ollama", "local"), (1, "llamacpp", "local"),
-        (2, "openai", "cloud"), (3, "anthropic", "cloud"),
-        (4, "custom", "cloud"),
-    ])
+    @pytest.mark.parametrize(
+        ("idx", "provider", "mode"),
+        [
+            (0, "ollama", "local"),
+            (1, "llamacpp", "local"),
+            (2, "openai", "cloud"),
+            (3, "anthropic", "cloud"),
+            (4, "custom", "cloud"),
+        ],
+    )
     def test_provider_variations(self, idx, provider, mode):
         d = _make_dialog()
         d.provider_combo.setCurrentIndex(idx)
@@ -146,8 +171,8 @@ class TestGetSettings:
 
 # ── File size parsing (pure logic) ──────────────────────────────────
 
-class TestFileSizeParsing:
 
+class TestFileSizeParsing:
     def test_valid_number(self):
         d = _make_dialog()
         assert d._parse_file_size("100") == 100

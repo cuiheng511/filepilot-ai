@@ -44,7 +44,7 @@ class PptxExtractor:
             return {}
         try:
             prs = Presentation(str(file_path))
-            meta = {
+            meta: dict[str, str | int] = {
                 "slide_count": len(prs.slides),
             }
             if prs.core_properties:

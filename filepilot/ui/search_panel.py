@@ -79,7 +79,9 @@ class SearchPanel(BasePanel):
     search_results_ready = Signal(list, str)
     cancel_acknowledged = Signal()
 
-    def __init__(self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None):
+    def __init__(
+        self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None
+    ):
         super().__init__(parent)
         self.indexer = indexer or FileIndexer()
         self.scanner = scanner or FileScanner()
@@ -90,7 +92,9 @@ class SearchPanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
-    def update_services(self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None):
+    def update_services(
+        self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None
+    ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
@@ -110,7 +114,7 @@ class SearchPanel(BasePanel):
 
         desc = QLabel(
             "Natural language search for local files. Supports search by file name, content, type, and date.\n"
-            'Example: "PDF files modified last week" or "find documents about machine learning"'
+            'Example: "PDF files modified last week" or "find documents about machine learning"',
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -120,7 +124,9 @@ class SearchPanel(BasePanel):
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setObjectName("searchInput")
-        self.search_input.setPlaceholderText("Enter search keywords, e.g.: find PDFs about deep learning...")
+        self.search_input.setPlaceholderText(
+            "Enter search keywords, e.g.: find PDFs about deep learning..."
+        )
         self.search_input.returnPressed.connect(self._on_search)
 
         self.search_btn = QPushButton("🔍 Search")
@@ -218,7 +224,7 @@ class SearchPanel(BasePanel):
         stats = self.indexer.get_stats()
         if stats["indexed_files"] == 0:
             self.result_list.addItem(
-                "⚠️ Index is empty. Please build the index first before searching."
+                "⚠️ Index is empty. Please build the index first before searching.",
             )
             return
 
@@ -253,8 +259,8 @@ class SearchPanel(BasePanel):
         self.search_btn.setEnabled(True)
 
         if not results:
-            item = QListWidgetItem(f"No results found for \"{query}\"")
-            item.setForeground(Qt.gray)
+            item = QListWidgetItem(f'No results found for "{query}"')
+            item.setForeground(Qt.gray)  # type: ignore[attr-defined]
             self.result_list.addItem(item)
             self.stats_label.setText("No matching results")
             return
@@ -286,10 +292,12 @@ class SearchPanel(BasePanel):
                 if len(hl) > 100:
                     hl = hl[:100].rsplit(" ", 1)[0] + "…"
                 display_text += f"\n   📌 {hl}"
-            display_text += f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  Match: {score:.0%}"
+            display_text += (
+                f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  Match: {score:.0%}"
+            )
 
             item = QListWidgetItem(display_text)
-            item.setData(Qt.UserRole, filepath)
+            item.setData(Qt.UserRole, filepath)  # type: ignore[attr-defined]
             item.setToolTip(f"Path: {filepath}\nMatch: {score:.0%}")
             self.result_list.addItem(item)
 
@@ -310,11 +318,22 @@ class SearchPanel(BasePanel):
         extractor = _EXTRACTORS.get(ext)
         if extractor:
             try:
-                return extractor.extract_text(file_info.path)
+                return extractor.extract_text(file_info.path)  # type: ignore[no-any-return, attr-defined]
             except Exception:
                 return ""
         # Fallback: try reading as text for small text files
-        text_exts = {".txt", ".log", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".json", ".xml", ".csv"}
+        text_exts = {
+            ".txt",
+            ".log",
+            ".ini",
+            ".cfg",
+            ".toml",
+            ".yaml",
+            ".yml",
+            ".json",
+            ".xml",
+            ".csv",
+        }
         if ext in text_exts:
             try:
                 return file_info.path.read_text(encoding="utf-8", errors="ignore")[:5000]
@@ -331,17 +350,20 @@ class SearchPanel(BasePanel):
             if filepath:
                 title = item.text().splitlines()[0]
                 name = title.split("  ", 1)[1] if "  " in title else title
-                results.append({
-                    "name": name,
-                    "path": filepath,
-                    "text": item.toolTip(),
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "path": filepath,
+                        "text": item.toolTip(),
+                    }
+                )
         if not results:
             self.status_message.emit("No results to export")
             return
 
         file_path, selected_filter = QFileDialog.getSaveFileName(
-            self, "Export Search Results",
+            self,
+            "Export Search Results",
             str(Path.home() / "search_results.json"),
             "JSON (*.json);;CSV (*.csv)",
         )
@@ -357,6 +379,7 @@ class SearchPanel(BasePanel):
                 )
             else:
                 import csv
+
                 with open(path, "w", newline="", encoding="utf-8") as fp:
                     writer = csv.DictWriter(fp, fieldnames=["name", "path", "text"])
                     writer.writeheader()
@@ -392,12 +415,12 @@ class SearchPanel(BasePanel):
 
             total = len(files)
 
-# Build index
+            # Build index
             indexed = self.indexer.index_files(
                 files,
                 content_extractor=self._extract_file_content,
                 progress_callback=lambda i, msg: self.progress_updated.emit(
-                    int(i / total * 100) if total else 0
+                    int(i / total * 100) if total else 0,
                 ),
             )
 
@@ -428,8 +451,7 @@ class SearchPanel(BasePanel):
 
         stats = self.indexer.get_stats()
         self.stats_label.setText(
-            f"📊 Index stats: {stats['indexed_files']} files, "
-            f"index size: {stats['index_size']}"
+            f"📊 Index stats: {stats['indexed_files']} files, index size: {stats['index_size']}",
         )
 
     def _clear_results(self):

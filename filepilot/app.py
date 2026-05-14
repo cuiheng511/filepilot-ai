@@ -5,6 +5,7 @@ import sys
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
+from filepilot import __version__
 from filepilot.ai.summarizer import Summarizer
 from filepilot.core.duplicate_finder import DuplicateFinder
 from filepilot.core.file_organizer import FileOrganizer
@@ -24,11 +25,13 @@ def create_app() -> QApplication:
     """Create a QApplication instance"""
     app = QApplication(sys.argv)
     app.setApplicationName("FilePilot AI")
-    app.setApplicationVersion("0.1.0")
+    app.setApplicationVersion(__version__)
     app.setOrganizationName("FilePilot")
 
-    # Set global font
-    font = QFont("Segoe UI", 10)
+    # Set global font with Windows-friendly emoji fallback for icon labels.
+    font = QFont()
+    font.setFamilies(["Segoe UI", "Microsoft YaHei UI", "Segoe UI Emoji"])
+    font.setPointSize(10)
     app.setFont(font)
 
     # Global style
@@ -40,6 +43,7 @@ def create_app() -> QApplication:
 def load_settings() -> dict:
     """Load user settings — delegates to config.load() for unified settings."""
     from filepilot.core import config
+
     return config.load()
 
 
@@ -65,12 +69,16 @@ def create_services(settings: dict) -> dict:
 
     # Keep both local and cloud AI (backward compatibility + hybrid mode)
     local_ai = primary_ai if provider in ("ollama", "llamacpp") else OllamaProvider()
-    cloud_ai = primary_ai if provider in ("openai", "anthropic", "custom") else OpenAIProvider(api_key=api_key)
+    cloud_ai = (
+        primary_ai
+        if provider in ("openai", "anthropic", "custom")
+        else OpenAIProvider(api_key=api_key)
+    )
 
     # Summarizer
     summarizer = Summarizer(
-        local_ai=local_ai,
-        cloud_ai=cloud_ai,
+        local_ai=local_ai,  # type: ignore[arg-type]
+        cloud_ai=cloud_ai,  # type: ignore[arg-type]
         prefer_local=(settings.get("ai_mode", "local") in ("local", "hybrid")),
     )
 
@@ -80,7 +88,7 @@ def create_services(settings: dict) -> dict:
         "duplicate_finder": DuplicateFinder(),
         "watcher": FileWatcher(),
         "indexer": FileIndexer(
-            index_dir=settings.get("index_dir", "~/.filepilot/index")
+            index_dir=settings.get("index_dir", "~/.filepilot/index"),
         ),
         "local_ai": local_ai,
         "cloud_ai": cloud_ai,

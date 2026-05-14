@@ -40,6 +40,7 @@ class DuplicateFinder:
 
         Returns:
             Groups of duplicate files, each group has at least 2 files
+
         """
         if not files:
             return []
@@ -97,6 +98,7 @@ class DuplicateFinder:
 
         Returns:
             Similar file groups
+
         """
         from difflib import SequenceMatcher
 
@@ -135,7 +137,7 @@ class DuplicateFinder:
         hasher = hashlib.sha256()
         try:
             file_size = file_path.stat().st_size
-            hasher.update(file_size.to_bytes(8, 'big'))  # Length prefix
+            hasher.update(file_size.to_bytes(8, "big"))  # Length prefix
             with open(file_path, "rb") as f:
                 head = f.read(sample_size)
                 hasher.update(head)
@@ -156,16 +158,12 @@ class DuplicateFinder:
                     hasher.update(chunk)
         except (OSError, PermissionError) as e:
             logger.debug("Full hash failed for %s: %s", file_path, e)
-            pass
         return hasher.hexdigest()
 
     def get_duplicate_stats(self, groups: list[list[FileInfo]]) -> dict:
         """Get duplicate file statistics"""
         total_duplicates = sum(len(g) - 1 for g in groups)
-        wasted_bytes = sum(
-            sum(f.size_bytes for f in g) - g[0].size_bytes
-            for g in groups
-        )
+        wasted_bytes = sum(sum(f.size_bytes for f in g) - g[0].size_bytes for g in groups)
         return {
             "groups": len(groups),
             "duplicate_files": total_duplicates,
@@ -176,4 +174,5 @@ class DuplicateFinder:
     def _format_bytes(self, size: int) -> str:
         """Format byte size"""
         from filepilot.utils.file_utils import get_file_size_str
+
         return get_file_size_str(size)

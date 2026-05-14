@@ -9,8 +9,9 @@ class TestAIProvider:
     def test_cannot_instantiate_directly(self):
         """AIProvider is abstract — must be subclassed"""
         import pytest
+
         with pytest.raises(TypeError):
-            AIProvider()  # type: ignore
+            AIProvider()
 
     def test_concrete_subclass(self):
         """Subclass implementing abstract methods can be instantiated"""
@@ -24,8 +25,15 @@ class TestAIProvider:
             def provider_name(self) -> str:
                 return "Test"
 
-            def generate(self, prompt, system_prompt=None, temperature=0.7,
-                         max_tokens=2048, stream=False, on_token=None) -> str:
+            def generate(
+                self,
+                prompt,
+                system_prompt=None,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                on_token=None,
+            ) -> str:
                 return "generated"
 
         provider = ConcreteProvider()
@@ -44,8 +52,15 @@ class TestAIProvider:
             def provider_name(self) -> str:
                 return "Test"
 
-            def generate(self, prompt, system_prompt=None, temperature=0.7,
-                         max_tokens=2048, stream=False, on_token=None) -> str:
+            def generate(
+                self,
+                prompt,
+                system_prompt=None,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                on_token=None,
+            ) -> str:
                 return f"PROMPT:{prompt}|SYS:{system_prompt}"
 
         provider = ConcreteProvider()
@@ -71,8 +86,15 @@ class TestAIProvider:
             def provider_name(self) -> str:
                 return "Test"
 
-            def generate(self, prompt, system_prompt=None, temperature=0.7,
-                         max_tokens=2048, stream=False, on_token=None) -> str:
+            def generate(
+                self,
+                prompt,
+                system_prompt=None,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                on_token=None,
+            ) -> str:
                 return ""
 
         provider = ConcreteProvider()
@@ -90,8 +112,15 @@ class TestAIProvider:
             def provider_name(self) -> str:
                 return "Test"
 
-            def generate(self, prompt, system_prompt=None, temperature=0.7,
-                         max_tokens=2048, stream=False, on_token=None) -> str:
+            def generate(
+                self,
+                prompt,
+                system_prompt=None,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                on_token=None,
+            ) -> str:
                 return ""
 
         provider = ConcreteProvider()
@@ -109,8 +138,15 @@ class TestAIProvider:
             def provider_name(self) -> str:
                 return "Test"
 
-            def generate(self, prompt, system_prompt=None, temperature=0.7,
-                         max_tokens=2048, stream=False, on_token=None) -> str:
+            def generate(
+                self,
+                prompt,
+                system_prompt=None,
+                temperature=0.7,
+                max_tokens=2048,
+                stream=False,
+                on_token=None,
+            ) -> str:
                 if stream and on_token:
                     for token in ["Hel", "lo", " World"]:
                         on_token(token)

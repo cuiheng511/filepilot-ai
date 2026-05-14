@@ -3,7 +3,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 from filepilot.extractors.docx_extractor import DocxExtractor
 
 
@@ -31,10 +30,12 @@ class TestDocxExtractor:
             MagicMock(text="Second paragraph with content."),
         ]
         mock_doc.tables = [
-            MagicMock(rows=[
-                MagicMock(cells=[MagicMock(text="A"), MagicMock(text="B")]),
-                MagicMock(cells=[MagicMock(text="1"), MagicMock(text="2")]),
-            ])
+            MagicMock(
+                rows=[
+                    MagicMock(cells=[MagicMock(text="A"), MagicMock(text="B")]),
+                    MagicMock(cells=[MagicMock(text="1"), MagicMock(text="2")]),
+                ]
+            ),
         ]
         mock_docx.Document.return_value = mock_doc
 

@@ -29,6 +29,7 @@ class SettingsDialog(QDialog):
 
         self._settings = settings.copy()
         from filepilot.i18n import _current_lang
+
         self._current_lang = _current_lang
         self.setObjectName("SettingsDialog")
         self._setup_ui()
@@ -55,7 +56,7 @@ class SettingsDialog(QDialog):
 
         # Buttons
         buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -71,13 +72,15 @@ class SettingsDialog(QDialog):
         provider_group = QGroupBox(t("settings_provider"))
         provider_layout = QVBoxLayout()
         self.provider_combo = QComboBox()
-        self.provider_combo.addItems([
-            "Ollama (Local)",
-            "llama.cpp / LM Studio (Local)",
-            "OpenAI (Cloud)",
-            "Anthropic Claude (Cloud)",
-            "Custom OpenAI Compatible",
-        ])
+        self.provider_combo.addItems(
+            [
+                "Ollama (Local)",
+                "llama.cpp / LM Studio (Local)",
+                "OpenAI (Cloud)",
+                "Anthropic Claude (Cloud)",
+                "Custom OpenAI Compatible",
+            ]
+        )
         self.provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         provider_layout.addWidget(self.provider_combo)
         provider_group.setLayout(provider_layout)
@@ -88,15 +91,22 @@ class SettingsDialog(QDialog):
         common_layout = QFormLayout()
         self.model_input = QComboBox()
         self.model_input.setEditable(True)
-        self.model_input.addItems([
-            "qwen2.5:7b", "qwen2.5:3b", "llama3.1:8b", "mistral:7b",
-            "gpt-4o-mini", "gpt-4o", "claude-sonnet-4-20250514",
-        ])
+        self.model_input.addItems(
+            [
+                "qwen2.5:7b",
+                "qwen2.5:3b",
+                "llama3.1:8b",
+                "mistral:7b",
+                "gpt-4o-mini",
+                "gpt-4o",
+                "claude-sonnet-4-20250514",
+            ]
+        )
         self.model_input.setCurrentText(self._settings.get("ai_model", "qwen2.5:7b"))
         self.api_base_input = QLineEdit()
         self.api_base_input.setPlaceholderText("http://localhost:11434")
         self.api_key_input = QLineEdit()
-        self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.setEchoMode(QLineEdit.Password)  # type: ignore[attr-defined]
         self.api_key_input.setPlaceholderText("sk-...")
         self.api_key_label = QLabel("API Key:")
         common_layout.addRow("Model:", self.model_input)
@@ -185,7 +195,9 @@ class SettingsDialog(QDialog):
         self.api_base_input.setText(self._settings.get("ai_api_base", "http://localhost:11434"))
         self.api_key_input.setText(self._settings.get("ai_api_key", ""))
         self.max_file_size.setText(str(self._settings.get("max_file_size_mb", 500)))
-        self.index_dir.setText(self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index")))
+        self.index_dir.setText(
+            self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index"))
+        )
         # Set language combo
         current_lang = self._settings.get("language", "en")
         lang_items = [f"{v} ({k})" for k, v in SUPPORTED_LANGUAGES.items()]

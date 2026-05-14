@@ -66,7 +66,9 @@ def _get_fernet_key() -> bytes | None:
     try:
         salt = _ensure_salt()
         # Use machine hostname + a fixed local identifier as the "password"
-        material = os.uname().nodename.encode("utf-8") if hasattr(os, "uname") else b"filepilot-local"
+        material = (
+            os.uname().nodename.encode("utf-8") if hasattr(os, "uname") else b"filepilot-local"
+        )
         # On Windows, use COMPUTERNAME instead
         if not material or material == b"filepilot-local":
             material = os.environ.get("COMPUTERNAME", "filepilot-local").encode("utf-8")
@@ -118,9 +120,10 @@ def _get_keyring_key() -> str:
     # Try system keyring first
     try:
         import keyring
+
         key = keyring.get_password(KEYRING_SERVICE, KEYRING_KEY)
         if key:
-            return key
+            return key  # type: ignore[no-any-return]
     except Exception:
         pass
     # Fallback: try encrypted file
@@ -143,6 +146,7 @@ def _save_keyring_key(api_key: str) -> bool:
     # Try system keyring
     try:
         import keyring
+
         keyring.set_password(KEYRING_SERVICE, KEYRING_KEY, api_key)
         saved_to.append("keyring")
     except Exception:
@@ -167,7 +171,7 @@ def load() -> dict:
             keyring_key = _get_keyring_key()
             if keyring_key:
                 user["ai_api_key"] = keyring_key
-            elif "ai_api_key" in user and user["ai_api_key"]:
+            elif user.get("ai_api_key"):
                 _save_keyring_key(user["ai_api_key"])
             settings.update(user)
         except Exception as e:

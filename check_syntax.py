@@ -25,8 +25,18 @@ def main():
     errors = []
 
     for py_file in sorted(project_root.rglob("*.py")):
-        # Skip files in .git or __pycache__ directories
-        skip_dirs = {".git", "__pycache__", ".venv"}
+        # Skip generated, cached, and external workspace directories.
+        skip_dirs = {
+            ".git",
+            ".kilo",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".ruff_cache",
+            ".venv",
+            "__pycache__",
+            "build",
+            "dist",
+        }
         if any(p in skip_dirs for p in py_file.parts):
             continue
         valid, error = check_syntax(py_file)

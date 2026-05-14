@@ -3,6 +3,7 @@
 import hashlib
 import os
 import re
+import sys
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -10,11 +11,16 @@ from pathlib import Path
 
 class FileCategory(Enum):
     """File classification"""
+
     DOCUMENT = ("Document", ".txt,.doc,.docx,.rtf,.odt", "📄")
     IMAGE = ("Image", ".jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.ico", "🖼️")
     VIDEO = ("Video", ".mp4,.avi,.mkv,.mov,.wmv,.flv,.webm", "🎬")
     AUDIO = ("Audio", ".mp3,.wav,.flac,.aac,.ogg,.wma,.m4a", "🎵")
-    CODE = ("Code", ".py,.js,.ts,.java,.cpp,.c,.h,.hpp,.cs,.go,.rs,.rb,.php,.swift,.kt,.scala,.sql,.sh,.bash,.ps1,.bat,.pl,.lua,.r,.m,.dart", "💻")
+    CODE = (
+        "Code",
+        ".py,.js,.ts,.java,.cpp,.c,.h,.hpp,.cs,.go,.rs,.rb,.php,.swift,.kt,.scala,.sql,.sh,.bash,.ps1,.bat,.pl,.lua,.r,.m,.dart",
+        "💻",
+    )
     ARCHIVE = ("Archive", ".zip,.rar,.7z,.tar,.gz,.bz2,.xz,.zst,.iso", "🗜️")
     PDF = ("PDF", ".pdf", "📕")
     MARKDOWN = ("Markdown", ".md,.markdown,.rst", "📝")
@@ -39,24 +45,51 @@ for cat in FileCategory:
 
 
 # ── UI-focused category sets (simplified groups for file_browser) ──
-CAT_PDF      = {".pdf"}
+CAT_PDF = {".pdf"}
 CAT_MARKDOWN = {".md", ".markdown", ".mdx", ".rst"}
-CAT_CODE     = {".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".cpp", ".c",
-               ".h", ".hpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift",
-               ".kt", ".scala", ".sql", ".sh", ".bash", ".ps1", ".lua"}
-CAT_IMAGE    = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico"}
-CAT_VIDEO    = {".mp4", ".avi", ".mov", ".mkv"}
-CAT_AUDIO    = {".mp3", ".wav", ".flac"}
-CAT_OFFICE   = {".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"}
-CAT_TEXT     = {".txt", ".log", ".cfg", ".ini", ".conf", ".yaml", ".yml",
-               ".toml", ".json", ".xml"}
+CAT_CODE = {
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".java",
+    ".cpp",
+    ".c",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".go",
+    ".rs",
+    ".rb",
+    ".php",
+    ".swift",
+    ".kt",
+    ".scala",
+    ".sql",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".lua",
+}
+CAT_IMAGE = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico"}
+CAT_VIDEO = {".mp4", ".avi", ".mov", ".mkv"}
+CAT_AUDIO = {".mp3", ".wav", ".flac"}
+CAT_OFFICE = {".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"}
+CAT_TEXT = {".txt", ".log", ".cfg", ".ini", ".conf", ".yaml", ".yml", ".toml", ".json", ".xml"}
 
 
 # ── Icon lookup for UI panels (category_name → emoji) ──
 CATEGORY_ICONS: dict[str, str] = {
-    "PDF": "📕", "Markdown": "📝", "Code": "💻",
-    "Image": "🖼️", "Video": "🎬", "Audio": "🎵",
-    "Office": "📊", "Text": "📄", "Other": "📁",
+    "PDF": "📕",
+    "Markdown": "📝",
+    "Code": "💻",
+    "Image": "🖼️",
+    "Video": "🎬",
+    "Audio": "🎵",
+    "Office": "📊",
+    "Text": "📄",
+    "Other": "📁",
 }
 
 
@@ -112,8 +145,8 @@ def get_file_size_str(size_bytes: int) -> str:
 def safe_filename(name: str) -> str:
     """Convert a string to a safe filename"""
     name = re.sub(r'[<>:"/\\|?*]', "_", name)
-    name = re.sub(r'\s+', " ", name).strip()
-    name = re.sub(r'[\.]+$', "", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"[\.]+$", "", name)
     return name or "untitled"
 
 
@@ -146,3 +179,28 @@ def get_file_created_time(file_path: str | Path) -> datetime:
     """Get the file creation time"""
     timestamp = os.path.getctime(file_path)
     return datetime.fromtimestamp(timestamp)
+
+
+def is_file_locked(path: Path) -> tuple[bool, str]:
+    """Check if a file is locked by another process
+
+    On Windows, attempt to open the file with exclusive write access.
+    If another process holds the file open, this will raise PermissionError.
+
+    Returns:
+        (is_locked, message) tuple
+
+    """
+    if sys.platform == "win32":
+        try:
+            with open(path, "r+b"):
+                pass
+            return False, ""
+        except PermissionError:
+            return True, f"File is in use by another process: {path.name}"
+        except OSError as e:
+            # File might not exist or other OS error
+            return False, str(e)
+    # On Linux/macOS, advisory locking is cooperative;
+    # shutil.move will still raise on actual permission errors
+    return False, ""  # type: ignore[unreachable]

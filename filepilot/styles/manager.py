@@ -30,7 +30,10 @@ class ThemeManager(QObject):
     styles_reloaded = Signal()
 
     def __init__(
-        self, themes_dir: str | Path, initial_theme: str = "dark", parent: QObject | None = None
+        self,
+        themes_dir: str | Path,
+        initial_theme: str = "dark",
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._themes_dir = Path(themes_dir)
@@ -61,7 +64,7 @@ class ThemeManager(QObject):
         if app is None:
             return False
 
-        app.setStyleSheet(qss)
+        app.setStyleSheet(qss)  # type: ignore[attr-defined]
         self._current_theme = name
         self.theme_changed.emit(name)
 
@@ -92,9 +95,7 @@ class ThemeManager(QObject):
 
     def available_themes(self) -> list[str]:
         """List theme names (``.qss`` file stems) found in the themes directory."""
-        return sorted(
-            p.stem for p in self._themes_dir.glob("*.qss")
-        )
+        return sorted(p.stem for p in self._themes_dir.glob("*.qss"))
 
     # ── Slots ────────────────────────────────────────────────────────────
 

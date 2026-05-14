@@ -3,7 +3,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-
 from filepilot.extractors.xlsx_extractor import XlsxExtractor
 
 
@@ -25,7 +24,7 @@ class TestXlsxExtractor:
         mock_ws1 = MagicMock()
         # iter_rows(values_only=True) returns tuples of cell VALUES (not Cell objects)
         mock_ws1.iter_rows.return_value = [
-            (None,),              # skipped (None value)
+            (None,),  # skipped (None value)
             ("A1", "B1"),
             ("A2", "B2"),
         ]

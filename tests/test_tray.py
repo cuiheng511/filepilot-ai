@@ -6,7 +6,6 @@ import pytest
 
 
 class TestTrayPauseResume:
-
     @pytest.fixture(autouse=True)
     def _setup(self):
         mw = MagicMock()
@@ -48,7 +47,9 @@ class TestTrayPauseResume:
         self.tray._watched_dirs = ["/dir/a"]
         self.tray._on_toggle_watching(paused=True)
         self.mt.assert_called_with(
-            "\u23f8\ufe0f Background watching paused", "warning", 2000
+            "\u23f8\ufe0f Background watching paused",
+            "warning",
+            2000,
         )
 
     def test_resume_rewatches_and_clears(self):
@@ -63,7 +64,9 @@ class TestTrayPauseResume:
         self.tray._watched_dirs = []
         self.tray._on_toggle_watching(paused=False)
         self.mt.assert_called_with(
-            "\u25b6\ufe0f Background watching resumed", "info", 2000
+            "\u25b6\ufe0f Background watching resumed",
+            "info",
+            2000,
         )
 
     def test_roundtrip(self):
@@ -83,7 +86,6 @@ class TestTrayPauseResume:
 
 
 class TestTrayFileEvents:
-
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path):
         mw = MagicMock()
@@ -213,7 +215,6 @@ class TestTrayFileEventsNoExt:
 
 
 class TestTrayToastModes:
-
     @pytest.fixture(autouse=True)
     def _setup(self):
         mw = MagicMock()
@@ -252,7 +253,6 @@ class TestTrayToastModes:
 
 
 class TestTraySetup:
-
     def _make_raw(self, services):
         with (
             patch("filepilot.ui.tray.QSystemTrayIcon"),

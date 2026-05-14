@@ -4,6 +4,8 @@
 import sys
 from pathlib import Path
 
+from PySide6.QtWidgets import QApplication
+
 from filepilot.log import setup_logging
 
 
@@ -16,6 +18,7 @@ def main():
 
     # Load language settings
     from filepilot.i18n import load_language_from_settings
+
     load_language_from_settings()
 
     from filepilot.app import create_app, create_services, create_tray, load_settings
@@ -37,7 +40,7 @@ def main():
         screen_geo = screen.availableGeometry()
         window.move(
             screen_geo.x() + (screen_geo.width() - window.width()) // 2,
-            screen_geo.y() + (screen_geo.height() - window.height()) // 2
+            screen_geo.y() + (screen_geo.height() - window.height()) // 2,
         )
 
     sys.exit(app.exec())

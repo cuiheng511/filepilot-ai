@@ -4,8 +4,14 @@ Tests the module-level get_category_name() function and CAT_* constants
 to ensure every defined extension maps to the correct category.
 """
 
+import csv
+import json
+from datetime import datetime
+from pathlib import Path
+
 import pytest
 
+from filepilot.core.file_scanner import FileInfo
 from filepilot.utils.file_utils import (
     CAT_AUDIO,
     CAT_CODE,
@@ -15,6 +21,7 @@ from filepilot.utils.file_utils import (
     CAT_PDF,
     CAT_TEXT,
     CAT_VIDEO,
+    FileCategory,
     get_category_name,
 )
 
@@ -30,11 +37,29 @@ class TestExtensionConstants:
 
     def test_cat_code_contents(self):
         expected = {
-            ".py", ".js", ".ts", ".tsx", ".jsx",
-            ".java", ".cpp", ".c", ".h", ".hpp",
-            ".cs", ".go", ".rs", ".rb", ".php",
-            ".swift", ".kt", ".scala", ".sql",
-            ".sh", ".bash", ".ps1", ".lua",
+            ".py",
+            ".js",
+            ".ts",
+            ".tsx",
+            ".jsx",
+            ".java",
+            ".cpp",
+            ".c",
+            ".h",
+            ".hpp",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".scala",
+            ".sql",
+            ".sh",
+            ".bash",
+            ".ps1",
+            ".lua",
         }
         assert expected == CAT_CODE
 
@@ -46,8 +71,16 @@ class TestExtensionConstants:
 
     def test_cat_text_contents(self):
         expected = {
-            ".txt", ".log", ".cfg", ".ini", ".conf",
-            ".yaml", ".yml", ".toml", ".json", ".xml",
+            ".txt",
+            ".log",
+            ".cfg",
+            ".ini",
+            ".conf",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".json",
+            ".xml",
         }
         assert expected == CAT_TEXT
 
@@ -59,7 +92,16 @@ class TestExtensionConstants:
 
     def test_sets_are_disjoint(self):
         """No extension should belong to more than one category"""
-        all_sets = [CAT_PDF, CAT_MARKDOWN, CAT_CODE, CAT_IMAGE, CAT_VIDEO, CAT_AUDIO, CAT_OFFICE, CAT_TEXT]
+        all_sets = [
+            CAT_PDF,
+            CAT_MARKDOWN,
+            CAT_CODE,
+            CAT_IMAGE,
+            CAT_VIDEO,
+            CAT_AUDIO,
+            CAT_OFFICE,
+            CAT_TEXT,
+        ]
         for i, s1 in enumerate(all_sets):
             for j, s2 in enumerate(all_sets):
                 if i < j:
@@ -95,20 +137,23 @@ class TestGetCategory:
     def test_known_extension(self, ext: str, expected: str):
         assert get_category_name(ext) == expected
 
-    @pytest.mark.parametrize("ext", [
-        ".exe",
-        ".dll",
-        ".so",
-        ".dmg",
-        ".zip",
-        ".tar",
-        ".gz",
-        ".wma",
-        ".webm",
-        ".flv",
-        "",
-        ".noext",
-    ])
+    @pytest.mark.parametrize(
+        "ext",
+        [
+            ".exe",
+            ".dll",
+            ".so",
+            ".dmg",
+            ".zip",
+            ".tar",
+            ".gz",
+            ".wma",
+            ".webm",
+            ".flv",
+            "",
+            ".noext",
+        ],
+    )
     def test_unknown_extension_returns_other(self, ext: str):
         assert get_category_name(ext) == "Other"
 
@@ -122,3 +167,59 @@ class TestGetCategory:
         assert get_category_name(".YAML") == "Text"
         assert get_category_name(".MP4") == "Video"
         assert get_category_name(".MP3") == "Audio"
+
+
+class TestFileBrowserExport:
+    """Verify file list export uses FileInfo fields correctly."""
+
+    @pytest.fixture
+    def file_info(self, tmp_path: Path) -> FileInfo:
+        now = datetime.now()
+        path = tmp_path / "report.txt"
+        return FileInfo(
+            path=path,
+            name=path.name,
+            extension=".txt",
+            size_bytes=12,
+            size_str="12 B",
+            category=FileCategory.DOCUMENT,
+            mime_type="text/plain",
+            modified_time=now,
+            created_time=now,
+        )
+
+    def test_export_json_uses_extension(self, qtbot, monkeypatch, tmp_path, file_info):
+        from filepilot.ui.file_browser import FileBrowserPanel, QFileDialog
+
+        export_path = tmp_path / "files.json"
+        panel = FileBrowserPanel()
+        qtbot.addWidget(panel)
+        panel.files = [file_info]
+        monkeypatch.setattr(
+            QFileDialog,
+            "getSaveFileName",
+            lambda *args, **kwargs: (str(export_path), "JSON (*.json)"),
+        )
+
+        panel._on_export()
+
+        data = json.loads(export_path.read_text(encoding="utf-8"))
+        assert data[0]["suffix"] == ".txt"
+
+    def test_export_csv_uses_extension(self, qtbot, monkeypatch, tmp_path, file_info):
+        from filepilot.ui.file_browser import FileBrowserPanel, QFileDialog
+
+        export_path = tmp_path / "files.csv"
+        panel = FileBrowserPanel()
+        qtbot.addWidget(panel)
+        panel.files = [file_info]
+        monkeypatch.setattr(
+            QFileDialog,
+            "getSaveFileName",
+            lambda *args, **kwargs: (str(export_path), "CSV (*.csv)"),
+        )
+
+        panel._on_export()
+
+        rows = list(csv.reader(export_path.read_text(encoding="utf-8").splitlines()))
+        assert rows[1][-1] == ".txt"

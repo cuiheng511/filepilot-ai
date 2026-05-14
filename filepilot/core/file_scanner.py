@@ -22,6 +22,7 @@ logger = logging.getLogger("filepilot.scanner")
 @dataclass
 class FileInfo:
     """File metadata information"""
+
     path: Path
     name: str
     extension: str
@@ -48,12 +49,21 @@ class FileScanner:
     """Recursive file scanner"""
 
     IGNORED_DIRS: set[str] = {
-        "__pycache__", ".git", ".svn", ".hg",
-        "node_modules", ".idea", ".vscode",
-        "$RECYCLE.BIN", "System Volume Information",
+        "__pycache__",
+        ".git",
+        ".svn",
+        ".hg",
+        "node_modules",
+        ".idea",
+        ".vscode",
+        "$RECYCLE.BIN",
+        "System Volume Information",
     }
     IGNORED_EXTENSIONS: set[str] = {
-        ".pyc", ".pyo", ".DS_Store", ".lnk",
+        ".pyc",
+        ".pyo",
+        ".DS_Store",
+        ".lnk",
     }
     MAX_FILE_SIZE: int = 500 * 1024 * 1024  # 500 MB
 
@@ -80,6 +90,7 @@ class FileScanner:
             include_dirs: Whether to include directories themselves
             include_hidden: Whether to include hidden files/directories
             max_depth: Maximum recursion depth, -1 for unlimited
+
         """
         root = Path(root_path).resolve()
         if not root.exists():
@@ -155,7 +166,11 @@ class FileScanner:
 
             if entry.is_dir() and recursive and (self.follow_symlinks or not entry.is_symlink()):
                 yield from self._walk(
-                    entry, recursive, include_hidden, max_depth, current_depth + 1
+                    entry,
+                    recursive,
+                    include_hidden,
+                    max_depth,
+                    current_depth + 1,
                 )
 
     def _create_file_info(self, file_path: Path) -> FileInfo:
@@ -190,6 +205,7 @@ class FileScanner:
             root_path: Root directory
             max_files: Maximum file count
             file_types: File extension list, e.g. ['.pdf', '.md']
+
         """
         root = Path(root_path).resolve()
         results: list[FileInfo] = []

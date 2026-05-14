@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from filepilot.extractors.image_extractor import ImageExtractor
 
 
@@ -39,7 +38,8 @@ class TestImageExtractor:
         assert meta["mode"] == "RGB"
         assert meta["width"] == 800
         assert meta["height"] == 600
-        assert "800" in meta["size"] and "600" in meta["size"]
+        assert "800" in meta["size"]
+        assert "600" in meta["size"]
         assert meta["aspect_ratio"] == 1.33
         assert meta["is_animated"] is False
 
@@ -84,7 +84,8 @@ class TestImageExtractor:
 
         text = self.extractor.extract_text("/mock/image.png")
         assert "image.png" in text
-        assert "800" in text and "600" in text
+        assert "800" in text
+        assert "600" in text
         assert "PNG" in text
 
     @patch.dict("sys.modules", {"PIL": MagicMock()})

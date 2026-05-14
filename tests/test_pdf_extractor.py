@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from filepilot.extractors.pdf_extractor import PDFExtractor
 
 
@@ -21,10 +20,12 @@ class TestPDFExtractor:
         mock_fitz = sys.modules["fitz"]
         mock_doc = MagicMock()
         mock_doc.__enter__.return_value = mock_doc
-        mock_doc.__iter__.return_value = iter([
-            MagicMock(get_text=MagicMock(return_value="Page 1 content")),
-            MagicMock(get_text=MagicMock(return_value="Page 2 content")),
-        ])
+        mock_doc.__iter__.return_value = iter(
+            [
+                MagicMock(get_text=MagicMock(return_value="Page 1 content")),
+                MagicMock(get_text=MagicMock(return_value="Page 2 content")),
+            ]
+        )
         mock_fitz.open.return_value = mock_doc
 
         text = self.extractor.extract_text("/mock/doc.pdf")

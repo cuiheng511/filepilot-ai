@@ -65,7 +65,8 @@ class TestSummarizer:
     def test_extract_keywords(self, mock_local_ai, mock_cloud_ai):
         summarizer = Summarizer(local_ai=mock_local_ai, cloud_ai=mock_cloud_ai)
         keywords = summarizer.extract_keywords(
-            "apple banana apple cherry banana apple date", top_n=3
+            "apple banana apple cherry banana apple date",
+            top_n=3,
         )
         # "apple" appears 3 times, "banana" 2 times, "cherry" 1 time
         assert "apple" in keywords
@@ -75,7 +76,9 @@ class TestSummarizer:
     def test_summarize_file_txt(self, mock_local_ai, mock_cloud_ai, tmp_path):
         """summarize() with a .txt file extracts content and generates summary"""
         test_file = tmp_path / "test.txt"
-        test_file.write_text("This is some test content that should be summarized.", encoding="utf-8")
+        test_file.write_text(
+            "This is some test content that should be summarized.", encoding="utf-8"
+        )
 
         summarizer = Summarizer(local_ai=mock_local_ai, cloud_ai=mock_cloud_ai)
         result = summarizer.summarize(test_file, max_length=100)

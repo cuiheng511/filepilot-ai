@@ -29,6 +29,7 @@ Thumbs.db
 *.log
 *.spec
 !/FilePilot.spec
+.kilo/
 
 # Installers
 *.exe

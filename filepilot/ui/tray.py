@@ -51,9 +51,11 @@ class SystemTrayManager(QObject):
         if icon_path.exists():
             self._tray_icon.setIcon(QIcon(str(icon_path)))
         else:
-            self._tray_icon.setIcon(self._tray_icon.style().standardIcon(
-                QSystemTrayIcon.Style.SP_ComputerIcon
-            ))
+            self._tray_icon.setIcon(
+                self._tray_icon.style().standardIcon(
+                    QSystemTrayIcon.Style.SP_ComputerIcon,
+                )
+            )
 
         self._tray_icon.setToolTip(t("tray_tooltip"))
 
@@ -120,9 +122,7 @@ class SystemTrayManager(QObject):
         """Stop watching a directory"""
         if self._watcher:
             self._watcher.unwatch(dir_path)
-            self._watched_dirs = [
-                d for d in self._watched_dirs if d != str(dir_path)
-            ]
+            self._watched_dirs = [d for d in self._watched_dirs if d != str(dir_path)]
 
     def unwatch_all(self):
         """Stop watching all directories"""

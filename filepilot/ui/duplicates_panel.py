@@ -28,7 +28,9 @@ from filepilot.ui.base_panel import BasePanel
 class DuplicatesPanel(BasePanel):
     """Duplicate file finder panel"""
 
-    def __init__(self, finder: DuplicateFinder | None = None, scanner: FileScanner | None = None, parent=None):
+    def __init__(
+        self, finder: DuplicateFinder | None = None, scanner: FileScanner | None = None, parent=None
+    ):
         super().__init__(parent)
         self.source_dir: Path | None = None
         self.files: list[FileInfo] = []
@@ -39,7 +41,9 @@ class DuplicatesPanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
-    def update_services(self, scanner: FileScanner | None = None, finder: DuplicateFinder | None = None):
+    def update_services(
+        self, scanner: FileScanner | None = None, finder: DuplicateFinder | None = None
+    ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
@@ -58,7 +62,7 @@ class DuplicatesPanel(BasePanel):
 
         desc = QLabel(
             "Find duplicate files based on content hash to free up disk space.\n"
-            "Algorithm: group by size -> partial hash filter -> full SHA256 verification."
+            "Algorithm: group by size -> partial hash filter -> full SHA256 verification.",
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -181,7 +185,9 @@ class DuplicatesPanel(BasePanel):
 
     @Slot()
     def _on_select_source(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select folder to scan", str(self.source_dir or Path.home()))
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "Select folder to scan", str(self.source_dir or Path.home())
+        )
         if dir_path:
             self.source_dir = Path(dir_path)
             self.dir_label.setText(f"📂 {dir_path}")
@@ -256,8 +262,10 @@ class DuplicatesPanel(BasePanel):
 
             if not self._cancelled:
                 from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
                 QMetaObject.invokeMethod(
-                    self, "_display_results",
+                    self,
+                    "_display_results",
                     Qt.QueuedConnection,
                     Q_ARG(list, groups),
                     Q_ARG(list, similar_groups),
@@ -267,7 +275,12 @@ class DuplicatesPanel(BasePanel):
         Thread(target=worker, daemon=True).start()
 
     @Slot(list, list, list)
-    def _display_results(self, groups: list[list[FileInfo]], similar_groups: list[list[FileInfo]], files: list = None):
+    def _display_results(
+        self,
+        groups: list[list[FileInfo]],
+        similar_groups: list[list[FileInfo]],
+        files: list | None = None,
+    ):
         """Display deduplication results"""
         if files is not None:
             self.files = files
@@ -284,7 +297,7 @@ class DuplicatesPanel(BasePanel):
             group_item = QTreeWidgetItem(self.result_tree)
             group_item.setText(
                 0,
-                f"📋 Duplicate Group #{i}  ({len(group)} files, {wasted_str} reclaimable)"
+                f"📋 Duplicate Group #{i}  ({len(group)} files, {wasted_str} reclaimable)",
             )
             group_item.setToolTip(0, f"Keep: {kept.path}\nWasted space: {wasted_str}")
             group_item.setExpanded(i <= 3)  # Expand first 3 groups by default
@@ -306,15 +319,15 @@ class DuplicatesPanel(BasePanel):
                 # First file marked as "keep"
                 if j == 0:
                     child.setText(0, f"⭐ {f.name} (keep)")
-                    child.setForeground(0, Qt.green)
+                    child.setForeground(0, Qt.green)  # type: ignore[attr-defined]
 
                 if j == 0:
-                    child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)
-                    child.setCheckState(0, Qt.Unchecked)
+                    child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
+                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
                 else:
-                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                    child.setCheckState(0, Qt.Unchecked)
-                child.setData(0, Qt.UserRole, str(f.path))
+                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
+                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
+                child.setData(0, Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
 
         # ── Similar file name groups ──
         if similar_groups:
@@ -335,9 +348,9 @@ class DuplicatesPanel(BasePanel):
                     child.setText(1, str(f.path))
                     child.setText(2, f.size_str)
                     child.setToolTip(0, str(f.path))
-                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                    child.setCheckState(0, Qt.Unchecked)
-                    child.setData(0, Qt.UserRole, str(f.path))
+                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
+                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
+                    child.setData(0, Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
 
         # ── Update stats ──
         stats = self.finder.get_duplicate_stats(groups)
@@ -359,7 +372,7 @@ class DuplicatesPanel(BasePanel):
             self.status_message.emit(
                 f"🔍 Found {stats['groups']} duplicate groups, "
                 f"{stats['duplicate_files']} duplicate files, "
-                f"can reclaim {stats['wasted_space_str']}"
+                f"can reclaim {stats['wasted_space_str']}",
             )
         else:
             self.status_message.emit("✅ No duplicates found")
@@ -371,7 +384,9 @@ class DuplicatesPanel(BasePanel):
         """Delete selected duplicate files"""
         selected_paths = self._get_checked_paths()
         if not selected_paths:
-            self.status_message.emit("⚠️ Please check the files to delete (keep at least one per group)")
+            self.status_message.emit(
+                "⚠️ Please check the files to delete (keep at least one per group)"
+            )
             return
 
         try:
@@ -381,6 +396,7 @@ class DuplicatesPanel(BasePanel):
             return
 
         from PySide6.QtWidgets import QMessageBox
+
         reply = QMessageBox.warning(
             self,
             "Confirm Deletion",
@@ -402,7 +418,9 @@ class DuplicatesPanel(BasePanel):
                 errors += 1
 
         # Re-scan
-        self.status_message.emit(f"✅ Deleted {deleted} files" + (f", {errors} failed" if errors else ""))
+        self.status_message.emit(
+            f"✅ Deleted {deleted} files" + (f", {errors} failed" if errors else "")
+        )
         self._on_scan()
 
     @Slot()
@@ -430,8 +448,8 @@ class DuplicatesPanel(BasePanel):
                 continue
             for j in range(group.childCount()):
                 child = group.child(j)
-                if child.checkState(0) == Qt.Checked:
-                    path = child.data(0, Qt.UserRole)
+                if child.checkState(0) == Qt.Checked:  # type: ignore[attr-defined]
+                    path = child.data(0, Qt.UserRole)  # type: ignore[attr-defined]
                     if path:
                         paths.append(path)
         return paths
@@ -452,4 +470,5 @@ class DuplicatesPanel(BasePanel):
     def _format_bytes(self, size: int) -> str:
         """Format byte size to human-readable string"""
         from filepilot.utils.file_utils import get_file_size_str
+
         return get_file_size_str(size)

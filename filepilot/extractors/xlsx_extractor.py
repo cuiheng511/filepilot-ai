@@ -35,7 +35,9 @@ class XlsxExtractor:
         try:
             with open(file_path, encoding="utf-8", errors="replace") as f:
                 reader = csv.reader(f)
-                return "\n".join(" | ".join(row) for row in reader if any(cell.strip() for cell in row))
+                return "\n".join(
+                    " | ".join(row) for row in reader if any(cell.strip() for cell in row)
+                )
         except Exception:
             return ""
 

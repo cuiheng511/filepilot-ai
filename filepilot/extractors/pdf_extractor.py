@@ -44,7 +44,9 @@ class PDFExtractor:
         except Exception:
             return {}
 
-    def extract_images(self, file_path: str | Path, output_dir: str | Path | None = None) -> list[str]:
+    def extract_images(
+        self, file_path: str | Path, output_dir: str | Path | None = None
+    ) -> list[str]:
         """Extract images from a PDF file"""
         try:
             import fitz

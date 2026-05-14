@@ -33,6 +33,7 @@ def get_cached_results(query: str) -> list[dict] | None:
 
     Returns:
         Cached results list, or None if not found/expired
+
     """
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -52,7 +53,7 @@ def get_cached_results(query: str) -> list[dict] | None:
             return None
 
         logger.debug("Cache hit for query hash: %s", query_hash)
-        return data["results"]
+        return data["results"]  # type: ignore[no-any-return]
 
     except (json.JSONDecodeError, KeyError, OSError):
         logger.debug("Cache read failed for query hash: %s", query_hash)
@@ -65,6 +66,7 @@ def cache_results(query: str, results: list[dict]) -> None:
     Args:
         query: The search query string
         results: List of search result dicts
+
     """
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -110,6 +112,7 @@ def clear_search_cache() -> int:
 
     Returns:
         Number of entries removed
+
     """
     if not CACHE_DIR.exists():
         return 0
@@ -128,6 +131,7 @@ def get_cache_stats() -> dict:
 
     Returns:
         Dict with cache statistics
+
     """
     if not CACHE_DIR.exists():
         return {"entries": 0, "total_size_bytes": 0}

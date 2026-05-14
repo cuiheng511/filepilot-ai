@@ -17,6 +17,7 @@ class TestIndexPanelInitialState:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
@@ -56,6 +57,7 @@ class TestIndexPanelInitialState:
     def test_initial_stats_placeholder(self):
         """Test initial stats show placeholder"""
         from PySide6.QtWidgets import QLabel
+
         value = self.panel.stat_indexed.findChild(QLabel, "statValue")
         assert value is not None
 
@@ -79,13 +81,15 @@ class TestIndexPanelFolderSelection:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
     def test_select_source_updates_label(self, tmp_path):
         """Test selecting source folder updates the label"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=str(tmp_path)):
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
             self.panel._on_select_source()
 
         assert self.panel.source_dir == tmp_path
@@ -95,8 +99,7 @@ class TestIndexPanelFolderSelection:
 
     def test_select_source_cancel(self):
         """Test canceling source folder selection"""
-        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory",
-                   return_value=""):
+        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""):
             self.panel._on_select_source()
 
         assert self.panel.source_dir is None
@@ -113,6 +116,7 @@ class TestIndexPanelStats:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
@@ -124,13 +128,19 @@ class TestIndexPanelStats:
             "index_dir": "/tmp/index",
         }
         self.panel.indexer.get_all_indexed.return_value = [
-            {"filename": "test.md", "path": "/tmp/test.md",
-             "category": "Markdown", "size_str": "1 KB", "modified": "2024-01-15"},
+            {
+                "filename": "test.md",
+                "path": "/tmp/test.md",
+                "category": "Markdown",
+                "size_str": "1 KB",
+                "modified": "2024-01-15",
+            },
         ]
 
         self.panel._refresh_stats()
 
         from PySide6.QtWidgets import QLabel
+
         # Verify stats cards updated
         stat_value = self.panel.stat_indexed.findChild(QLabel, "statValue")
         assert stat_value.text() == "42"
@@ -152,7 +162,9 @@ class TestIndexPanelStats:
     def test_refresh_stats_calls_get_all_indexed(self):
         """Test refresh stats calls get_all_indexed"""
         self.panel.indexer.get_stats.return_value = {
-            "indexed_files": 5, "index_size": "10 KB", "index_dir": "/tmp/index",
+            "indexed_files": 5,
+            "index_size": "10 KB",
+            "index_dir": "/tmp/index",
         }
         self.panel.indexer.get_all_indexed.return_value = []
 
@@ -163,6 +175,7 @@ class TestIndexPanelStats:
     def test_update_stat_finds_correct_card(self):
         """Test _update_stat finds and updates the correct stat card"""
         from PySide6.QtWidgets import QLabel
+
         self.panel._update_stat("📄 Indexed Files", "99")
 
         stat_value = self.panel.stat_indexed.findChild(QLabel, "statValue")
@@ -180,6 +193,7 @@ class TestIndexPanelBuildAndUpdate:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
             self.panel.source_dir = tmp_path
@@ -194,6 +208,7 @@ class TestIndexPanelBuildAndUpdate:
     def test_build_shows_confirmation(self):
         """Test build shows confirmation dialog"""
         from PySide6.QtWidgets import QMessageBox
+
         with (
             patch.object(QMessageBox, "question", return_value=QMessageBox.Yes),
             patch.object(self.panel, "_start_indexing") as mock_start,
@@ -213,7 +228,9 @@ class TestIndexPanelBuildAndUpdate:
         self.panel._indexing = True
         self.panel.source_dir = Path("/tmp")
         self.panel.indexer.get_stats.return_value = {
-            "indexed_files": 10, "index_size": "256 KB", "index_dir": "/tmp/index",
+            "indexed_files": 10,
+            "index_size": "256 KB",
+            "index_dir": "/tmp/index",
         }
         self.panel.indexer.get_all_indexed.return_value = []
 
@@ -249,15 +266,19 @@ class TestIndexPanelClear:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
     def test_clear_index_success(self):
         """Test successful index clearing"""
         from PySide6.QtWidgets import QMessageBox
+
         self.panel.indexer.clear_index = MagicMock()
         self.panel.indexer.get_stats.return_value = {
-            "indexed_files": 0, "index_size": "0 B", "index_dir": "/tmp/index",
+            "indexed_files": 0,
+            "index_size": "0 B",
+            "index_dir": "/tmp/index",
         }
 
         with (
@@ -271,6 +292,7 @@ class TestIndexPanelClear:
     def test_clear_index_error_handling(self):
         """Test error handling when clearing index"""
         from PySide6.QtWidgets import QMessageBox
+
         self.panel.indexer.clear_index.side_effect = Exception("Permission denied")
 
         with patch.object(QMessageBox, "warning", return_value=QMessageBox.Yes):
@@ -290,11 +312,13 @@ class TestIndexPanelContextMenu:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
             # Populate table with some data
             self.panel.file_table.setRowCount(2)
             from PySide6.QtWidgets import QTableWidgetItem
+
             self.panel.file_table.setItem(0, 0, QTableWidgetItem("a.md"))
             self.panel.file_table.setItem(0, 1, QTableWidgetItem("/tmp/a.md"))
             self.panel.file_table.setItem(1, 0, QTableWidgetItem("b.md"))
@@ -338,6 +362,7 @@ class TestIndexPanelMockIntegration:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
@@ -375,7 +400,9 @@ class TestIndexPanelMockIntegration:
         self.panel.scanner.scan.return_value = [mock_file]
         self.panel.indexer.index_files.return_value = 1
         self.panel.indexer.get_stats.return_value = {
-            "indexed_files": 1, "index_size": "10 KB", "index_dir": str(tmp_path),
+            "indexed_files": 1,
+            "index_size": "10 KB",
+            "index_dir": str(tmp_path),
         }
 
         # Simulate indexing finished
@@ -396,6 +423,7 @@ class TestIndexPanelEdgeCases:
             FileIndexer=MagicMock(),
         ):
             from filepilot.ui.index_panel import IndexPanel
+
             self.panel = IndexPanel()
             qtbot.addWidget(self.panel)
 
@@ -433,10 +461,20 @@ class TestIndexPanelEdgeCases:
     def test_load_indexed_files_with_data(self):
         """Test loading index list with data"""
         self.panel.indexer.get_all_indexed.return_value = [
-            {"filename": "a.py", "path": "/tmp/a.py", "category": "Code",
-             "size_str": "1 KB", "modified": "2024-01-15"},
-            {"filename": "b.md", "path": "/tmp/b.md", "category": "Markdown",
-             "size_str": "2 KB", "modified": "2024-01-16"},
+            {
+                "filename": "a.py",
+                "path": "/tmp/a.py",
+                "category": "Code",
+                "size_str": "1 KB",
+                "modified": "2024-01-15",
+            },
+            {
+                "filename": "b.md",
+                "path": "/tmp/b.md",
+                "category": "Markdown",
+                "size_str": "2 KB",
+                "modified": "2024-01-16",
+            },
         ]
 
         self.panel._load_indexed_files()

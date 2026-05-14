@@ -9,6 +9,7 @@ import pytest
 def qapp_class():
     """Provide QApplication subclass for pytest-qt"""
     from PySide6.QtWidgets import QApplication
+
     return QApplication
 
 
@@ -28,7 +29,7 @@ def temp_dir(tmp_path: Path) -> Path:
         "\n"
         "class Calculator:\n"
         "    def add(self, a, b):\n"
-        "        return a + b\n"
+        "        return a + b\n",
     )
     (root / "notes.pdf").write_bytes(b"%PDF-1.4 dummy pdf content for testing")
     (root / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n")

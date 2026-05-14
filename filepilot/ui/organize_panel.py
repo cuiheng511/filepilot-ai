@@ -41,7 +41,12 @@ class OrganizePanel(BasePanel):
         "size": SizeRule,
     }
 
-    def __init__(self, organizer: FileOrganizer | None = None, scanner: FileScanner | None = None, parent=None):
+    def __init__(
+        self,
+        organizer: FileOrganizer | None = None,
+        scanner: FileScanner | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.source_dir: Path | None = None
         self.target_dir: Path | None = None
@@ -52,7 +57,9 @@ class OrganizePanel(BasePanel):
         self._setup_ui()
         self._connect_signals()
 
-    def update_services(self, scanner: FileScanner | None = None, organizer: FileOrganizer | None = None):
+    def update_services(
+        self, scanner: FileScanner | None = None, organizer: FileOrganizer | None = None
+    ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
@@ -71,7 +78,7 @@ class OrganizePanel(BasePanel):
 
         desc = QLabel(
             "Select source and target folders, configure rules, and organize files.\n"
-            "Supports auto-classification by type, date, extension, size, and smart renaming."
+            "Supports auto-classification by type, date, extension, size, and smart renaming.",
         )
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
@@ -132,7 +139,9 @@ class OrganizePanel(BasePanel):
         rename_layout = QHBoxLayout()
         rename_layout.addWidget(QLabel("\u270f\ufe0f Rename Template:"))
         self.rename_input = QLineEdit()
-        self.rename_input.setPlaceholderText("Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}")
+        self.rename_input.setPlaceholderText(
+            "Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}"
+        )
         rename_layout.addWidget(self.rename_input, 1)
 
         self.template_btn = QPushButton("Template Help")
@@ -142,7 +151,7 @@ class OrganizePanel(BasePanel):
             "  {date}     \u2014 Modified date (2024-01-15)\n"
             "  {time}     \u2014 Modified time (143022)\n"
             "  {ext}      \u2014 Extension (pdf)\n"
-            "  {category} \u2014 File category (Document)"
+            "  {category} \u2014 File category (Document)",
         )
         self.template_btn.clicked.connect(self._on_template_help)
         rename_layout.addWidget(self.template_btn)
@@ -191,7 +200,9 @@ class OrganizePanel(BasePanel):
         # ── Results Table ──
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(5)
-        self.result_table.setHorizontalHeaderLabels(["Source Path", "Target Path", "Category", "Size", "Status"])
+        self.result_table.setHorizontalHeaderLabels(
+            ["Source Path", "Target Path", "Category", "Size", "Status"]
+        )
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setAlternatingRowColors(True)
         self.result_table.horizontalHeader().setStretchLastSection(True)
@@ -234,7 +245,9 @@ class OrganizePanel(BasePanel):
 
     @Slot()
     def _on_select_target(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Target Folder", str(self.target_dir or Path.home()))
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "Select Target Folder", str(self.target_dir or Path.home())
+        )
         if dir_path:
             self.target_dir = Path(dir_path)
             self.dst_path_label.setText(f"\U0001f3af {dir_path}")
@@ -245,6 +258,7 @@ class OrganizePanel(BasePanel):
     @Slot()
     def _on_template_help(self):
         from PySide6.QtWidgets import QMessageBox
+
         QMessageBox.information(
             self,
             "Rename Template Variables",
@@ -257,7 +271,7 @@ class OrganizePanel(BasePanel):
             "<b>Examples:</b><br>"
             "<code>{date}_{name}</code> \u2192 2024-01-15_report<br>"
             "<code>{category}/{name}</code> \u2192 Document/report<br>"
-            "<code>{date}_{category}_{name}</code> \u2192 2024-01-15_Document_report"
+            "<code>{date}_{category}_{name}</code> \u2192 2024-01-15_Document_report",
         )
 
     # ── Get Selected Rules ──
@@ -272,7 +286,7 @@ class OrganizePanel(BasePanel):
             rules.append(ExtensionRule())
         if self.cb_size.isChecked():
             rules.append(SizeRule())
-        return rules if rules else [CategoryRule()]
+        return rules or [CategoryRule()]
 
     # ── Preview ──
 
@@ -314,6 +328,7 @@ class OrganizePanel(BasePanel):
             ):
                 if self._cancelled:
                     from PySide6.QtCore import QMetaObject, Qt
+
                     QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
                     return
                 files.append(f)
@@ -336,8 +351,10 @@ class OrganizePanel(BasePanel):
             )
 
             from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
             QMetaObject.invokeMethod(
-                self, "_display_preview",
+                self,
+                "_display_preview",
                 Qt.QueuedConnection,
                 Q_ARG(list, operations),
                 Q_ARG(list, files),
@@ -346,7 +363,7 @@ class OrganizePanel(BasePanel):
         Thread(target=worker, daemon=True).start()
 
     @Slot()
-    def _display_preview(self, operations: list[dict], files: list = None):
+    def _display_preview(self, operations: list[dict], files: list | None = None):
         """Display preview results"""
         if files is not None:
             self.files = files
@@ -360,8 +377,8 @@ class OrganizePanel(BasePanel):
             self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
 
             status = QTableWidgetItem("\U0001f4cb Preview")
-            status.setTextAlignment(Qt.AlignCenter)
-            status.setForeground(Qt.gray)
+            status.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+            status.setForeground(Qt.gray)  # type: ignore[attr-defined]
             self.result_table.setItem(row, 4, status)
 
         self.result_table.setSortingEnabled(True)
@@ -369,9 +386,12 @@ class OrganizePanel(BasePanel):
         self.btn_execute.setEnabled(len(operations) > 0)
         self.progress_bar.setVisible(False)
 
+        target_root = self.target_dir or (
+            (self.source_dir / "_organized") if self.source_dir else Path()
+        )
         self.stats_label.setText(
             f"\U0001f441\ufe0f Preview: {len(operations)} files will be organized, "
-            f"target: {self.target_dir or self.source_dir / '_organized'}"
+            f"target: {target_root}",
         )
 
     # ── Execute ──
@@ -393,6 +413,7 @@ class OrganizePanel(BasePanel):
             return
 
         from PySide6.QtWidgets import QMessageBox
+
         reply = QMessageBox.question(
             self,
             "Confirm Organization",
@@ -421,6 +442,7 @@ class OrganizePanel(BasePanel):
 
             if self._cancelled:
                 from PySide6.QtCore import QMetaObject, Qt
+
                 QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
                 return
 
@@ -432,14 +454,16 @@ class OrganizePanel(BasePanel):
                 rename=rename,
                 rename_pattern=pattern or None,
                 progress_callback=lambda i, name: self.progress_updated.emit(
-                    int(i / len(self.files) * 100)
+                    int(i / len(self.files) * 100),
                 ),
             )
 
             if not self._cancelled:
                 from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
                 QMetaObject.invokeMethod(
-                    self, "_display_execution",
+                    self,
+                    "_display_execution",
                     Qt.QueuedConnection,
                     Q_ARG(list, operations),
                 )
@@ -462,9 +486,9 @@ class OrganizePanel(BasePanel):
             is_dry = op.get("dry_run", False)
             status_text = "\u2705 Moved" if not is_dry else "\U0001f4cb Preview"
             status_item = QTableWidgetItem(status_text)
-            status_item.setTextAlignment(Qt.AlignCenter)
+            status_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
             if not is_dry:
-                status_item.setForeground(Qt.green)
+                status_item.setForeground(Qt.green)  # type: ignore[attr-defined]
                 done += 1
             self.result_table.setItem(row, 4, status_item)
 
@@ -483,22 +507,25 @@ class OrganizePanel(BasePanel):
         stats = self.organizer.stats
         self.stats_label.setText(
             f"\u2705 Organization complete: {stats['organized_count']} files moved"
-            + (f", {stats['errors']} errors" if stats["errors"] else "")
+            + (f", {stats['errors']} errors" if stats["errors"] else ""),
         )
 
     @Slot()
     def _on_undo(self):
         """Undo last organize operation"""
         from PySide6.QtWidgets import QMessageBox
+
         undo_path = Path.home() / ".filepilot" / "last_undo.json"
         if not undo_path.exists():
             QMessageBox.warning(self, "Undo Failed", "No undo log found")
             return
 
         reply = QMessageBox.question(
-            self, "Confirm Undo",
+            self,
+            "Confirm Undo",
             "Undo the last organize operation? Files will be moved back to their original locations.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -506,7 +533,7 @@ class OrganizePanel(BasePanel):
         result = self.organizer.undo(undo_path)
         self.stats_label.setText(
             f"\u21a9\ufe0f Undo complete: restored {result['restored']} files"
-            + (f", {result['errors']} failed" if result['errors'] else "")
+            + (f", {result['errors']} failed" if result["errors"] else ""),
         )
         self.btn_undo.setEnabled(False)
         self.result_table.setRowCount(0)

@@ -35,8 +35,15 @@ class OllamaProvider(AIProvider):
     def provider_name(self) -> str:
         return "Ollama"
 
-    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=2048,
-                 stream=False, on_token=None) -> str:
+    def generate(
+        self,
+        prompt,
+        system_prompt=None,
+        temperature=0.7,
+        max_tokens=2048,
+        stream=False,
+        on_token=None,
+    ) -> str:
         if not self._available:
             return ""
         payload = {
@@ -48,8 +55,8 @@ class OllamaProvider(AIProvider):
         if system_prompt:
             payload["system"] = system_prompt
         if stream:
-            return self._stream_generate(payload, on_token)
-        return self._simple_generate(payload)
+            return self._stream_generate(payload, on_token)  # type: ignore[no-any-return]
+        return self._simple_generate(payload)  # type: ignore[no-any-return]
 
     def _simple_generate(self, payload):
         try:
@@ -63,7 +70,9 @@ class OllamaProvider(AIProvider):
     def _stream_generate(self, payload, on_token):
         full = []
         try:
-            with requests.post(f"{self.api_base}/api/generate", json=payload, stream=True, timeout=120) as resp:
+            with requests.post(
+                f"{self.api_base}/api/generate", json=payload, stream=True, timeout=120
+            ) as resp:
                 for line in resp.iter_lines():
                     if line:
                         try:
@@ -81,13 +90,18 @@ class OllamaProvider(AIProvider):
         if not self._available:
             return ""
         try:
-            resp = requests.post(f"{self.api_base}/api/chat", json={
-                "model": self.model, "messages": messages,
-                "options": {"temperature": temperature, "num_predict": max_tokens},
-                "stream": False,
-            }, timeout=120)
+            resp = requests.post(
+                f"{self.api_base}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "options": {"temperature": temperature, "num_predict": max_tokens},
+                    "stream": False,
+                },
+                timeout=120,
+            )
             if resp.status_code == 200:
-                return resp.json().get("message", {}).get("content", "")
+                return resp.json().get("message", {}).get("content", "")  # type: ignore[no-any-return]
         except requests.RequestException:
             self._available = False
         return ""
@@ -96,10 +110,13 @@ class OllamaProvider(AIProvider):
         if not self._available:
             return []
         try:
-            resp = requests.post(f"{self.api_base}/api/embeddings",
-                                 json={"model": self.model, "prompt": text}, timeout=30)
+            resp = requests.post(
+                f"{self.api_base}/api/embeddings",
+                json={"model": self.model, "prompt": text},
+                timeout=30,
+            )
             if resp.status_code == 200:
-                return resp.json().get("embedding", [])
+                return resp.json().get("embedding", [])  # type: ignore[no-any-return]
         except requests.RequestException:
             self._available = False
         return []
@@ -139,15 +156,22 @@ class LlamaCppProvider(AIProvider):
     def provider_name(self) -> str:
         return "llama.cpp"
 
-    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=2048,
-                 stream=False, on_token=None) -> str:
+    def generate(
+        self,
+        prompt,
+        system_prompt=None,
+        temperature=0.7,
+        max_tokens=2048,
+        stream=False,
+        on_token=None,
+    ) -> str:
         if not self._available:
             return ""
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        return self._chat_completions(messages, temperature, max_tokens, stream, on_token)
+        return self._chat_completions(messages, temperature, max_tokens, stream, on_token)  # type: ignore[no-any-return]
 
     def _chat_completions(self, messages, temperature, max_tokens, stream, on_token):
         payload = {
@@ -161,8 +185,13 @@ class LlamaCppProvider(AIProvider):
         try:
             if stream:
                 full = []
-                with requests.post(f"{self.api_base}/v1/chat/completions",
-                                   json=payload, headers=headers, stream=True, timeout=120) as resp:
+                with requests.post(
+                    f"{self.api_base}/v1/chat/completions",
+                    json=payload,
+                    headers=headers,
+                    stream=True,
+                    timeout=120,
+                ) as resp:
                     for line in resp.iter_lines():
                         if line:
                             line = line.decode("utf-8", errors="replace")
@@ -177,24 +206,27 @@ class LlamaCppProvider(AIProvider):
                                 except (json.JSONDecodeError, KeyError):
                                     continue
                 return "".join(full)
-            else:
-                resp = requests.post(f"{self.api_base}/v1/chat/completions",
-                                     json=payload, headers=headers, timeout=120)
-                if resp.status_code == 200:
-                    return resp.json()["choices"][0]["message"]["content"]
+            resp = requests.post(
+                f"{self.api_base}/v1/chat/completions", json=payload, headers=headers, timeout=120
+            )
+            if resp.status_code == 200:
+                return resp.json()["choices"][0]["message"]["content"]
         except requests.RequestException:
             self._available = False
         return ""
 
     def chat(self, messages, temperature=0.7, max_tokens=2048) -> str:
-        return self._chat_completions(messages, temperature, max_tokens, False, None)
+        return self._chat_completions(messages, temperature, max_tokens, False, None)  # type: ignore[no-any-return]
 
     def embed(self, text) -> list[float]:
         try:
-            resp = requests.post(f"{self.api_base}/v1/embeddings",
-                                 json={"input": text, "model": self.model}, timeout=30)
+            resp = requests.post(
+                f"{self.api_base}/v1/embeddings",
+                json={"input": text, "model": self.model},
+                timeout=30,
+            )
             if resp.status_code == 200:
-                return resp.json()["data"][0]["embedding"]
+                return resp.json()["data"][0]["embedding"]  # type: ignore[no-any-return]
         except (requests.RequestException, KeyError):
             pass
         return []

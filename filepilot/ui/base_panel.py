@@ -2,6 +2,7 @@
 
 Provides shared signals, cancel operation support, and stat card methods.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal, Slot
@@ -72,11 +73,11 @@ class BasePanel(QWidget):
 
         title_label = QLabel(title)
         title_label.setObjectName("statTitle")
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
 
         value_label = QLabel(value)
         value_label.setObjectName("statValue")
-        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
 
         layout.addWidget(title_label)
         layout.addWidget(value_label)

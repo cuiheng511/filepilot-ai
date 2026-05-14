@@ -24,7 +24,8 @@ class FileWatcher(QObject):
     @property
     def is_available(self) -> bool:
         import importlib
-        return importlib.util.find_spec("watchdog") is not None
+
+        return importlib.util.find_spec("watchdog") is not None  # type: ignore[attr-defined]
 
     def watch(self, directory: str | Path):
         dir_path = str(Path(directory).resolve())
@@ -72,7 +73,7 @@ class FileWatcher(QObject):
         dir_path = str(Path(directory).resolve())
         observer = self._watched_dirs.pop(dir_path, None)
         if observer:
-            observer.stop()
+            observer.stop()  # type: ignore[attr-defined]
             observer.join(timeout=2)
             logger.info("Stopped watching %s", dir_path)
 

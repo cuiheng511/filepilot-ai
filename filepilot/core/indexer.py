@@ -7,7 +7,6 @@ from pathlib import Path
 
 from whoosh import fields, index
 from whoosh.analysis import StandardAnalyzer
-from whoosh.filedb.filestore import FileStorage
 from whoosh.qparser import FuzzyTermPlugin, MultifieldParser
 from whoosh.query import Every
 
@@ -44,10 +43,10 @@ class FileIndexer:
 
     def _open_or_create_index(self) -> index.Index:
         """Open or create index"""
-        storage = FileStorage(str(self.index_dir))
-        if index.exists_in(storage):
-            return storage.open_index()
-        return storage.create_index(self.SCHEMA)
+        index_path = str(self.index_dir)
+        if index.exists_in(index_path):
+            return index.open_dir(index_path)
+        return index.create_in(index_path, self.SCHEMA)
 
     def index_files(
         self,
@@ -66,6 +65,7 @@ class FileIndexer:
 
         Returns:
             Number of indexed files
+
         """
         writer = self._ix.writer()
         indexed = 0
@@ -130,6 +130,7 @@ class FileIndexer:
 
         Returns:
             List of search results
+
         """
         fields = fields or ["filename", "content", "summary", "category"]
         parser = MultifieldParser(fields, schema=self._ix.schema)
@@ -234,7 +235,7 @@ class FileIndexer:
             for field_name in ["content", "summary", "filename"]:
                 fragment = result.highlights(field_name, top=2)
                 if fragment:
-                    return fragment
+                    return fragment  # type: ignore[no-any-return]
         except Exception:
             pass
         return ""
@@ -252,4 +253,5 @@ class FileIndexer:
             if f.is_file():
                 total += f.stat().st_size
         from filepilot.utils.file_utils import get_file_size_str
+
         return get_file_size_str(total)

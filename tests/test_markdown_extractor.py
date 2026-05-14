@@ -1,6 +1,5 @@
 """Tests for MarkdownExtractor"""
 
-
 from filepilot.extractors.markdown_extractor import MarkdownExtractor
 
 

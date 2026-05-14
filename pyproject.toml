@@ -4,10 +4,42 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filepilot-ai"
-version = "0.1.0"
-description = "Smart File Manager — Automatically organize, categorize, and search your local files"
+version = "0.3.0"
+description = "Local-first AI file manager for scanning, searching, deduplicating, summarizing, and organizing files"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    {name = "cuiheng511"},
+]
+license = {text = "MIT"}
+keywords = [
+    "file-manager",
+    "file-organization",
+    "file-search",
+    "duplicate-detection",
+    "desktop-app",
+    "qt6",
+    "pyside6",
+    "ai",
+    "productivity",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Chinese (Simplified)",
+    "Natural Language :: English",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment :: File Managers",
+    "Topic :: Utilities",
+]
 dependencies = [
     "PySide6>=6.6.0",
     "Whoosh>=2.7.4",
@@ -23,10 +55,25 @@ dependencies = [
     "python-pptx>=0.6.21",
     "send2trash>=1.8.0",
     "watchdog>=4.0.0",
+    "cryptography>=42.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cuiheng511/filepilot-ai"
+Repository = "https://github.com/cuiheng511/filepilot-ai.git"
+Documentation = "https://github.com/cuiheng511/filepilot-ai#readme"
+Changelog = "https://github.com/cuiheng511/filepilot-ai/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/cuiheng511/filepilot-ai/issues"
 
 [tool.setuptools.packages.find]
 include = ["filepilot*"]
+
+[tool.setuptools.package-data]
+filepilot = [
+    "resources/*.ico",
+    "resources/*.png",
+    "styles/themes/*.qss",
+]
 
 [project.optional-dependencies]
 test = [
@@ -48,6 +95,16 @@ testpaths = ["tests"]
 target-version = "py310"
 line-length = 100
 fix = true
+exclude = [
+    ".git",
+    ".kilo",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+]
 
 [tool.ruff.lint]
 select = [

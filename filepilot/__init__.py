@@ -1,6 +1,5 @@
-"""
-FilePilot AI — Intelligent File Manager
+"""FilePilot AI — Intelligent File Manager
 Automatically organize, classify, and search your local files.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"

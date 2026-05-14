@@ -20,29 +20,38 @@ from pathlib import Path
 def cmd_scan(args):
     """Scan directory"""
     from filepilot.core.file_scanner import FileScanner
+
     scanner = FileScanner()
     files = scanner.scan(
         args.path,
         recursive=not args.no_recursive,
         progress_callback=lambda i, p: print(f"\r  Scanning... {i} files", end="", file=sys.stderr),
     )
-    print(f"\r  Scan complete: {len(files)} files, {scanner.stats['total_size_str']}", file=sys.stderr)
+    print(
+        f"\r  Scan complete: {len(files)} files, {scanner.stats['total_size_str']}", file=sys.stderr
+    )
 
     for f in files:
-        print(json.dumps({
-            "path": str(f.path),
-            "name": f.name,
-            "extension": f.extension,
-            "size": f.size_bytes,
-            "size_str": f.size_str,
-            "category": f.category.label,
-            "modified": f.modified_time.isoformat(),
-        }, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "path": str(f.path),
+                    "name": f.name,
+                    "extension": f.extension,
+                    "size": f.size_bytes,
+                    "size_str": f.size_str,
+                    "category": f.category.label,
+                    "modified": f.modified_time.isoformat(),
+                },
+                ensure_ascii=False,
+            )
+        )
 
 
 def cmd_search(args):
     """Search files"""
     from filepilot.core.indexer import FileIndexer
+
     indexer = FileIndexer(index_dir=str(Path.home() / ".filepilot" / "index"))
     results = indexer.search(args.query, limit=args.limit)
     if not results:
@@ -56,6 +65,7 @@ def cmd_duplicates(args):
     """Find duplicate files"""
     from filepilot.core.duplicate_finder import DuplicateFinder
     from filepilot.core.file_scanner import FileScanner
+
     scanner = FileScanner()
     files = scanner.scan(args.path)
     print(f"Scan complete: {len(files)} files", file=sys.stderr)
@@ -63,7 +73,10 @@ def cmd_duplicates(args):
     finder = DuplicateFinder()
     groups = finder.find_duplicates(files)
     stats = finder.get_duplicate_stats(groups)
-    print(f"Found {stats['groups']} groups of duplicates, wasted {stats['wasted_space_str']}", file=sys.stderr)
+    print(
+        f"Found {stats['groups']} groups of duplicates, wasted {stats['wasted_space_str']}",
+        file=sys.stderr,
+    )
 
     for group in groups:
         paths = [str(f.path) for f in group]
@@ -74,6 +87,7 @@ def cmd_organize(args):
     """Organize files"""
     from filepilot.core.file_organizer import CategoryRule, DateRule, FileOrganizer, SizeRule
     from filepilot.core.file_scanner import FileScanner
+
     scanner = FileScanner()
     files = scanner.scan(args.path)
 
@@ -84,8 +98,11 @@ def cmd_organize(args):
 
     organizer = FileOrganizer()
     operations = organizer.organize(
-        files, target_root=args.target, rules=rules,
-        dry_run=args.dry_run, rename=bool(args.rename),
+        files,
+        target_root=args.target,
+        rules=rules,
+        dry_run=args.dry_run,
+        rename=bool(args.rename),
         rename_pattern=args.rename,
     )
     for op in operations:
@@ -95,22 +112,25 @@ def cmd_organize(args):
 def cmd_export(args):
     """Export scan results"""
     from filepilot.core.file_scanner import FileScanner
+
     scanner = FileScanner()
     files = scanner.scan(args.path)
     print(f"Scan complete: {len(files)} files", file=sys.stderr)
 
     rows = []
     for f in files:
-        rows.append({
-            "path": str(f.path),
-            "name": f.name,
-            "extension": f.extension,
-            "size_bytes": f.size_bytes,
-            "size_str": f.size_str,
-            "category": f.category.label,
-            "modified": f.modified_time.isoformat(),
-            "created": f.created_time.isoformat(),
-        })
+        rows.append(
+            {
+                "path": str(f.path),
+                "name": f.name,
+                "extension": f.extension,
+                "size_bytes": f.size_bytes,
+                "size_str": f.size_str,
+                "category": f.category.label,
+                "modified": f.modified_time.isoformat(),
+                "created": f.created_time.isoformat(),
+            }
+        )
 
     if args.format == "csv":
         if args.output:
@@ -151,11 +171,19 @@ def cmd_disk_usage(args):
     # Sort by size
     sorted_dirs = sorted(dirs.items(), key=lambda x: x[1], reverse=True)
 
-    print(json.dumps({
-        "total_size": files_total,
-        "total_dirs": len(sorted_dirs),
-        "top_dirs": [{"path": d, "size": s, "size_str": _fmt(s)} for d, s in sorted_dirs[:20]],
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "total_size": files_total,
+                "total_dirs": len(sorted_dirs),
+                "top_dirs": [
+                    {"path": d, "size": s, "size_str": _fmt(s)} for d, s in sorted_dirs[:20]
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 def _fmt(size):
@@ -205,8 +233,12 @@ def main():
 
     args = parser.parse_args()
     cmd_map = {
-        "scan": cmd_scan, "search": cmd_search, "duplicates": cmd_duplicates,
-        "organize": cmd_organize, "export": cmd_export, "disk-usage": cmd_disk_usage,
+        "scan": cmd_scan,
+        "search": cmd_search,
+        "duplicates": cmd_duplicates,
+        "organize": cmd_organize,
+        "export": cmd_export,
+        "disk-usage": cmd_disk_usage,
     }
     cmd_map[args.command](args)
 

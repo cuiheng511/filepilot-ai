@@ -281,7 +281,11 @@ class SearchPanel(BasePanel):
 
             display_text = f"{icon}  {filename}"
             if highlights:
-                display_text += f"\n   📌 {highlights[:100]}"
+                # Truncate on a space boundary to avoid breaking emoji/multi-byte chars
+                hl = highlights
+                if len(hl) > 100:
+                    hl = hl[:100].rsplit(" ", 1)[0] + "…"
+                display_text += f"\n   📌 {hl}"
             display_text += f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  Match: {score:.0%}"
 
             item = QListWidgetItem(display_text)

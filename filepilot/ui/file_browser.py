@@ -33,6 +33,7 @@ from filepilot.ui.base_panel import BasePanel
 from filepilot.utils.file_utils import (
     CATEGORY_ICONS,
     get_category_name,
+    get_file_size_str,
 )
 
 
@@ -299,13 +300,17 @@ class FileBrowserPanel(BasePanel):
 
         # Category stats
         for cat in self.categories:
-            _ = f"📁 {cat}"
+            cat_count = len(self.categories[cat])
+            cat_size = sum(f.size_bytes for f in self.categories[cat])
+            if cat not in self.stat_cards:
+                card = self._make_stat_card(f"📁 {cat}", f"{cat_count} files")
+                self.stats_container.addWidget(card)
+            self._update_stat(f"📁 {cat}", f"{cat_count} files ({get_file_size_str(cat_size)})")
 
         self.btn_refresh.setEnabled(True)
         self.btn_export.setEnabled(True)
 
         total_size = sum(f.size_bytes for f in files)
-        from filepilot.utils.file_utils import get_file_size_str
         size_str = get_file_size_str(total_size)
         self.status_message.emit(f"✅ Scanned {len(filtered)} files ({size_str})")
 

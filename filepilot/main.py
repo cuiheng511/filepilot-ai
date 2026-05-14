@@ -32,7 +32,6 @@ def main():
 
     # Center window on screen
     window.show()
-    from PySide6.QtGui import QScreen
     screen = QApplication.primaryScreen()
     if screen:
         screen_geo = screen.availableGeometry()

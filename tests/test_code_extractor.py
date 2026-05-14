@@ -1,6 +1,5 @@
 """Tests for CodeExtractor"""
 
-from pathlib import Path
 
 from filepilot.extractors.code_extractor import CodeExtractor
 

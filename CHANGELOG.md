@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0] - 2026-05-14
+
+### Added
+- **CI dependency verification** — Pre-test step validates watchdog + PySide6 are importable
+- **API key encryption** — Fernet-based encryption for stored API keys with keyring fallback
+- **File lock detection** — Windows exclusive locking check prevents organizing in-use files
+- **Main window centering** — Automatic screen-center on startup
+- **System tray i18n** — Tooltips, pause/resume menu, and toast notifications now translated
+- **File watcher directory validation** — Friendly error when watching a nonexistent directory
+- **Settings dialog helper** — `_get_supported_lang_keys()` for dynamic language list updates
+
+### Fixed
+- **CJK font display** — QSS font fallback for QComboBox, QCheckBox, QMenu, QTableWidget, QGroupBox, context menu text truncation
+- **File browser category stats** — Dead loop `_ = f"..."` now actually updates card file count + size
+- **Search panel highlight truncation** — Emoji/multi-byte safe: now splits at whitespace instead of raw byte boundary
+- **Test file_watcher fixture** — `_watched_dir` parameter missing in 5 test methods
+- **Test settings_dialog accept()** — QDialog base class not initialized before mock
+- **push_to_github.py** — BOM character removed, emoji replaced with cross-platform ASCII
+- **Dead code cleanup** — 6 unused imports/variables removed across config.py, file_organizer.py, test_image_extractor.py, test_summarizer.py
+
+### Changed
+- **watchdog** — Added to `requirements.txt` (was missing, causing all watcher tests to fail)
+- **GitHub Actions upgrade** — `actions/checkout` v4→v6, `actions/setup-python` v5→v6, `actions/upload-artifact` v4→v7, `codecov/codecov-action` v5→v6
+
 ## [0.2.0] - 2026-05-14
 
 ### Added

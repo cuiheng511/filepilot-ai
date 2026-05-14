@@ -46,8 +46,6 @@ class _ComboBox:
 
 def _make_dialog(settings_dict=None):
     """Create a SettingsDialog instance bypassing Qt __init__."""
-    from filepilot.i18n import SUPPORTED_LANGUAGES
-    from filepilot.ui.settings_dialog import SettingsDialog
 
     settings_dict = settings_dict or _make_settings()
     obj = SettingsDialog.__new__(SettingsDialog)

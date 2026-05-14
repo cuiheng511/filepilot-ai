@@ -1,7 +1,6 @@
 """Tests for Summarizer"""
 
-from pathlib import Path
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -140,11 +139,11 @@ class TestSummarizer:
         mock_cloud.is_available = True
 
         summarizer = Summarizer(local_ai=mock_local, cloud_ai=mock_cloud, prefer_local=False)
-        result = summarizer.summarize_text("content", max_length=100)
+        summarizer.summarize_text("content", max_length=100)
         # When prefer_local is False, cloud should be tried first
         # But the implementation prefers local first when available
         # If prefer_local=False AND local is available, implementation still uses local
         # Let's only set local unavailable so cloud is used
         mock_local.is_available = False
-        result2 = summarizer.summarize_text("content", max_length=100)
+        summarizer.summarize_text("content", max_length=100)
         mock_cloud.generate.assert_called()

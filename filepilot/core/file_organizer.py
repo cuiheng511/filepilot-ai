@@ -156,7 +156,6 @@ class FileOrganizer:
                     # Check if file is locked by another process (Windows)
                     locked, lock_msg = self._is_file_locked(file_info.path)
                     if locked:
-                        err_msg = f"File is locked by another process: {file_info.name}"
                         self._errors.append((file_info.name, lock_msg))
                         if progress_callback:
                             progress_callback(i + 1, file_info.name)
@@ -247,7 +246,7 @@ class FileOrganizer:
         """
         if sys.platform == "win32":
             try:
-                with open(path, "r+b") as f:
+                with open(path, "r+b"):
                     pass
                 return False, ""
             except PermissionError:

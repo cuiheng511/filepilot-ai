@@ -1,9 +1,7 @@
 """Tests for Cloud AI Providers (OpenAIProvider, AnthropicProvider)"""
 
-import json
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from filepilot.ai.cloud_ai import OpenAIProvider, AnthropicProvider, CloudAI

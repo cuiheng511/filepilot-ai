@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from filepilot.extractors.image_extractor import ImageExtractor
 
@@ -95,5 +94,5 @@ class TestImageExtractor:
         mock_img.thumbnail.return_value = None
         mock_pil.Image.open.return_value.__enter__.return_value = mock_img
 
-        result = self.extractor.get_thumbnail("/mock/image.png", size=(100, 100))
+        self.extractor.get_thumbnail("/mock/image.png", size=(100, 100))
         mock_img.thumbnail.assert_called_once_with((100, 100))

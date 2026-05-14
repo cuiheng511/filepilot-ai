@@ -1,10 +1,8 @@
 """Tests for PptxExtractor"""
 
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from filepilot.extractors.pptx_extractor import PptxExtractor
 

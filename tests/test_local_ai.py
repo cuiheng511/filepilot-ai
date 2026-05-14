@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from filepilot.ai.local_ai import OllamaProvider, LlamaCppProvider, LocalAI

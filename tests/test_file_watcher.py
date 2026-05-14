@@ -1,9 +1,7 @@
 """FileWatcher integration tests — signal emission with real watchdog"""
 
 import os
-import threading
 import time
-from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer

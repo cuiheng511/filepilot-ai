@@ -1,6 +1,7 @@
 """File Organizer — Auto-categorize, smart rename"""
 
 import shutil
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -152,6 +153,15 @@ class FileOrganizer:
                 operations.append(op)
 
                 if not dry_run:
+                    # Check if file is locked by another process (Windows)
+                    locked, lock_msg = self._is_file_locked(file_info.path)
+                    if locked:
+                        err_msg = f"File is locked by another process: {file_info.name}"
+                        self._errors.append((file_info.name, lock_msg))
+                        if progress_callback:
+                            progress_callback(i + 1, file_info.name)
+                        continue
+
                     dest_dir.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(file_info.path), str(dest_path))
                     self._organized_count += 1
@@ -160,6 +170,8 @@ class FileOrganizer:
                 if progress_callback:
                     progress_callback(i + 1, file_info.name)
 
+            except PermissionError as e:
+                self._errors.append((file_info.name, f"File locked or permission denied: {e}"))
             except (OSError, shutil.Error) as e:
                 self._errors.append((file_info.name, str(e)))
 
@@ -223,6 +235,30 @@ class FileOrganizer:
                 return new_path
             counter += 1
 
+    @staticmethod
+    def _is_file_locked(path: Path) -> tuple[bool, str]:
+        """Check if a file is locked by another process
+
+        On Windows, attempt to open the file with exclusive write access.
+        If another process holds the file open, this will raise PermissionError.
+
+        Returns:
+            (is_locked, message) tuple
+        """
+        if sys.platform == "win32":
+            try:
+                with open(path, "r+b") as f:
+                    pass
+                return False, ""
+            except PermissionError:
+                return True, f"File is in use by another process: {path.name}"
+            except OSError as e:
+                # File might not exist or other OS error
+                return False, str(e)
+        # On Linux/macOS, advisory locking is cooperative;
+        # shutil.move will still raise on actual permission errors
+        return False, ""
+
     @property
     def stats(self) -> dict:
         return {
@@ -258,6 +294,8 @@ class FileOrganizer:
                     restored += 1
                 else:
                     errors += 1
+            except PermissionError:
+                errors += 1
             except (OSError, shutil.Error):
                 errors += 1
 

@@ -310,26 +310,9 @@ class MainWindow(QMainWindow):
         return settings
 
     def _save_settings(self):
-        """Save settings — API key stored in system keyring, rest in JSON"""
-        import json
-
-        from filepilot.app import _save_api_key_to_keyring
-
-        settings_path = Path.home() / ".filepilot" / "settings.json"
-        settings_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Save API key to system keyring, remove from JSON
-        api_key = self.settings.get("ai_api_key", "")
-        if api_key:
-            _save_api_key_to_keyring(api_key)
-        # Remove key from JSON payload (loaded via keyring on next startup)
-        save_data = {k: v for k, v in self.settings.items() if k != "ai_api_key"}
-
-        with contextlib.suppress(Exception):
-            settings_path.write_text(
-                json.dumps(save_data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+        """Save settings — API key stored encrypted, rest in JSON"""
+        from filepilot.core import config
+        config.save(self.settings)
 
     @Slot()
     def _on_nav_changed(self, index: int):

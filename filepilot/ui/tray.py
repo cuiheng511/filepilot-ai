@@ -55,7 +55,7 @@ class SystemTrayManager(QObject):
                 QSystemTrayIcon.Style.SP_ComputerIcon
             ))
 
-        self._tray_icon.setToolTip("FilePilot AI — Background File Monitor")
+        self._tray_icon.setToolTip(t("tray_tooltip"))
 
         # Context menu
         menu = QMenu()
@@ -70,7 +70,7 @@ class SystemTrayManager(QObject):
 
         menu.addSeparator()
 
-        pause_action = QAction("⏸️ Pause Watching", self)
+        pause_action = QAction(t("tray_pause"), self)
         pause_action.setCheckable(True)
         pause_action.toggled.connect(self._on_toggle_watching)
         menu.addAction(pause_action)
@@ -154,13 +154,13 @@ class SystemTrayManager(QObject):
         if paused:
             self._paused_dirs = self._watched_dirs[:]
             self.unwatch_all()
-            self._show_toast("⏸️ Background watching paused", "warning", 2000)
+            self._show_toast(t("tray_watching_paused"), "warning", 2000)
         else:
             # Re-watch previously watched directories
             for dir_path in self._paused_dirs[:]:
                 self.watch_directory(dir_path)
             self._paused_dirs.clear()
-            self._show_toast("▶️ Background watching resumed", "info", 2000)
+            self._show_toast(t("tray_watching_resumed"), "info", 2000)
 
     def _on_file_event(self, file_path: str):
         """Handle file created/modified event"""

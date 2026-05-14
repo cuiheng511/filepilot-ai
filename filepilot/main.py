@@ -29,7 +29,18 @@ def main():
     # Setup system tray (must be created after MainWindow)
     tray = create_tray(window, services)
     tray.show()
+
+    # Center window on screen
     window.show()
+    from PySide6.QtGui import QScreen
+    screen = QApplication.primaryScreen()
+    if screen:
+        screen_geo = screen.availableGeometry()
+        window.move(
+            screen_geo.x() + (screen_geo.width() - window.width()) // 2,
+            screen_geo.y() + (screen_geo.height() - window.height()) // 2
+        )
+
     sys.exit(app.exec())
 
 

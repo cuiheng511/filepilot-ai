@@ -28,13 +28,13 @@ def github_api(method, url, data=None):
         return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8")
-        print(f"鉂?API Error ({e.code}): {body}")
+        print(f"⚠️ API Error ({e.code}): {body}")
         return None
 
 
 def create_github_repo():
     """Create the GitHub repository."""
-    print(f"馃摝 Creating repository {GITHUB_USER}/{REPO_NAME}...")
+    print(f"📦 Creating repository {GITHUB_USER}/{REPO_NAME}...")
     result = github_api(
         "POST",
         "https://api.github.com/user/repos",
@@ -46,11 +46,11 @@ def create_github_repo():
         },
     )
     if result and "clone_url" in result:
-        print(f"鉁?Repository created: {result['html_url']}")
+        print(f"✅ Repository created: {result['html_url']}")
         return result["clone_url"]
     elif result and "errors" in result:
         if any("already exists" in e.get("message", "") for e in result["errors"]):
-            print("鈿狅笍 Repository already exists, will push to existing repo")
+            print("ℹ️ Repository already exists, will push to existing repo")
             return f"https://github.com/{GITHUB_USER}/{REPO_NAME}.git"
     return None
 
@@ -62,9 +62,9 @@ def run_git_command(args, cwd=None):
         cmd, cwd=cwd, capture_output=True, text=True, timeout=60
     )
     if result.returncode != 0:
-        print(f"  鈿狅笍  {result.stderr.strip()}")
+        print(f"  ⚠️  {result.stderr.strip()}")
     else:
-        print(f"  鉁?{result.stdout.strip()[:100] if result.stdout else 'OK'}")
+        print(f"  ✅{result.stdout.strip()[:100] if result.stdout else 'OK'}")
     return result.returncode == 0
 
 
@@ -72,13 +72,13 @@ def push_to_github():
     """Initialize git and push to GitHub."""
     project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(project_dir)
-    print(f"馃搧 Working directory: {project_dir}")
+    print(f"📂 Working directory: {project_dir}")
 
     # Check if git is available
     try:
         subprocess.run(["git", "--version"], capture_output=True, timeout=10)
     except FileNotFoundError:
-        print("鉂?Git is not installed. Please install Git for Windows:")
+        print("⚠️ Git is not installed. Please install Git for Windows:")
         print("   https://git-scm.com/download/win")
         return False
 
@@ -89,13 +89,13 @@ def push_to_github():
 
     # Step 1: Initialize git repo
     if os.path.exists(".git"):
-        print("鈿狅笍 Git repo already initialized")
+        print("ℹ️ Git repo already initialized")
     else:
-        print("馃敡 Initializing git repository...")
+        print("📦 Initializing git repository...")
         run_git_command(["init"])
 
     # Step 2: Add all files
-    print("馃摑 Adding files...")
+    print("📦 Adding files...")
     run_git_command(["add", "."])
 
     # Step 3: Check if there's anything to commit
@@ -104,34 +104,34 @@ def push_to_github():
         capture_output=True, text=True, timeout=10
     )
     if not result.stdout.strip():
-        print("鈿狅笍 No changes to commit")
+        print("ℹ️ No changes to commit")
     else:
-        print("馃捑 Committing...")
-        run_git_command(["commit", "-m", "馃帀 Initial commit: FilePilot AI"])
+        print("📦 Committing...")
+        run_git_command(["commit", "-m", "🚀 Initial commit: FilePilot AI"])
 
     # Step 4: Rename branch to main
-    print("馃尶 Setting branch to main...")
+    print("🌿 Setting branch to main...")
     run_git_command(["branch", "-M", "main"])
 
     # Step 5: Add remote
-    print("馃敆 Adding remote origin...")
+    print("🔗 Adding remote origin...")
     run_git_command(["remote", "remove", "origin"])
     run_git_command(["remote", "add", "origin", remote_url])
 
     # Step 6: Push
-    print("馃殌 Pushing to GitHub...")
+    print("🚀 Pushing to GitHub...")
     result = subprocess.run(
         ["git", "-c", f"http.extraHeader={auth_header}", "push", "-u", "origin", "main"],
         capture_output=True, text=True, timeout=120
     )
     if result.returncode == 0:
-        print("\n鉁?SUCCESS! Repository pushed to GitHub!")
+        print("\n✅ SUCCESS! Repository pushed to GitHub!")
         print(f"   https://github.com/{GITHUB_USER}/{REPO_NAME}")
         return True
     else:
-        print(f"鉂?Push failed: {result.stderr}")
+        print(f"⚠️ Push failed: {result.stderr}")
         # Try with GCM disabled
-        print("馃攧 Retrying with basic auth...")
+        print("🔄 Retrying with basic auth...")
         env = os.environ.copy()
         env["GCM_INTERACTIVE"] = "never"
         result = subprocess.run(
@@ -149,29 +149,28 @@ def push_to_github():
             capture_output=True, text=True, timeout=120, env=env
         )
         if result.returncode == 0:
-            print("\n鉁?SUCCESS! Repository pushed to GitHub!")
+            print("\n✅ SUCCESS! Repository pushed to GitHub!")
             print(f"   https://github.com/{GITHUB_USER}/{REPO_NAME}")
             return True
         else:
-            print(f"鉂?Push failed again: {result.stderr}")
+            print(f"⚠️ Push failed again: {result.stderr}")
             return False
 
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("馃殌 FilePilot AI - GitHub Publisher")
+    print("🚀 FilePilot AI - GitHub Publisher")
     print("=" * 50)
 
     repo_url = create_github_repo()
     if repo_url:
         success = push_to_github()
         if success:
-            print("\n馃帀 All done! Don't forget to revoke your token!")
+            print("\n🎉 All done! Don't forget to revoke your token!")
         else:
-            print("\n鉂?Push failed. Try running the commands manually.")
+            print("\n⚠️ Push failed. Try running the commands manually.")
             print("   See instructions in README.md")
     else:
         # Try pushing even if repo creation failed (might already exist)
-        print("鈿狅笍 Could not create repo, attempting push anyway...")
+        print("ℹ️ Could not create repo, attempting push anyway...")
         push_to_github()
-

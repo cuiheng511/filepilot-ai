@@ -45,7 +45,7 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 4px 12px;
+    padding: 5px 12px;
     color: #6c5ce7;
 }
 
@@ -65,6 +65,11 @@ QMenu {
     border: 1px solid #dcdde1;
     border-radius: 6px;
     padding: 4px;
+    font-size: 13px;
+}
+QMenu::item {
+    padding: 6px 16px;
+    min-height: 22px;
 }
 QMenu::item:selected {
     background-color: #d0d0d0;
@@ -77,6 +82,11 @@ QMenu#contextMenu {
     border: 1px solid #dcdde1;
     border-radius: 6px;
     padding: 4px;
+    font-size: 13px;
+}
+QMenu#contextMenu::item {
+    padding: 6px 16px;
+    min-height: 22px;
 }
 QMenu#contextMenu::item:selected {
     background-color: #d0d0d0;
@@ -327,7 +337,17 @@ QComboBox QAbstractItemView {
     background-color: #ffffff;
     color: #2c3e50;
     border: 1px solid #dcdde1;
+    font-size: 13px;
+    padding: 4px 0;
     selection-background-color: #d0d0d0;
+    outline: none;
+}
+QComboBox QAbstractItemView::item {
+    padding: 6px 12px;
+    min-height: 24px;
+}
+QComboBox QAbstractItemView::item:hover {
+    background-color: #e0e0e0;
 }
 
 /* ── Radio Button ─────────────────────────── */
@@ -369,7 +389,13 @@ QTabBar::tab:hover:!selected {
 /* ── Check Box ────────────────────────────── */
 QCheckBox {
     color: #2c3e50;
+    font-size: 13px;
     spacing: 8px;
+    padding: 4px 0;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
 }
 
 /* ── Table Widget ─────────────────────────── */
@@ -382,7 +408,8 @@ QTableWidget {
     font-size: 12px;
 }
 QTableWidget::item {
-    padding: 4px 8px;
+    padding: 6px 8px;
+    min-height: 20px;
 }
 QTableWidget::item:selected {
     background-color: #d0d0d0;

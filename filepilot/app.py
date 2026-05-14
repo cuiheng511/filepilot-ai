@@ -1,6 +1,5 @@
 """FilePilot AI Application Configuration"""
 
-import json
 import sys
 from pathlib import Path
 
@@ -39,53 +38,10 @@ def create_app() -> QApplication:
     return app
 
 
-def _get_api_key_from_keyring() -> str:
-    """Try to get API key from system keyring, fallback to None"""
-    try:
-        import keyring
-        key = keyring.get_password("filepilot-ai", "ai_api_key")
-        return key or ""
-    except (ImportError, Exception):
-        return ""
-
-
-def _save_api_key_to_keyring(api_key: str) -> bool:
-    """Save API key to system keyring"""
-    if not api_key:
-        return True
-    try:
-        import keyring
-        keyring.set_password("filepilot-ai", "ai_api_key", api_key)
-        return True
-    except (ImportError, Exception):
-        return False
-
-
 def load_settings() -> dict:
-    """Load user settings"""
-    settings_path = Path.home() / ".filepilot" / "settings.json"
-    defaults = {
-        "ai_mode": "local",
-        "ai_provider": "ollama",
-        "ai_model": "qwen2.5:7b",
-        "ai_api_base": "http://localhost:11434",
-        "ai_api_key": "",
-        "index_dir": "~/.filepilot/index",
-        "max_file_size_mb": 500,
-        "language": "en",
-    }
-    if settings_path.exists():
-        try:
-            user = json.loads(settings_path.read_text(encoding="utf-8"))
-            # Try keyring first for API key, fallback to file
-            if "ai_api_key" not in user or not user["ai_api_key"]:
-                keyring_key = _get_api_key_from_keyring()
-                if keyring_key:
-                    user["ai_api_key"] = keyring_key
-            defaults.update(user)
-        except Exception:
-            pass
-    return defaults
+    """Load user settings — delegates to config.load() for unified settings."""
+    from filepilot.core import config
+    return config.load()
 
 
 def create_services(settings: dict) -> dict:

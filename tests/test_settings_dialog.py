@@ -92,6 +92,9 @@ class TestLanguageSwitching:
 
     def test_language_change_calls_set_language(self):
         d = _make_dialog()
+        # Set current lang to something different so the change is detected
+        d._current_lang = "en"
+        d.lang_combo.setCurrentIndex(2)  # Japanese
         mock_sl = MagicMock()
         with patch("filepilot.ui.settings_dialog.set_language", mock_sl):
             with patch("PySide6.QtWidgets.QDialog.accept", lambda self: None):
@@ -100,6 +103,8 @@ class TestLanguageSwitching:
 
     def test_no_language_change_skips_set_language(self):
         d = _make_dialog()
+        d._current_lang = "en"
+        # Don't change the lang combo — stays at English (index 0)
         mock_sl = MagicMock()
         with patch("filepilot.ui.settings_dialog.set_language", mock_sl):
             with patch("PySide6.QtWidgets.QDialog.accept", lambda self: None):

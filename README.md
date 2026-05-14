@@ -14,6 +14,7 @@ A local-first desktop assistant that helps you understand large folders, find fi
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/cuiheng511/filepilot-ai/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/cuiheng511/filepilot-ai/actions)
 [![Tests](https://img.shields.io/badge/Tests-198%2F198%20passed-brightgreen?style=for-the-badge)]()
+[![Languages](https://img.shields.io/badge/Languages-12%20supported-FF6B35?style=for-the-badge)](filepilot/i18n.py)
 
 </div>
 
@@ -218,7 +219,7 @@ filepilot-ai/
 │   │   └── ...              #   6 feature panels
 │   ├── app.py               # App bootstrap & service injection
 │   ├── cli.py               # CLI entry point
-│   ├── i18n.py              # Internationalization (en/zh)
+│   ├── i18n.py              # Internationalization (12 languages)
 │   └── log.py               # Logging configuration
 ├── tests/                   # 198 unit tests
 ├── .github/
@@ -269,7 +270,7 @@ pyinstaller FilePilot.spec --noconfirm
 - [x] Auto-organization with undo
 - [x] CLI tool
 - [x] Dark / light themes
-- [x] English / Chinese i18n
+- [x] Multi-language i18n (12 languages)
 - [x] Background task queue
 - [x] Directory watching (watchdog)
 - [x] Notification toast system

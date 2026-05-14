@@ -20,7 +20,7 @@ DEFAULTS = {
     "index_dir": "~/.filepilot/index",
     "max_file_size_mb": 500,
     "theme": "dark",
-    "language": "zh",
+    "language": "en",
     "recent_dirs": [],
 }
 

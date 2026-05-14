@@ -65,6 +65,7 @@ def load_settings() -> dict:
         "ai_api_key": "",
         "index_dir": "~/.filepilot/index",
         "max_file_size_mb": 500,
+        "language": "en",
     }
     if settings_path.exists():
         try:

@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from filepilot.i18n import t
+from filepilot.i18n import SUPPORTED_LANGUAGES, t
 
 
 class SettingsDialog(QDialog):
@@ -134,6 +134,15 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(widget)
         layout.setSpacing(16)
 
+        # Language settings
+        lang_group = QGroupBox("Language / 语言")
+        lang_layout = QFormLayout()
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems([f"{v} ({k})" for k, v in SUPPORTED_LANGUAGES.items()])
+        lang_layout.addRow("Language:", self.lang_combo)
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+
         # Index settings
         index_group = QGroupBox("Index Settings")
         index_layout = QFormLayout()
@@ -171,6 +180,14 @@ class SettingsDialog(QDialog):
         self.api_key_input.setText(self._settings.get("ai_api_key", ""))
         self.max_file_size.setText(str(self._settings.get("max_file_size_mb", 500)))
         self.index_dir.setText(self._settings.get("index_dir", str(Path.home() / ".filepilot" / "index")))
+        # Set language combo
+        current_lang = self._settings.get("language", "en")
+        lang_items = [f"{v} ({k})" for k, v in SUPPORTED_LANGUAGES.items()]
+        if current_lang in SUPPORTED_LANGUAGES:
+            lang_label = f"{SUPPORTED_LANGUAGES[current_lang]} ({current_lang})"
+            idx = lang_items.index(lang_label)
+            if idx >= 0:
+                self.lang_combo.setCurrentIndex(idx)
 
     def get_settings(self) -> dict:
         """Get settings values"""
@@ -184,4 +201,5 @@ class SettingsDialog(QDialog):
             "ai_api_key": self.api_key_input.text(),
             "index_dir": self.index_dir.text(),
             "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
+            "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
         }

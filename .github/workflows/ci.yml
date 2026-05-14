@@ -110,6 +110,7 @@ jobs:
 
       - name: Run tests with coverage (Windows)
         if: runner.os == 'Windows'
+        shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
         run: |

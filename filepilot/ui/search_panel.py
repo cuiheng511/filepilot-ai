@@ -1,11 +1,13 @@
 """Search panel — natural language file search"""
 
+import json
 from pathlib import Path
 from threading import Thread
 
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -16,9 +18,58 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from filepilot.core.file_scanner import FileScanner
+from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
+from filepilot.extractors import (
+    CodeExtractor,
+    DocxExtractor,
+    MarkdownExtractor,
+    PDFExtractor,
+    PptxExtractor,
+    XlsxExtractor,
+)
 from filepilot.ui.base_panel import BasePanel
+
+# Extractor mapping by extension
+_EXTRACTORS = {
+    ".pdf": PDFExtractor(),
+    ".md": MarkdownExtractor(),
+    ".markdown": MarkdownExtractor(),
+    ".mdx": MarkdownExtractor(),
+    ".py": CodeExtractor(),
+    ".js": CodeExtractor(),
+    ".ts": CodeExtractor(),
+    ".jsx": CodeExtractor(),
+    ".tsx": CodeExtractor(),
+    ".java": CodeExtractor(),
+    ".cpp": CodeExtractor(),
+    ".c": CodeExtractor(),
+    ".h": CodeExtractor(),
+    ".hpp": CodeExtractor(),
+    ".cs": CodeExtractor(),
+    ".go": CodeExtractor(),
+    ".rs": CodeExtractor(),
+    ".rb": CodeExtractor(),
+    ".php": CodeExtractor(),
+    ".swift": CodeExtractor(),
+    ".kt": CodeExtractor(),
+    ".scala": CodeExtractor(),
+    ".sql": CodeExtractor(),
+    ".sh": CodeExtractor(),
+    ".bash": CodeExtractor(),
+    ".ps1": CodeExtractor(),
+    ".bat": CodeExtractor(),
+    ".pl": CodeExtractor(),
+    ".lua": CodeExtractor(),
+    ".r": CodeExtractor(),
+    ".m": CodeExtractor(),
+    ".dart": CodeExtractor(),
+    ".vue": CodeExtractor(),
+    ".svelte": CodeExtractor(),
+    ".docx": DocxExtractor(),
+    ".xlsx": XlsxExtractor(),
+    ".pptx": PptxExtractor(),
+}
 
 
 class SearchPanel(BasePanel):
@@ -95,6 +146,11 @@ class SearchPanel(BasePanel):
         self.index_btn = QPushButton("🗂️ Build Index")
         self.index_btn.clicked.connect(self._on_index)
         options_layout.addWidget(self.index_btn)
+
+        self.export_btn = QPushButton("📤 Export Results")
+        self.export_btn.clicked.connect(self._on_export)
+        self.export_btn.setEnabled(False)
+        options_layout.addWidget(self.export_btn)
 
         self.clear_btn = QPushButton("Clear Results")
         self.clear_btn.clicked.connect(self._clear_results)
@@ -244,6 +300,65 @@ class SearchPanel(BasePanel):
 
         self._index_async(self.current_dir)
 
+    def _extract_file_content(self, file_info: FileInfo) -> str:
+        """Extract searchable content from a file using registered extractors."""
+        ext = file_info.extension.lower()
+        extractor = _EXTRACTORS.get(ext)
+        if extractor:
+            try:
+                return extractor.extract_text(file_info.path)
+            except Exception:
+                return ""
+        # Fallback: try reading as text for small text files
+        text_exts = {".txt", ".log", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".json", ".xml", ".csv"}
+        if ext in text_exts:
+            try:
+                return file_info.path.read_text(encoding="utf-8", errors="ignore")[:5000]
+            except Exception:
+                return ""
+        return ""
+
+    def _on_export(self):
+        """Export search results as JSON or CSV"""
+        results: list[dict] = []
+        for i in range(self.result_list.count()):
+            item = self.result_list.item(i)
+            filepath = item.data(Qt.UserRole)
+            if filepath:
+                results.append({
+                    "name": item.text().split("\n")[0].lstrip("📕 📝 💻 🖼️ 📄 📁 "),
+                    "path": filepath,
+                    "text": item.toolTip(),
+                })
+        if not results:
+            self.status_message.emit("No results to export")
+            return
+
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self, "Export Search Results",
+            str(Path.home() / "search_results.json"),
+            "JSON (*.json);;CSV (*.csv)",
+        )
+        if not file_path:
+            return
+
+        path = Path(file_path)
+        try:
+            if path.suffix.lower() == ".json":
+                path.write_text(
+                    json.dumps(results, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+            else:
+                import csv
+                with open(path, "w", newline="", encoding="utf-8") as fp:
+                    writer = csv.DictWriter(fp, fieldnames=["name", "path", "text"])
+                    writer.writeheader()
+                    writer.writerows(results)
+            self.status_message.emit(f"✅ Exported {len(results)} results")
+        except Exception as e:
+            self.status_message.emit(f"❌ Export failed: {e}")
+
     def _index_async(self, dir_path: str | Path):
         """Build index asynchronously"""
         self._cancelled = False
@@ -271,9 +386,10 @@ class SearchPanel(BasePanel):
 
             total = len(files)
 
-            # Build index
+# Build index
             indexed = self.indexer.index_files(
                 files,
+                content_extractor=self._extract_file_content,
                 progress_callback=lambda i, msg: self.progress_updated.emit(
                     int(i / total * 100) if total else 0
                 ),

@@ -14,7 +14,7 @@ A local-first desktop assistant that helps you understand large folders, find fi
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/cuiheng511/filepilot-ai/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/cuiheng511/filepilot-ai/actions)
 [![Tests](https://img.shields.io/badge/Tests-198%2F198%20passed-brightgreen?style=for-the-badge)]()
-[![Languages](https://img.shields.io/badge/Languages-12%20supported-FF6B35?style=for-the-badge)](filepilot/i18n.py)
+[![i18n](https://img.shields.io/badge/Languages-18-blueviolet?style=for-the-badge)](filepilot/i18n.py)
 
 </div>
 
@@ -91,11 +91,29 @@ One-click undo
 Dark / light theme toggle<br/>
 QSS hot-reload<br/>
 Keyboard shortcuts (Ctrl+1~6)<br/>
-Floating notification toasts
+Floating notification toasts<br/>
+**18 languages supported**
 
 </td>
 </tr>
 </table>
+
+---
+
+## 🌍 Supported Languages
+
+FilePilot AI ships with full UI translations for **18 languages**:
+
+| | Language | | Language | | Language |
+|---|---------|---|---------|---|---------|
+| 🇬🇧 | English | 🇨🇳 | 中文 (Chinese) | 🇯🇵 | 日本語 (Japanese) |
+| 🇰🇷 | 한국어 (Korean) | 🇫🇷 | Français (French) | 🇩🇪 | Deutsch (German) |
+| 🇪🇸 | Español (Spanish) | 🇧🇷 | Português (Portuguese) | 🇷🇺 | Русский (Russian) |
+| 🇻🇳 | Tiếng Việt (Vietnamese) | 🇹🇭 | ไทย (Thai) | 🇸🇦 | العربية (Arabic) |
+| 🇮🇹 | Italiano (Italian) | 🇮🇩 | Bahasa Indonesia | 🇹🇷 | Türkçe (Turkish) |
+| 🇵🇱 | Polski (Polish) | 🇳🇱 | Nederlands (Dutch) | 🇺🇦 | Українська (Ukrainian) |
+
+Switch languages in **Settings → General → Language**. Changes take effect immediately.
 
 ---
 
@@ -270,7 +288,7 @@ pyinstaller FilePilot.spec --noconfirm
 - [x] Auto-organization with undo
 - [x] CLI tool
 - [x] Dark / light themes
-- [x] Multi-language i18n (12 languages)
+- [x] Multi-language i18n (18 languages)
 - [x] Background task queue
 - [x] Directory watching (watchdog)
 - [x] Notification toast system
@@ -278,7 +296,7 @@ pyinstaller FilePilot.spec --noconfirm
 - [ ] Application screenshots & demo GIFs
 - [ ] Persistent AI summary caching
 - [ ] Large-folder indexing optimization
-- [ ] Additional language support (Japanese, Korean)
+- [ ] Additional language support (Hindi, Malay, Czech)
 
 ---
 

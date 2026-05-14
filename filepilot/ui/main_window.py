@@ -1,5 +1,6 @@
 """FilePilot AI Main Window"""
 
+import contextlib
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, Slot
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.file_watcher import FileWatcher
 from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
 from filepilot.ui.duplicates_panel import DuplicatesPanel
@@ -50,6 +52,9 @@ class MainWindow(QMainWindow):
 
         # Enable drag-and-drop of folders
         self.setAcceptDrops(True)
+
+        # File watcher for auto-indexing
+        self._watcher: FileWatcher | None = None
 
         # Build UI
         self._setup_ui()
@@ -153,6 +158,13 @@ class MainWindow(QMainWindow):
         # Notification toast
         self._toast = NotificationToast(self.centralWidget())
 
+        # File watcher — connect signals for auto-index
+        self._watcher = self.services.get("watcher")
+        if self._watcher:
+            self._watcher.file_created.connect(self._on_file_changed)
+            self._watcher.file_modified.connect(self._on_file_changed)
+            self._watcher.file_deleted.connect(self._on_file_deleted)
+
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
         super().resizeEvent(event)
@@ -177,6 +189,11 @@ class MainWindow(QMainWindow):
         open_action.setShortcut("Ctrl+O")
         open_action.triggered.connect(self._on_open_folder)
         file_menu.addAction(open_action)
+
+        # Recent folders submenu
+        self._recent_menu = file_menu.addMenu("Recent Folders")
+        self._refresh_recent_menu()
+
         file_menu.addSeparator()
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -195,6 +212,28 @@ class MainWindow(QMainWindow):
         about_action = QAction("About FilePilot AI", self)
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
+
+    def _refresh_recent_menu(self):
+        """Refresh the Recent Folders submenu from settings"""
+        self._recent_menu.clear()
+
+        recent = self.settings.get("recent_dirs", [])
+        if not recent:
+            empty = QAction("(none)", self)
+            empty.setEnabled(False)
+            self._recent_menu.addAction(empty)
+        else:
+            for path in recent[:10]:
+                name = Path(path).name
+                action = QAction(f"📁 {name}  ({path})", self)
+                action.triggered.connect(lambda checked, p=path: self._on_recent_folder(p))
+                self._recent_menu.addAction(action)
+
+    @Slot()
+    def _on_recent_folder(self, path: str):
+        """Open a recently used folder"""
+        if path and Path(path).is_dir():
+            self._open_directory(path)
 
     def _setup_toolbar(self):
         """Setup toolbar"""
@@ -286,13 +325,11 @@ class MainWindow(QMainWindow):
         # Remove key from JSON payload (loaded via keyring on next startup)
         save_data = {k: v for k, v in self.settings.items() if k != "ai_api_key"}
 
-        try:
+        with contextlib.suppress(Exception):
             settings_path.write_text(
                 json.dumps(save_data, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-        except Exception:
-            pass
 
     @Slot()
     def _on_nav_changed(self, index: int):
@@ -316,6 +353,10 @@ class MainWindow(QMainWindow):
         self.settings["recent_dirs"] = recent[:10]
         self._save_settings()
 
+        # Start watching for auto-index
+        if self._watcher:
+            self._watcher.watch(dir_path)
+
         # Notify browse panel
         self.browse_panel.load_directory(dir_path)
 
@@ -328,6 +369,36 @@ class MainWindow(QMainWindow):
         if dir_path:
             self._open_directory(dir_path)
             self.status_label.setText(f"Opened: {dir_path}")
+
+    def _on_file_changed(self, file_path: str):
+        """Handle file created/modified — incremental index update"""
+        from filepilot.core.file_scanner import FileInfo
+
+        if not self.current_dir:
+            return
+        path = Path(file_path)
+        if not path.exists() or not path.is_relative_to(self.current_dir):
+            return
+        # Only index supported file types
+        info = FileInfo(path)
+        if info.extension and info.extension.lstrip(".").lower() in (
+            "pdf", "md", "markdown", "mdx", "py", "js", "ts", "jsx", "tsx",
+            "java", "cpp", "c", "h", "hpp", "cs", "go", "rs", "rb", "php",
+            "swift", "kt", "scala", "sql", "sh", "bash", "ps1", "bat", "pl",
+            "lua", "r", "m", "dart", "vue", "svelte", "docx", "xlsx", "pptx",
+            "txt", "log", "ini", "cfg", "toml", "yaml", "yml", "json", "xml", "csv",
+        ):
+            self.index_panel.indexer.index_files(
+                [info],
+                content_extractor=self.search_panel._extract_file_content,
+            )
+
+    def _on_file_deleted(self, file_path: str):
+        """Handle file deletion — remove from index"""
+        if self.current_dir:
+            path = Path(file_path)
+            if path.is_relative_to(self.current_dir):
+                self.index_panel.indexer.remove_from_index(file_path)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Accept drag events — show drop highlight when URLs are detected"""

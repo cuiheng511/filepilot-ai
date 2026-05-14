@@ -123,7 +123,7 @@ def _get_keyring_key() -> str:
 
         key = keyring.get_password(KEYRING_SERVICE, KEYRING_KEY)
         if key:
-            return key  # type: ignore[no-any-return]
+            return str(key)
     except Exception:
         pass
     # Fallback: try encrypted file

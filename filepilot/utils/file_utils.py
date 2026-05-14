@@ -201,6 +201,7 @@ def is_file_locked(path: Path) -> tuple[bool, str]:
         except OSError as e:
             # File might not exist or other OS error
             return False, str(e)
-    # On Linux/macOS, advisory locking is cooperative;
-    # shutil.move will still raise on actual permission errors
-    return False, ""  # type: ignore[unreachable]
+    else:
+        # On Linux/macOS, advisory locking is cooperative;
+        # shutil.move will still raise on actual permission errors
+        return False, ""

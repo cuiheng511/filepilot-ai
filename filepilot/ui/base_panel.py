@@ -73,11 +73,11 @@ class BasePanel(QWidget):
 
         title_label = QLabel(title)
         title_label.setObjectName("statTitle")
-        title_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        title_label.setAlignment(Qt.AlignCenter)
 
         value_label = QLabel(value)
         value_label.setObjectName("statValue")
-        value_label.setAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+        value_label.setAlignment(Qt.AlignCenter)
 
         layout.addWidget(title_label)
         layout.addWidget(value_label)

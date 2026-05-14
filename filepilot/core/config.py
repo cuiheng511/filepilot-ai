@@ -91,7 +91,7 @@ def _encrypt_api_key(api_key: str) -> bytes | None:
         return None
     try:
         f = Fernet(key)
-        return f.encrypt(api_key.encode("utf-8"))
+        return bytes(f.encrypt(api_key.encode("utf-8")))
     except Exception:
         return None
 
@@ -107,7 +107,7 @@ def _decrypt_api_key(token: bytes) -> str | None:
         return None
     try:
         f = Fernet(key)
-        return f.decrypt(token).decode("utf-8")
+        return str(f.decrypt(token).decode("utf-8"))
     except Exception:
         return None
 

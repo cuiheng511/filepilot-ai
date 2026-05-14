@@ -197,7 +197,7 @@ class FileBrowserPanel(BasePanel):
 
         root = QTreeWidgetItem(self.dir_tree)
         root.setText(0, self.current_dir.name)
-        root.setData(0, Qt.UserRole, str(self.current_dir))  # type: ignore[attr-defined]
+        root.setData(0, Qt.UserRole, str(self.current_dir))
         root.setExpanded(True)
 
         self._populate_dir_tree(self.current_dir, root)
@@ -256,8 +256,8 @@ class FileBrowserPanel(BasePanel):
                 if entry.is_dir():
                     child = QTreeWidgetItem(parent_item)
                     child.setText(0, f"📁 {entry.name}")
-                    child.setData(0, Qt.UserRole, str(entry))  # type: ignore[attr-defined]
-                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)  # type: ignore[attr-defined]
+                    child.setData(0, Qt.UserRole, str(entry))
+                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
         except PermissionError:
             pass
 
@@ -284,7 +284,7 @@ class FileBrowserPanel(BasePanel):
 
             icon = CATEGORY_ICONS.get(cat, "📁")
             name_item = QTableWidgetItem(f"{icon}  {f.name}")
-            name_item.setData(Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
+            name_item.setData(Qt.UserRole, str(f.path))
 
             size_item = QTableWidgetItem(f.size_str)
             type_item = QTableWidgetItem(cat)
@@ -324,9 +324,9 @@ class FileBrowserPanel(BasePanel):
     @Slot()
     def _on_dir_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle directory tree click"""
-        dir_path = item.data(0, Qt.UserRole)  # type: ignore[attr-defined]
+        dir_path = item.data(0, Qt.UserRole)
         if dir_path and Path(dir_path).is_dir():
-            if item.childCount() == 0 and item.data(0, Qt.UserRole):  # type: ignore[attr-defined]
+            if item.childCount() == 0 and item.data(0, Qt.UserRole):
                 self._populate_dir_tree(Path(dir_path), item)
             self.current_dir = Path(dir_path)
             self.dir_label.setText(f"📂 {dir_path}")
@@ -408,7 +408,7 @@ class FileBrowserPanel(BasePanel):
         """Handle file double-click — try to open externally"""
         path_item = self.file_table.item(row, 0)
         if path_item:
-            file_path = Path(path_item.data(Qt.UserRole))  # type: ignore[attr-defined]
+            file_path = Path(path_item.data(Qt.UserRole))
             if file_path.exists():
                 try:
                     fp = str(file_path)

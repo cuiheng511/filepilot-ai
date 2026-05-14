@@ -260,7 +260,7 @@ class SearchPanel(BasePanel):
 
         if not results:
             item = QListWidgetItem(f'No results found for "{query}"')
-            item.setForeground(Qt.gray)  # type: ignore[attr-defined]
+            item.setForeground(Qt.gray)
             self.result_list.addItem(item)
             self.stats_label.setText("No matching results")
             return
@@ -297,7 +297,7 @@ class SearchPanel(BasePanel):
             )
 
             item = QListWidgetItem(display_text)
-            item.setData(Qt.UserRole, filepath)  # type: ignore[attr-defined]
+            item.setData(Qt.UserRole, filepath)
             item.setToolTip(f"Path: {filepath}\nMatch: {score:.0%}")
             self.result_list.addItem(item)
 

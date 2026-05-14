@@ -273,7 +273,7 @@ class SummaryPanel(BasePanel):
     @Slot()
     def _add_file_item(self, name: str, suffix: str, path_str: str):
         item = QListWidgetItem(f"{name} ({suffix})")
-        item.setData(Qt.UserRole, path_str)  # type: ignore[attr-defined]
+        item.setData(Qt.UserRole, path_str)
         item.setToolTip(path_str)
         self.file_list.addItem(item)
         self.btn_generate.setEnabled(self.file_list.count() > 0)

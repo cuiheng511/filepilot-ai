@@ -106,7 +106,7 @@ class SettingsDialog(QDialog):
         self.api_base_input = QLineEdit()
         self.api_base_input.setPlaceholderText("http://localhost:11434")
         self.api_key_input = QLineEdit()
-        self.api_key_input.setEchoMode(QLineEdit.Password)  # type: ignore[attr-defined]
+        self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.setPlaceholderText("sk-...")
         self.api_key_label = QLabel("API Key:")
         common_layout.addRow("Model:", self.model_input)

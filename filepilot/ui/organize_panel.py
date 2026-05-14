@@ -377,8 +377,8 @@ class OrganizePanel(BasePanel):
             self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
 
             status = QTableWidgetItem("\U0001f4cb Preview")
-            status.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
-            status.setForeground(Qt.gray)  # type: ignore[attr-defined]
+            status.setTextAlignment(Qt.AlignCenter)
+            status.setForeground(Qt.gray)
             self.result_table.setItem(row, 4, status)
 
         self.result_table.setSortingEnabled(True)
@@ -486,9 +486,9 @@ class OrganizePanel(BasePanel):
             is_dry = op.get("dry_run", False)
             status_text = "\u2705 Moved" if not is_dry else "\U0001f4cb Preview"
             status_item = QTableWidgetItem(status_text)
-            status_item.setTextAlignment(Qt.AlignCenter)  # type: ignore[attr-defined]
+            status_item.setTextAlignment(Qt.AlignCenter)
             if not is_dry:
-                status_item.setForeground(Qt.green)  # type: ignore[attr-defined]
+                status_item.setForeground(Qt.green)
                 done += 1
             self.result_table.setItem(row, 4, status_item)
 

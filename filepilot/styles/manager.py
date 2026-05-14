@@ -64,7 +64,7 @@ class ThemeManager(QObject):
         if app is None:
             return False
 
-        app.setStyleSheet(qss)  # type: ignore[attr-defined]
+        app.setStyleSheet(qss)
         self._current_theme = name
         self.theme_changed.emit(name)
 

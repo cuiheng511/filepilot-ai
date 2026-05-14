@@ -319,15 +319,15 @@ class DuplicatesPanel(BasePanel):
                 # First file marked as "keep"
                 if j == 0:
                     child.setText(0, f"⭐ {f.name} (keep)")
-                    child.setForeground(0, Qt.green)  # type: ignore[attr-defined]
+                    child.setForeground(0, Qt.green)
 
                 if j == 0:
-                    child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
-                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
+                    child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)
+                    child.setCheckState(0, Qt.Unchecked)
                 else:
-                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
-                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
-                child.setData(0, Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
+                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
+                    child.setCheckState(0, Qt.Unchecked)
+                child.setData(0, Qt.UserRole, str(f.path))
 
         # ── Similar file name groups ──
         if similar_groups:
@@ -348,9 +348,9 @@ class DuplicatesPanel(BasePanel):
                     child.setText(1, str(f.path))
                     child.setText(2, f.size_str)
                     child.setToolTip(0, str(f.path))
-                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)  # type: ignore[attr-defined]
-                    child.setCheckState(0, Qt.Unchecked)  # type: ignore[attr-defined]
-                    child.setData(0, Qt.UserRole, str(f.path))  # type: ignore[attr-defined]
+                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
+                    child.setCheckState(0, Qt.Unchecked)
+                    child.setData(0, Qt.UserRole, str(f.path))
 
         # ── Update stats ──
         stats = self.finder.get_duplicate_stats(groups)
@@ -448,8 +448,8 @@ class DuplicatesPanel(BasePanel):
                 continue
             for j in range(group.childCount()):
                 child = group.child(j)
-                if child.checkState(0) == Qt.Checked:  # type: ignore[attr-defined]
-                    path = child.data(0, Qt.UserRole)  # type: ignore[attr-defined]
+                if child.checkState(0) == Qt.Checked:
+                    path = child.data(0, Qt.UserRole)
                     if path:
                         paths.append(path)
         return paths

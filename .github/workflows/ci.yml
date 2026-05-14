@@ -110,6 +110,8 @@ jobs:
 
       - name: Run tests with coverage (Windows)
         if: runner.os == 'Windows'
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           python -m pytest tests/ \
             --cov=filepilot \

@@ -172,6 +172,10 @@ class SettingsDialog(QDialog):
         except (ValueError, AttributeError):
             return 500
 
+    def _get_supported_lang_keys(self) -> list[str]:
+        """Return list of supported language keys in combo order"""
+        return list(SUPPORTED_LANGUAGES.keys())
+
     def _load_settings(self):
         """Load existing settings"""
         provider = self._settings.get("ai_provider", "ollama")

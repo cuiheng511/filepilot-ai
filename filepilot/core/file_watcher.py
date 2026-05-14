@@ -34,6 +34,10 @@ class FileWatcher(QObject):
             self.error_occurred.emit("watchdog not installed — run: pip install watchdog")
             return
 
+        if not Path(dir_path).is_dir():
+            self.error_occurred.emit(f"Directory does not exist: {dir_path}")
+            return
+
         from watchdog.events import FileSystemEventHandler
         from watchdog.observers import Observer
 

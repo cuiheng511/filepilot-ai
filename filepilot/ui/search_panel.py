@@ -325,8 +325,10 @@ class SearchPanel(BasePanel):
             item = self.result_list.item(i)
             filepath = item.data(Qt.UserRole)
             if filepath:
+                title = item.text().splitlines()[0]
+                name = title.split("  ", 1)[1] if "  " in title else title
                 results.append({
-                    "name": item.text().split("\n")[0].lstrip("📕 📝 💻 🖼️ 📄 📁 "),
+                    "name": name,
                     "path": filepath,
                     "text": item.toolTip(),
                 })

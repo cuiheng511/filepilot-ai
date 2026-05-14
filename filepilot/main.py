@@ -18,13 +18,17 @@ def main():
     from filepilot.i18n import load_language_from_settings
     load_language_from_settings()
 
-    from filepilot.app import create_app, create_services, load_settings
+    from filepilot.app import create_app, create_services, create_tray, load_settings
     from filepilot.ui.main_window import MainWindow
 
     app = create_app()
     settings = load_settings()
     services = create_services(settings)
     window = MainWindow(services=services)
+
+    # Setup system tray (must be created after MainWindow)
+    tray = create_tray(window, services)
+    tray.show()
     window.show()
     sys.exit(app.exec())
 

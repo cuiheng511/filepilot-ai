@@ -91,7 +91,7 @@ class TestGetCategory:
             cases.append((ext, "Audio"))
         return cases
 
-    @pytest.mark.parametrize("ext,expected", known_extensions())
+    @pytest.mark.parametrize(("ext", "expected"), known_extensions())
     def test_known_extension(self, ext: str, expected: str):
         assert get_category_name(ext) == expected
 

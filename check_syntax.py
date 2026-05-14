@@ -32,15 +32,15 @@ def main():
         valid, error = check_syntax(py_file)
         if not valid:
             errors.append(error)
-            print(f"❌ {error}", file=sys.stderr)
+            print(f"[ERR] {error}", file=sys.stderr)
         else:
-            print(f"✅ {py_file.relative_to(project_root)}")
+            print(f"[OK] {py_file.relative_to(project_root)}")
 
     if errors:
-        print(f"\n❌ Found {len(errors)} syntax error(s)", file=sys.stderr)
+        print(f"\n[ERR] Found {len(errors)} syntax error(s)", file=sys.stderr)
         sys.exit(1)
     else:
-        print("\n✅ All files passed syntax check")
+        print("\n[OK] All files passed syntax check")
 
 
 if __name__ == "__main__":

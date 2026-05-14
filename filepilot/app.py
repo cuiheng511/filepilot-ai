@@ -13,6 +13,13 @@ from filepilot.core.file_organizer import FileOrganizer
 from filepilot.core.file_scanner import FileScanner
 from filepilot.core.file_watcher import FileWatcher
 from filepilot.core.indexer import FileIndexer
+from filepilot.core.search_cache import (
+    cache_results,
+    clear_search_cache,
+    get_cache_stats,
+    get_cached_results,
+)
+from filepilot.ui.tray import SystemTrayManager
 
 
 def create_app() -> QApplication:
@@ -123,4 +130,16 @@ def create_services(settings: dict) -> dict:
         "local_ai": local_ai,
         "cloud_ai": cloud_ai,
         "summarizer": summarizer,
+        "search_cache_get": get_cached_results,
+        "search_cache_set": cache_results,
+        "search_cache_clear": clear_search_cache,
+        "search_cache_stats": get_cache_stats,
     }
+
+
+def create_tray(main_window, services: dict) -> SystemTrayManager:
+    """Create the system tray manager after main window is ready."""
+    services_with_toast = dict(services)
+    services_with_toast["toast"] = main_window._notify
+    tray = SystemTrayManager(main_window=main_window, services=services_with_toast)
+    return tray

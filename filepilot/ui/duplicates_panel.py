@@ -1,9 +1,9 @@
 """Deduplication panel — scan, group, and clean up duplicate files"""
 
+import importlib
 from pathlib import Path
 from threading import Thread
 
-import send2trash
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -308,8 +308,12 @@ class DuplicatesPanel(BasePanel):
                     child.setText(0, f"⭐ {f.name} (keep)")
                     child.setForeground(0, Qt.green)
 
-                child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
-                child.setCheckState(0, Qt.Checked if j == 0 else Qt.Unchecked)
+                if j == 0:
+                    child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)
+                    child.setCheckState(0, Qt.Unchecked)
+                else:
+                    child.setFlags(child.flags() | Qt.ItemIsUserCheckable)
+                    child.setCheckState(0, Qt.Unchecked)
                 child.setData(0, Qt.UserRole, str(f.path))
 
         # ── Similar file name groups ──
@@ -368,6 +372,12 @@ class DuplicatesPanel(BasePanel):
         selected_paths = self._get_checked_paths()
         if not selected_paths:
             self.status_message.emit("⚠️ Please check the files to delete (keep at least one per group)")
+            return
+
+        try:
+            send2trash = importlib.import_module("send2trash")
+        except ImportError:
+            self.status_message.emit("⚠️ Safe deletion is unavailable. Please install send2trash.")
             return
 
         from PySide6.QtWidgets import QMessageBox

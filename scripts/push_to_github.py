@@ -1,5 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Push filepilot-ai to GitHub using token authentication."""
+import base64
 import json
 import os
 import subprocess
@@ -81,10 +82,10 @@ def push_to_github():
         print("   https://git-scm.com/download/win")
         return False
 
-    # Create remote URL with token
-    remote_url = (
-        f"https://{GITHUB_USER}:{TOKEN}@github.com/{GITHUB_USER}/{REPO_NAME}.git"
-    )
+    remote_url = f"https://github.com/{GITHUB_USER}/{REPO_NAME}.git"
+    auth_header = "Authorization: Basic " + base64.b64encode(
+        f"{GITHUB_USER}:{TOKEN}".encode("ascii")
+    ).decode("ascii")
 
     # Step 1: Initialize git repo
     if os.path.exists(".git"):
@@ -120,7 +121,7 @@ def push_to_github():
     # Step 6: Push
     print("馃殌 Pushing to GitHub...")
     result = subprocess.run(
-        ["git", "push", "-u", "origin", "main"],
+        ["git", "-c", f"http.extraHeader={auth_header}", "push", "-u", "origin", "main"],
         capture_output=True, text=True, timeout=120
     )
     if result.returncode == 0:
@@ -134,7 +135,17 @@ def push_to_github():
         env = os.environ.copy()
         env["GCM_INTERACTIVE"] = "never"
         result = subprocess.run(
-            ["git", "-c", "credential.helper=", "push", "-u", "origin", "main"],
+            [
+                "git",
+                "-c",
+                "credential.helper=",
+                "-c",
+                f"http.extraHeader={auth_header}",
+                "push",
+                "-u",
+                "origin",
+                "main",
+            ],
             capture_output=True, text=True, timeout=120, env=env
         )
         if result.returncode == 0:

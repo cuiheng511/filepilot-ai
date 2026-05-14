@@ -63,15 +63,14 @@ def load() -> dict:
 
 def save(settings: dict):
     SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-    api_key = settings.pop("ai_api_key", "")
+    settings_copy = dict(settings)
+    api_key = settings_copy.pop("ai_api_key", "")
     if api_key:
         _save_keyring_key(api_key)
     try:
         SETTINGS_FILE.write_text(
-            json.dumps(settings, ensure_ascii=False, indent=2),
+            json.dumps(settings_copy, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
     except Exception as e:
         logger.warning("Failed to save settings: %s", e)
-    finally:
-        settings["ai_api_key"] = api_key

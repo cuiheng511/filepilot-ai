@@ -194,10 +194,12 @@ class TestIndexPanelBuildAndUpdate:
     def test_build_shows_confirmation(self):
         """Test build shows confirmation dialog"""
         from PySide6.QtWidgets import QMessageBox
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.Yes):
-            with patch.object(self.panel, "_start_indexing") as mock_start:
-                self.panel._on_build()
-                mock_start.assert_called_once()
+        with (
+            patch.object(QMessageBox, "question", return_value=QMessageBox.Yes),
+            patch.object(self.panel, "_start_indexing") as mock_start,
+        ):
+            self.panel._on_build()
+            mock_start.assert_called_once()
 
     def test_build_with_indexing_in_progress(self):
         """Test clicking build during indexing does nothing"""
@@ -258,11 +260,13 @@ class TestIndexPanelClear:
             "indexed_files": 0, "index_size": "0 B", "index_dir": "/tmp/index",
         }
 
-        with patch.object(QMessageBox, "warning", return_value=QMessageBox.Yes):
-            with patch.object(self.panel, "_refresh_stats") as mock_refresh:
-                self.panel._on_clear()
-                self.panel.indexer.clear_index.assert_called_once()
-                mock_refresh.assert_called_once()
+        with (
+            patch.object(QMessageBox, "warning", return_value=QMessageBox.Yes),
+            patch.object(self.panel, "_refresh_stats") as mock_refresh,
+        ):
+            self.panel._on_clear()
+            self.panel.indexer.clear_index.assert_called_once()
+            mock_refresh.assert_called_once()
 
     def test_clear_index_error_handling(self):
         """Test error handling when clearing index"""

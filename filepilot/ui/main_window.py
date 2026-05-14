@@ -352,6 +352,7 @@ class MainWindow(QMainWindow):
         recent.insert(0, dir_path)
         self.settings["recent_dirs"] = recent[:10]
         self._save_settings()
+        self._refresh_recent_menu()
 
         # Start watching for auto-index
         if self._watcher:
@@ -380,14 +381,38 @@ class MainWindow(QMainWindow):
         if not path.exists() or not path.is_relative_to(self.current_dir):
             return
         # Only index supported file types
-        info = FileInfo(path)
-        if info.extension and info.extension.lstrip(".").lower() in (
+        import mimetypes
+
+        from filepilot.core.file_scanner import (
+            get_file_category,
+            get_file_created_time,
+            get_file_modified_time,
+            get_file_size_str,
+        )
+        ext = path.suffix.lower()
+        if ext and ext.lstrip(".").lower() in (
             "pdf", "md", "markdown", "mdx", "py", "js", "ts", "jsx", "tsx",
             "java", "cpp", "c", "h", "hpp", "cs", "go", "rs", "rb", "php",
             "swift", "kt", "scala", "sql", "sh", "bash", "ps1", "bat", "pl",
             "lua", "r", "m", "dart", "vue", "svelte", "docx", "xlsx", "pptx",
             "txt", "log", "ini", "cfg", "toml", "yaml", "yml", "json", "xml", "csv",
         ):
+            try:
+                stat = path.stat()
+            except OSError:
+                return
+            info = FileInfo(
+                path=path,
+                name=path.name,
+                extension=ext,
+                size_bytes=stat.st_size,
+                size_str=get_file_size_str(stat.st_size),
+                category=get_file_category(path),
+                mime_type=mimetypes.guess_type(str(path))[0] or "application/octet-stream",
+                modified_time=get_file_modified_time(path),
+                created_time=get_file_created_time(path),
+                is_directory=path.is_dir(),
+            )
             self.index_panel.indexer.index_files(
                 [info],
                 content_extractor=self.search_panel._extract_file_content,
@@ -498,7 +523,23 @@ class MainWindow(QMainWindow):
         new_services = create_services(self.settings)
         self.services = new_services
 
-        # Push new service instances into existing panels — no rebuild, no restart
+        # Update watcher reference and reconnect signals
+        old_watcher = self._watcher
+        self._watcher = new_services.get("watcher")
+        if old_watcher:
+            with contextlib.suppress(RuntimeError, TypeError):
+                old_watcher.file_created.disconnect(self._on_file_changed)
+            with contextlib.suppress(RuntimeError, TypeError):
+                old_watcher.file_modified.disconnect(self._on_file_changed)
+            with contextlib.suppress(RuntimeError, TypeError):
+                old_watcher.file_deleted.disconnect(self._on_file_deleted)
+            old_watcher.stop()
+        if self._watcher:
+            self._watcher.file_created.connect(self._on_file_changed)
+            self._watcher.file_modified.connect(self._on_file_changed)
+            self._watcher.file_deleted.connect(self._on_file_deleted)
+            if self.current_dir:
+                self._watcher.watch(self.current_dir)
         self.browse_panel.update_services(scanner=new_services.get("scanner"))
         self.search_panel.update_services(
             scanner=new_services.get("scanner"),

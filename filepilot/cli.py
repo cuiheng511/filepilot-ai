@@ -113,13 +113,16 @@ def cmd_export(args):
         })
 
     if args.format == "csv":
-        out = open(args.output, "w", newline="", encoding="utf-8-sig") if args.output else sys.stdout
-        writer = csv.DictWriter(out, fieldnames=rows[0].keys() if rows else [])
-        writer.writeheader()
-        writer.writerows(rows)
         if args.output:
-            out.close()
+            with open(args.output, "w", newline="", encoding="utf-8-sig") as out:
+                writer = csv.DictWriter(out, fieldnames=rows[0].keys() if rows else [])
+                writer.writeheader()
+                writer.writerows(rows)
             print(f"Exported {len(rows)} records to {args.output}", file=sys.stderr)
+        else:
+            writer = csv.DictWriter(sys.stdout, fieldnames=rows[0].keys() if rows else [])
+            writer.writeheader()
+            writer.writerows(rows)
     else:
         output = json.dumps(rows, ensure_ascii=False, indent=2)
         if args.output:

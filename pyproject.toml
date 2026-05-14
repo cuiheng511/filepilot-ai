@@ -74,6 +74,8 @@ ignore = [
 "__init__.py" = ["F401"]
 "check_syntax.py" = ["T201"]
 "cli.py" = ["T201"]
+"read_files.py" = ["T201"]
+"scripts/*.py" = ["T201"]
 "tests/*.py" = [
     "T20",   # allow print() in tests
     "N802",  # allow test function names like test_MyFeature

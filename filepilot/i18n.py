@@ -1,6 +1,6 @@
 """FilePilot AI — Internationalization (i18n) Support
 
-Multi-language translation framework. Supports 12 languages.
+Multi-language translation framework. Supports 18 languages.
 """
 
 # Current language

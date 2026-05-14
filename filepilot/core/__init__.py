@@ -6,6 +6,12 @@ from .file_organizer import FileOrganizer, OrganizeRule
 from .file_scanner import FileInfo, FileScanner
 from .file_watcher import FileWatcher
 from .indexer import FileIndexer
+from .search_cache import (
+    cache_results,
+    clear_search_cache,
+    get_cache_stats,
+    get_cached_results,
+)
 from .task_queue import Task, TaskPriority, TaskQueueWorker, TaskState
 
 __all__ = [
@@ -23,4 +29,8 @@ __all__ = [
     "load_config",
     "save_config",
     "DEFAULTS",
+    "cache_results",
+    "clear_search_cache",
+    "get_cache_stats",
+    "get_cached_results",
 ]

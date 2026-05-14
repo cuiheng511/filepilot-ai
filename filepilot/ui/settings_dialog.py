@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from filepilot.i18n import SUPPORTED_LANGUAGES, t
+from filepilot.i18n import SUPPORTED_LANGUAGES, set_language, t
 
 
 class SettingsDialog(QDialog):
@@ -28,6 +28,8 @@ class SettingsDialog(QDialog):
         self.resize(650, 500)
 
         self._settings = settings.copy()
+        from filepilot.i18n import _current_lang
+        self._current_lang = _current_lang
         self.setObjectName("SettingsDialog")
         self._setup_ui()
         self._load_settings()
@@ -203,3 +205,16 @@ class SettingsDialog(QDialog):
             "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
             "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
         }
+
+    def accept(self):
+        """Apply settings and close"""
+        # Apply language change immediately
+        new_lang = list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()]
+        if new_lang != self._current_lang:
+            set_language(new_lang)
+            self._current_lang = new_lang
+
+        # Store new settings from controls
+        self._settings = self.get_settings()
+
+        super().accept()

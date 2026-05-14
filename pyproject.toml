@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filepilot-ai"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local-first AI file manager for scanning, searching, deduplicating, summarizing, and organizing files"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -54,7 +54,7 @@ dependencies = [
     "openpyxl>=3.1.0",
     "python-pptx>=0.6.21",
     "send2trash>=1.8.0",
-    "watchdog>=4.0.0",
+    "watchdog>=6.0.0",
     "cryptography>=42.0.0",
 ]
 
@@ -64,6 +64,12 @@ Repository = "https://github.com/cuiheng511/filepilot-ai.git"
 Documentation = "https://github.com/cuiheng511/filepilot-ai#readme"
 Changelog = "https://github.com/cuiheng511/filepilot-ai/blob/main/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/cuiheng511/filepilot-ai/issues"
+
+[project.scripts]
+filepilot = "filepilot.cli:main"
+
+[project.gui-scripts]
+filepilot-gui = "filepilot.main:main"
 
 [tool.setuptools.packages.find]
 include = ["filepilot*"]
@@ -165,6 +171,7 @@ exclude_lines = [
 
 [tool.mypy]
 python_version = "3.10"
+files = ["filepilot"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_return_any = true

@@ -1,6 +1,7 @@
 """System Tray — Background watcher with system tray icon and notifications"""
 
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -166,8 +167,8 @@ class SystemTrayManager(QObject):
         """Handle file created/modified event"""
         import mimetypes
 
-        from filepilot.core.file_scanner import (
-            FileInfo,
+        from filepilot.core.file_scanner import FileInfo
+        from filepilot.utils.file_utils import (
             get_file_category,
             get_file_created_time,
             get_file_modified_time,
@@ -199,7 +200,11 @@ class SystemTrayManager(QObject):
             # No indexer — skip auto-indexing
             logger.debug("No indexer available, skipping auto-index for: %s", file_path)
 
-        self._show_toast(f"📄 Indexed: {Path(file_path).name}", "info", 1500)
+        # Debounce: only show toast if at least 3 seconds since last one
+        now = time.time()
+        if getattr(self, "_last_toast_time", 0) + 3 < now:
+            self._last_toast_time = now
+            self._show_toast(f"📄 Indexed: {Path(file_path).name}", "info", 1500)
 
     def _on_file_deleted(self, file_path: str):
         """Handle file deletion"""

@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.0] - 2026-05-14
+
+### Added
+- **Linux AppImage builder** — `scripts/build_appimage.sh` generates portable `.AppImage` via PyInstaller + appimagetool
+- **macOS .app + .dmg builder** — `scripts/build_macos.sh` builds signed/notarized `.app` bundles with `create-dmg` or `hdiutil` fallback
+- **Cross-platform CI** — GitHub Actions now builds on all 3 platforms: Windows (exe + Inno Setup), Linux (AppImage), macOS (.app + .dmg)
+- **Unified build entry point** — `scripts/build.sh` auto-detects OS and dispatches to the right builder; `--docker-linux` flag enables Linux AppImage builds from any OS
+- **macOS .icns icon** — Auto-generated from `app.png` during macOS builds
+
+### Fixed
+- **README Windows Installer** — "Bilingual installer" corrected to "English-only installer" with complete Chinese Simplified language setup guide (download `.isl` + ISS config)
+- **README Quality Gates** — Separated CI-pipeline tools from local-only recommendations; `mypy`/`pip check` properly annotated
+- **Windows infinite recursion** — `scripts/build.sh` no longer calls itself on Git Bash/MSYS/Cygwin
+- **build_macos.sh create-dmg syntax** — Misplaced `|| true` in the middle of command chain, causing all options after `--volicon` to be ignored
+- **CI macOS icon missing** — `$ICON_PATH` variable was undefined in CI job, causing `--icon` flag to never be passed
+
+### Changed
+- **Version bump** — `0.3.0` → `0.4.0`
+- **GitHub Actions** — `build` job split into `build-windows`, `build-linux`, `build-macos` with proper `needs: [lint, test]` gating
+- **CI quality gates expanded** — `mypy` + `pip check` now run in all three build jobs (`build-windows`, `build-linux`, `build-macos`) before PyInstaller build
+- **Inno Setup URL auto-tracking** — CI now fetches latest version from `jrsoftware.org/isdl.php` instead of hardcoding 6.2.2
+- **macOS create-dmg warning** — Failed `brew install create-dmg` now outputs a visible warning before falling back to `hdiutil`
+- **FilePilot.spec** — Now Windows-only; Linux and macOS builds use inline PyInstaller CLI flags directly
+- **pyproject.toml entry points** — Added `[project.scripts]` (`filepilot`) and `[project.gui-scripts]` (`filepilot-gui`) per PEP 621
+- **watchdog version alignment** — `>=4.0.0` → `>=6.0.0` in `pyproject.toml` to match `requirements.txt`
+- **`mypy` unified to default usage** — `mypy filepilot` → `mypy` (no argument) in CI, README Quality Gates, and Development Setup
+- **Architecture diagram** — Added `send2trash` → Recycle Bin path to Mermaid flowchart
+- **build_installer.ps1** — Added PyInstaller existence check before build
+
 ## [0.3.0] - 2026-05-14
 
 ### Added

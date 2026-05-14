@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.3.0
+Version 0.4.0
 
 </div>
 
@@ -158,7 +158,7 @@ pip install -e ".[test,dev]"
 pytest
 ruff check .
 ruff format --check .
-mypy filepilot
+mypy
 ```
 
 ## CLI Examples
@@ -211,9 +211,9 @@ filepilot-ai/
 |   |-- i18n.py              # Translation catalog
 |   `-- main.py              # GUI entry point
 |-- tests/                   # Unit and UI tests
-|-- scripts/                 # Helper scripts
-|-- .github/workflows/       # CI pipeline
-|-- FilePilot.spec           # PyInstaller build config
+|-- scripts/                 # Build scripts (Windows/macOS/Linux installers)
+|-- .github/workflows/       # CI pipeline (3-platform builds)
+|-- FilePilot.spec           # PyInstaller build config (Windows)
 |-- pyproject.toml           # Package metadata and tooling
 `-- requirements.txt         # Runtime dependencies
 ```
@@ -232,6 +232,8 @@ flowchart LR
     Scanner --> Extractors["Content extractors"]
     Extractors --> Summarizer["AI summarizer"]
     Summarizer --> Providers["Local and cloud AI providers"]
+    Duplicates --> send2trash["send2trash"]
+    send2trash --> RecycleBin["System Recycle Bin (safe deletion)"]
 ```
 
 ## Security and Privacy
@@ -246,26 +248,99 @@ flowchart LR
 
 ## Quality Gates
 
-The repository is set up for:
+The CI pipeline runs:
 
-- `pytest` for unit and UI tests
-- `ruff check .` for linting
-- `ruff format --check .` for formatting
-- `mypy filepilot` for type checking
-- `pip check` for dependency consistency
+- `pytest` — unit and UI tests
+- `ruff check .` — linting
+- `ruff format --check .` — formatting
+- `mypy` — static type checking (Windows / Linux / macOS build)
+- `pip check` — dependency consistency (Windows / Linux / macOS build)
 
-## Build
+Recommended for local development: none beyond what runs in CI
+
+## Build (Cross-Platform)
+
+FilePilot AI supports three packaging targets, all managed by a unified entry point:
 
 ```bash
-pyinstaller FilePilot.spec --noconfirm
+# Auto-detect current platform and build
+./scripts/build.sh
+
+# Or build for a specific platform:
+./scripts/build_appimage.sh          # Linux AppImage
+./scripts/build_macos.sh --sign      # macOS .app + .dmg
+./scripts/build.sh --docker-linux    # Linux AppImage via Docker (any OS)
+.\scripts\build_installer.ps1        # Windows installer (Inno Setup)
 ```
 
-The PyInstaller spec includes icons, image resources, theme files, extractor dependencies, and watcher dependencies.
+### Windows Installer
+
+- Built with **PyInstaller** + **Inno Setup 6**
+- Output: `dist/FilePilot-AI-Setup-{version}.exe`
+- Installs to `Program Files\FilePilot AI`, Start Menu & Desktop shortcuts
+- Uninstaller via Control Panel
+- English-only installer
+  > To add Chinese Simplified:
+  > 1. Download `ChineseSimplified.isl` from [jrsoftware.org](https://jrsoftware.org/isdl.php)
+  > 2. Place it in Inno Setup's `Languages` directory
+  > 3. In `filepilot-installer.iss`, add the following line after the existing `english` entry:
+  >    `Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"`
+
+
+- Optional: Authenticode digital signing (set `SIGNTOOL_PATH` + `SIGN_CERTIFICATE_SHA1`)
+
+### Linux AppImage
+
+- Built with **PyInstaller** + **appimagetool**
+- Output: `dist/FilePilot-{version}-x86_64.AppImage`
+- Bundles `.desktop` file, AppStream metainfo, and application icons
+- Portable — no installation required, runs on any Linux distribution
+
+### macOS .app + .dmg
+
+- Built with **PyInstaller** + **create-dmg**
+- Output: `dist/FilePilot-{version}.dmg`
+- Native `.app` bundle with `.icns` icon
+- Optional: Code signing via `--sign` flag (Apple Developer ID)
+- Optional: Notarization via `--notarize` (Apple Notary Service)
+
+### CI Pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically builds all three platforms:
+
+| Job | Platform | Runner | Artifact | Retention |
+| --- | -------- | ------ | -------- | --------- |
+| `build-windows` | Windows | `windows-latest` | `.exe` installer | 30 days |
+| `build-linux` | Linux | `ubuntu-latest` | `.AppImage` | 30 days |
+| `build-macos` | macOS | `macos-latest` | `.dmg` | 30 days |
+
+Each CI run produces SHA256 checksums alongside the artifacts.
+
+## Auto-Update
+
+FilePilot AI includes a built-in **auto-update checker** that queries GitHub Releases:
+
+```python
+from filepilot.updater import UpdateChecker, check_now
+
+# Background check with callback
+checker = UpdateChecker()
+checker.check_async(callback=on_result)
+
+# Synchronous check
+result = check_now()
+if result.has_update:
+    print(f"Update available: {result.release.version}")
+    checker.open_download_page()
+```
+
+- Checks every 24 hours (1 hour on failure)
+- Results cached locally to avoid unnecessary API calls
+- Thread-safe: runs in background daemon thread
 
 ## Roadmap
 
 - Application screenshots and demo GIFs
-- Windows and macOS signed installers
 - Summary cache with invalidation
 - Large-folder indexing performance tuning
 - More organization templates

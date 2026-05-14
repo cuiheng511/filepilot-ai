@@ -91,11 +91,11 @@ jobs:
       - name: Verify critical dependencies
         run: |
           python -c "
-import watchdog, PySide6
-print(f'watchdog {getattr(watchdog, \"__version__\", \"installed\")}')
-print(f'PySide6 {PySide6.__version__}')
-print('All critical deps OK')
-"
+          import watchdog, PySide6
+          print(f'watchdog {getattr(watchdog, \"__version__\", \"installed\")}')
+          print(f'PySide6 {PySide6.__version__}')
+          print('All critical deps OK')
+          "
 
       - name: Run tests with coverage (Linux)
         if: runner.os == 'Linux'
@@ -134,8 +134,10 @@ print('All critical deps OK')
           fail_ci_if_error: false
           verbose: false
 
-  build:
-    name: Build (PyInstaller)
+ # ── Windows Build (PyInstaller + Inno Setup) ──────────────────────────────
+
+  build-windows:
+    name: Build (Windows) — PyInstaller + Installer
     runs-on: windows-latest
     needs: [lint, test]
     steps:
@@ -154,24 +156,370 @@ print('All critical deps OK')
           pip install -e .
           pip install pyinstaller
 
+      - name: Quality checks (pip check + mypy)
+        run: |
+          pip install mypy
+          pip check
+          mypy
+
       - name: Build with PyInstaller
-        run: pyinstaller FilePilot.spec
+        run: pyinstaller FilePilot.spec --noconfirm
 
       - name: Verify build artifact exists
         run: |
           if (Test-Path "dist\FilePilot\FilePilot.exe") {
-            Write-Host "✅ Build successful: dist\FilePilot\FilePilot.exe"
-            $size = (Get-Item "dist\FilePilot\FilePilot.exe").Length
-            Write-Host "📦 Size: $([math]::Round($size / 1MB, 2)) MB"
+            $size = [math]::Round((Get-Item "dist\FilePilot\FilePilot.exe").Length / 1MB, 2)
+            Write-Host "✅ PyInstaller OK — $size MB"
           } else {
             Write-Host "❌ Build artifact not found!"
             Get-ChildItem dist\ -Recurse -ErrorAction SilentlyContinue
             exit 1
           }
 
-      - name: Upload build artifact
+      - name: Upload PyInstaller artifact
         uses: actions/upload-artifact@v7
         with:
           name: FilePilot-Windows-${{ github.sha }}
           path: dist\FilePilot\
           retention-days: 7
+
+      - name: Download Inno Setup
+        run: |
+          $innoUrl = "https://jrsoftware.org/download.php/innosetup.exe"
+          $innoInstaller = "$env:TEMP\innosetup.exe"
+          $innoDir = "$env:TEMP\InnoSetup"
+          Write-Host "Downloading latest Inno Setup from $innoUrl ..."
+          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing
+          if (-not (Test-Path $innoInstaller)) { throw "Inno Setup download failed" }
+          Write-Host "Installing Inno Setup..."
+          Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /DIR=$innoDir /NORESTART /SUPPRESSMSGBOXES" -Wait
+          Write-Host "Inno Setup installed to $innoDir"
+          echo "ISCC_PATH=$innoDir\ISCC.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Compile Inno Setup installer
+        run: |
+          $version = python -c "from filepilot import __version__; print(__version__)"
+          & "$env:ISCC_PATH" "/dMyAppVersion=$version" scripts\filepilot-installer.iss
+        shell: powershell
+
+      - name: Verify installer artifact
+        run: |
+          $installer = Get-ChildItem "dist\FilePilot-AI-Setup-*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($installer) {
+            $size = [math]::Round($installer.Length / 1MB, 2)
+            Write-Host "✅ Installer OK — $($installer.Name) ($size MB)"
+          } else {
+            Write-Host "❌ Installer not found!"
+            Get-ChildItem dist\*.exe -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+      - name: Generate installer checksum
+        run: |
+          $installer = Get-ChildItem "dist\FilePilot-AI-Setup-*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $hash = Get-FileHash -Algorithm SHA256 -Path $installer.FullName
+          $hash.Hash | Out-File -Encoding ascii "$($installer.FullName).sha256"
+        shell: powershell
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: FilePilot-AI-Setup-${{ github.sha }}
+          path: |
+            dist\FilePilot-AI-Setup-*.exe
+            dist\FilePilot-AI-Setup-*.exe.sha256
+          retention-days: 30
+
+  # ── Linux Build (PyInstaller + AppImage) ────────────────────────────────
+
+  build-linux:
+    name: Build (Linux) — PyInstaller + AppImage
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libxcb-xv0 libxrender1 \
+            fuse libfuse2 desktop-file-utils
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Quality checks (pip check + mypy)
+        run: |
+          pip install mypy
+          pip check
+          mypy
+
+      - name: Build with PyInstaller (Linux spec)
+        run: |
+          python -c "import sys; sys.setrecursionlimit(10000)"
+          pyinstaller \
+            --noconfirm --clean \
+            --name FilePilot \
+            --windowed --onedir \
+            --add-data 'filepilot/resources:filepilot/resources' \
+            --add-data 'filepilot/styles/themes:filepilot/styles/themes' \
+            --hidden-import filepilot.ai.base \
+            --hidden-import filepilot.ai.local_ai --hidden-import filepilot.ai.cloud_ai \
+            --hidden-import filepilot.ai.summarizer --hidden-import filepilot.app \
+            --hidden-import filepilot.cli --hidden-import filepilot.i18n \
+            --hidden-import filepilot.log --hidden-import filepilot.core.search_cache \
+            --hidden-import filepilot.core.file_scanner \
+            --hidden-import filepilot.core.duplicate_finder \
+            --hidden-import filepilot.core.file_organizer \
+            --hidden-import filepilot.core.indexer \
+            --hidden-import filepilot.core.file_watcher \
+            --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
+            --hidden-import filepilot.extractors.pdf_extractor \
+            --hidden-import filepilot.extractors.markdown_extractor \
+            --hidden-import filepilot.extractors.code_extractor \
+            --hidden-import filepilot.extractors.image_extractor \
+            --hidden-import filepilot.extractors.docx_extractor \
+            --hidden-import filepilot.extractors.xlsx_extractor \
+            --hidden-import filepilot.extractors.pptx_extractor \
+            --hidden-import filepilot.utils.file_utils --hidden-import filepilot.ui.tray \
+            --hidden-import filepilot.styles.manager \
+            --hidden-import whoosh --hidden-import whoosh.fields \
+            --hidden-import whoosh.index --hidden-import whoosh.qparser \
+            --hidden-import fitz --hidden-import PIL \
+            --hidden-import yaml --hidden-import cryptography \
+            --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
+            --hidden-import send2trash --hidden-import watchdog \
+            --exclude-module tkinter --exclude-module matplotlib \
+            --exclude-module scipy --exclude-module pandas \
+            --exclude-module torch --exclude-module tensorflow \
+            filepilot/main.py
+
+      - name: Verify build artifact exists
+        run: |
+          if [ -d "dist/FilePilot" ]; then
+            SIZE=$(du -sh "dist/FilePilot" | cut -f1)
+            echo "✅ PyInstaller OK — $SIZE"
+          else
+            echo "❌ Build artifact not found!"
+            ls -la dist/ 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Upload PyInstaller artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: FilePilot-Linux-${{ github.sha }}
+          path: dist/FilePilot/
+          retention-days: 7
+
+      - name: Create AppImage
+        run: |
+          chmod +x scripts/build_appimage.sh
+          scripts/build_appimage.sh --skip-pyinstaller
+
+      - name: Verify AppImage artifact
+        run: |
+          APPIMAGE=$(ls dist/FilePilot-*.AppImage 2>/dev/null || true)
+          if [ -n "$APPIMAGE" ]; then
+            SIZE=$(du -h "$APPIMAGE" | cut -f1)
+            sha256sum "$APPIMAGE" > "${APPIMAGE}.sha256"
+            echo "✅ AppImage OK — $APPIMAGE ($SIZE)"
+          else
+            echo "⚠ AppImage creation may have failed."
+            ls -la dist/ 2>/dev/null || true
+          fi
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: FilePilot-AppImage-${{ github.sha }}
+          path: |
+            dist/FilePilot-*.AppImage
+            dist/FilePilot-*.AppImage.sha256
+          retention-days: 30
+
+  # ── macOS Build (PyInstaller .app + .dmg) ──────────────────────────────
+
+  build-macos:
+    name: Build (macOS) — .app + .dmg
+    runs-on: macos-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install system dependencies
+        run: |
+          brew install create-dmg || echo "⚠ brew install create-dmg failed, will fall back to hdiutil"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Quality checks (pip check + mypy)
+        run: |
+          pip install mypy
+          pip check
+          mypy
+
+      - name: Generate .icns icon
+        run: |
+          mkdir -p filepilot/resources
+          if [ -f "filepilot/resources/app.icns" ]; then
+            echo "app.icns already exists"
+          else
+            mkdir -p .tmp/icons.iconset
+            if command -v sips &>/dev/null; then
+              for size in 16 32 64 128 256 512; do
+                sips -z $size $size filepilot/resources/app.png --out ".tmp/icons.iconset/icon_${size}x${size}.png" 2>/dev/null || true
+                [ $size -le 256 ] && sips -z $((size*2)) $((size*2)) filepilot/resources/app.png --out ".tmp/icons.iconset/icon_${size}x${size}@2x.png" 2>/dev/null || true
+              done
+              iconutil -c icns ".tmp/icons.iconset" -o "filepilot/resources/app.icns" 2>/dev/null || echo "iconutil failed"
+            fi
+            rm -rf .tmp/icons.iconset
+          fi
+          echo "✅ .icns ready: $(ls -la filepilot/resources/app.icns 2>/dev/null || echo 'not found')"
+
+      - name: Build with PyInstaller (macOS .app)
+        run: |
+          pyinstaller \
+            --noconfirm --clean \
+            --name FilePilot \
+            --windowed --onedir \
+            --add-data "filepilot/resources:filepilot/resources" \
+            --add-data "filepilot/styles/themes:filepilot/styles/themes" \
+            --hidden-import filepilot.ai.base \
+            --hidden-import filepilot.ai.local_ai --hidden-import filepilot.ai.cloud_ai \
+            --hidden-import filepilot.ai.summarizer --hidden-import filepilot.app \
+            --hidden-import filepilot.cli --hidden-import filepilot.i18n \
+            --hidden-import filepilot.log --hidden-import filepilot.core.search_cache \
+            --hidden-import filepilot.core.file_scanner \
+            --hidden-import filepilot.core.duplicate_finder \
+            --hidden-import filepilot.core.file_organizer \
+            --hidden-import filepilot.core.indexer \
+            --hidden-import filepilot.core.file_watcher \
+            --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
+            --hidden-import filepilot.extractors.pdf_extractor \
+            --hidden-import filepilot.extractors.markdown_extractor \
+            --hidden-import filepilot.extractors.code_extractor \
+            --hidden-import filepilot.extractors.image_extractor \
+            --hidden-import filepilot.extractors.docx_extractor \
+            --hidden-import filepilot.extractors.xlsx_extractor \
+            --hidden-import filepilot.extractors.pptx_extractor \
+            --hidden-import filepilot.utils.file_utils --hidden-import filepilot.ui.tray \
+            --hidden-import filepilot.styles.manager \
+            --hidden-import whoosh --hidden-import whoosh.fields \
+            --hidden-import whoosh.index --hidden-import whoosh.qparser \
+            --hidden-import fitz --hidden-import PIL \
+            --hidden-import yaml --hidden-import cryptography \
+            --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
+            --hidden-import send2trash --hidden-import watchdog \
+            --exclude-module tkinter --exclude-module matplotlib \
+            --exclude-module scipy --exclude-module pandas \
+            --exclude-module torch --exclude-module tensorflow \
+            --icon filepilot/resources/app.icns \
+            filepilot/main.py
+
+      - name: Verify .app exists
+        run: |
+          if [ -d "dist/FilePilot.app" ]; then
+            SIZE=$(du -sh "dist/FilePilot.app" | cut -f1)
+            echo "✅ .app OK — $SIZE"
+          elif [ -d "dist/FilePilot/FilePilot.app" ]; then
+            mv "dist/FilePilot/FilePilot.app" "dist/"
+            SIZE=$(du -sh "dist/FilePilot.app" | cut -f1)
+            echo "✅ .app moved to dist/ — $SIZE"
+          else
+            echo "❌ .app not found!"
+            find dist/ -name "*.app" -type d 2>/dev/null || true
+            ls -la dist/ 2>/dev/null || true
+            # Don't fail — collect what we have
+          fi
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v7
+        continue-on-error: true
+        with:
+          name: FilePilot-macOS-app-${{ github.sha }}
+          path: dist/FilePilot.app
+          retention-days: 7
+
+      - name: Create DMG
+        run: |
+          if [ -d "dist/FilePilot.app" ]; then
+            VERSION=$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.4.0")
+            DMG_SRC="/tmp/FilePilot-dmg-src"
+            rm -rf "$DMG_SRC"
+            mkdir -p "$DMG_SRC"
+            cp -R "dist/FilePilot.app" "$DMG_SRC/"
+            ln -s /Applications "$DMG_SRC/Applications" 2>/dev/null || true
+            if command -v create-dmg &>/dev/null; then
+              create-dmg \
+                --volname "FilePilot AI" \
+                --window-pos 200 120 \
+                --window-size 800 400 \
+                --icon-size 100 \
+                --icon "FilePilot.app" 200 190 \
+                --hide-extension "FilePilot.app" \
+                --app-drop-link 600 185 \
+                --no-internet-enable \
+                "dist/FilePilot-${VERSION}.dmg" \
+                "$DMG_SRC" 2>&1 || true
+            fi
+            # Fallback: use hdiutil
+            if [ ! -f "dist/FilePilot-${VERSION}.dmg" ]; then
+              echo "create-dmg failed, using hdiutil directly..."
+              hdiutil create -volname "FilePilot AI" \
+                -srcfolder "$DMG_SRC" \
+                -ov -format UDZO \
+                -imagekey zlib-level=9 \
+                "dist/FilePilot-${VERSION}.dmg"
+            fi
+            rm -rf "$DMG_SRC"
+          else
+            echo "No .app found, skipping DMG creation"
+          fi
+
+      - name: Verify DMG artifact
+        run: |
+          DMG=$(ls dist/FilePilot-*.dmg 2>/dev/null || true)
+          if [ -n "$DMG" ]; then
+            SIZE=$(du -h "$DMG" | cut -f1)
+            sha256sum "$DMG" > "${DMG}.sha256"
+            echo "✅ DMG OK — $DMG ($SIZE)"
+          else
+            echo "⚠ DMG not created"
+            ls -la dist/ 2>/dev/null || true
+          fi
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        continue-on-error: true
+        with:
+          name: FilePilot-macOS-DMG-${{ github.sha }}
+          path: |
+            dist/FilePilot-*.dmg
+            dist/FilePilot-*.dmg.sha256
+          retention-days: 30

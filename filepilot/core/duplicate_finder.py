@@ -64,7 +64,8 @@ class DuplicateFinder:
         for i, group in enumerate(potential_groups):
             for f in group:
                 partial_hash = self._partial_hash(f.path)
-                hash_groups[partial_hash].append(f)
+                if partial_hash:
+                    hash_groups[partial_hash].append(f)
 
             if progress_callback:
                 progress_callback(i + 1, f"Verifying hash... {i + 1}/{total}")
@@ -78,7 +79,8 @@ class DuplicateFinder:
             full_hash_groups: defaultdict[str, list[FileInfo]] = defaultdict(list)
             for f in group:
                 full_hash = self._full_hash(f.path)
-                full_hash_groups[full_hash].append(f)
+                if full_hash:
+                    full_hash_groups[full_hash].append(f)
 
             final_groups.extend(g for g in full_hash_groups.values() if len(g) > 1)
 
@@ -128,15 +130,17 @@ class DuplicateFinder:
 
         return groups
 
-    def _partial_hash(self, file_path: Path, sample_size: int = 65536) -> str:
+    def _partial_hash(self, file_path: Path, sample_size: int = 65536) -> str | None:
         """Compute partial file hash (first and last sample_size bytes each)
 
         When file size <= 2 * sample_size, head and tail may overlap,
         so a length prefix is used to avoid collisions.
+
+        Returns hex digest on success, None on read error.
         """
-        hasher = hashlib.sha256()
         try:
             file_size = file_path.stat().st_size
+            hasher = hashlib.sha256()
             hasher.update(file_size.to_bytes(8, "big"))  # Length prefix
             with open(file_path, "rb") as f:
                 head = f.read(sample_size)
@@ -145,20 +149,25 @@ class DuplicateFinder:
                     f.seek(-sample_size, 2)
                     tail = f.read(sample_size)
                     hasher.update(tail)
+            return hasher.hexdigest()
         except (OSError, PermissionError) as e:
             logger.debug("Partial hash failed for %s: %s", file_path, e)
-        return hasher.hexdigest()
+            return None
 
-    def _full_hash(self, file_path: Path) -> str:
-        """Compute full file SHA256 hash"""
-        hasher = hashlib.sha256()
+    def _full_hash(self, file_path: Path) -> str | None:
+        """Compute full file SHA256 hash.
+
+        Returns hex digest on success, None on read error.
+        """
         try:
+            hasher = hashlib.sha256()
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(65536), b""):
                     hasher.update(chunk)
+            return hasher.hexdigest()
         except (OSError, PermissionError) as e:
             logger.debug("Full hash failed for %s: %s", file_path, e)
-        return hasher.hexdigest()
+            return None
 
     def get_duplicate_stats(self, groups: list[list[FileInfo]]) -> dict:
         """Get duplicate file statistics"""

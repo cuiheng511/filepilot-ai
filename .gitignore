@@ -34,6 +34,9 @@ Thumbs.db
 # Installers
 *.exe
 *.msi
+*.isl
+*.dmg
+*.AppImage
 
 # Settings (contains API keys)
 .filepilot/settings.json

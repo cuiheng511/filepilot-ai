@@ -2,11 +2,17 @@
 
 import logging
 from pathlib import Path
-from threading import Thread
+from typing import Protocol
 
 from PySide6.QtCore import QObject, Signal
 
 logger = logging.getLogger("filepilot.file_watcher")
+
+
+class _ObserverLike(Protocol):
+    def stop(self) -> None: ...
+
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 class FileWatcher(QObject):
@@ -18,8 +24,8 @@ class FileWatcher(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._watched_dirs: dict[str, Thread] = {}
-        self._observer = None
+        self._watched_dirs: dict[str, _ObserverLike] = {}
+        self._observer: _ObserverLike | None = None
 
     @property
     def is_available(self) -> bool:
@@ -73,7 +79,7 @@ class FileWatcher(QObject):
         dir_path = str(Path(directory).resolve())
         observer = self._watched_dirs.pop(dir_path, None)
         if observer:
-            observer.stop()  # type: ignore[attr-defined]
+            observer.stop()
             observer.join(timeout=2)
             logger.info("Stopped watching %s", dir_path)
 

@@ -8,6 +8,7 @@
 - **Cross-platform CI** — GitHub Actions now builds on all 3 platforms: Windows (exe + Inno Setup), Linux (AppImage), macOS (.app + .dmg)
 - **Unified build entry point** — `scripts/build.sh` auto-detects OS and dispatches to the right builder; `--docker-linux` flag enables Linux AppImage builds from any OS
 - **macOS .icns icon** — Auto-generated from `app.png` during macOS builds
+- **docs/BUILD.md** — Comprehensive cross-platform build guide covering Windows Inno Setup (including Chinese localization), Linux AppImage, macOS .app+.dmg, CI pipeline, and troubleshooting
 
 ### Fixed
 - **README Windows Installer** — "Bilingual installer" corrected to "English-only installer" with complete Chinese Simplified language setup guide (download `.isl` + ISS config)
@@ -28,6 +29,7 @@
 - **`mypy` unified to default usage** — `mypy filepilot` → `mypy` (no argument) in CI, README Quality Gates, and Development Setup
 - **Architecture diagram** — Added `send2trash` → Recycle Bin path to Mermaid flowchart
 - **build_installer.ps1** — Added PyInstaller existence check before build
+- **README.md** — Removed unprofessional Icon section; replaced verbose per-platform build instructions with concise summary linking to docs/BUILD.md; polished Overview, Highlights, and Quality Gates copy
 
 ## [0.3.0] - 2026-05-14
 

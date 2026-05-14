@@ -20,9 +20,9 @@ Version 0.4.0
 
 ## Overview
 
-FilePilot AI is a desktop assistant for people who live inside large folders. It helps you inspect local storage, build a searchable file index, detect duplicate content, generate AI summaries, and reorganize messy directories with a preview-first workflow.
+FilePilot AI is a local-first desktop file manager that helps you inspect, index, search, deduplicate, summarize, and organize your local storage — all through a preview-first workflow.
 
-The app is designed around one principle: your files stay on your machine unless you explicitly choose a cloud AI provider for summarization.
+Your files stay on your machine unless you explicitly choose a cloud AI provider for summarization.
 
 ## Demo
 
@@ -40,30 +40,30 @@ The app is designed around one principle: your files stay on your machine unless
 
 ### Smart scanning
 
-- Recursive directory scanning
-- File type and category detection
-- Size, date, MIME, and hash metadata
-- Hidden-file and depth controls
+- Recursive directory scanning with depth controls
+- File type, category, MIME, and hash detection
+- Rich metadata: size, date, dimensions, duration
+- Respects hidden-file and .gitignore filters
 
 </td>
 <td width="33%">
 
 ### Fast local search
 
-- Whoosh full-text index
-- Keyword and fuzzy matching
-- Type, date, and size filters
-- Exportable search results
+- Whoosh-powered full-text index
+- Keyword, fuzzy, and boolean queries
+- Filter by type, date range, and file size
+- Export results to CSV
 
 </td>
 <td width="33%">
 
 ### AI summaries
 
-- PDF, Markdown, code, image, DOCX, XLSX, and PPTX extractors
-- Local or cloud AI providers
-- Batch-friendly summary workflow
-- Unified provider interface
+- Built-in extractors for PDF, Markdown, code, images, DOCX, XLSX, and PPTX
+- Local (Ollama, llama.cpp) or cloud AI providers (OpenAI, Anthropic)
+- Batch summary workflow for multi-file processing
+- Pluggable provider interface with unified API
 
 </td>
 </tr>
@@ -72,29 +72,29 @@ The app is designed around one principle: your files stay on your machine unless
 
 ### Duplicate cleanup
 
-- Size grouping
-- Partial hash pre-check
-- Full SHA256 verification
-- Recycle-bin based deletion
+- Size-bucket grouping for first pass
+- Fast partial-hash pre-filter
+- Full SHA-256 content verification
+- Safe deletion via system Recycle Bin (send2trash)
 
 </td>
 <td width="33%">
 
 ### Safe organization
 
-- Organize by type, date, extension, and size
-- Rename templates
-- Preview before moving
-- Undo log support
+- Organize by file type, date, extension, or size range
+- Custom rename templates with variables
+- Preview changes before applying
+- Undo-log support for rollback
 
 </td>
 <td width="33%">
 
 ### Desktop workflow
 
-- PySide6 native interface
-- Light and dark themes
-- Tray and background watcher
+- Native PySide6 desktop interface
+- Light and dark theme support
+- System tray integration with background file watcher
 - Toast notifications and 18 UI languages
 
 </td>
@@ -114,15 +114,6 @@ The app is designed around one principle: your files stay on your machine unless
 | AI Summary | Index |
 | --- | --- |
 | ![Generate AI summaries](docs/assets/screenshots/05-summary.png) | ![Manage search index](docs/assets/screenshots/06-index.png) |
-
-## Icon
-
-The application icon lives in:
-
-- `filepilot/resources/app.png`
-- `filepilot/resources/app.ico`
-
-The current icon uses a folder, document, and connected AI nodes to make the product signal clear at small desktop sizes.
 
 ## Quick Start
 
@@ -185,13 +176,16 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 
 ## AI Providers
 
-| Provider | Mode | Notes |
-| --- | --- | --- |
-| Ollama | Local | Good default for private summaries on your own machine |
-| llama.cpp / LM Studio | Local | Works with compatible local HTTP servers |
-| OpenAI | Cloud | Uses OpenAI-compatible chat completions |
-| Anthropic | Cloud | Claude provider support |
-| Custom endpoint | Cloud or local | Supports OpenAI-compatible APIs such as self-hosted gateways |
+FilePilot AI supports both local and cloud AI providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup guides, configuration reference, and privacy details for each provider.
+
+| Provider | Mode | Default URL |
+| -------- | ---- | ----------- |
+| Ollama | Local | `http://localhost:11434` |
+| llama.cpp / vLLM | Local | `http://localhost:8080` |
+| LM Studio | Local | `http://localhost:1234` |
+| OpenAI | Cloud | `https://api.openai.com/v1` |
+| Anthropic | Cloud | `https://api.anthropic.com` |
+| Custom endpoint | Cloud / Local | User-defined |
 
 Cloud providers only receive the content you choose to summarize. Local scanning, indexing, organization, and duplicate detection do not require AI.
 
@@ -253,56 +247,19 @@ The CI pipeline runs:
 - `pytest` — unit and UI tests
 - `ruff check .` — linting
 - `ruff format --check .` — formatting
-- `mypy` — static type checking (Windows / Linux / macOS build)
-- `pip check` — dependency consistency (Windows / Linux / macOS build)
+- `mypy` — static type checking
+- `pip check` — dependency consistency
 
-Recommended for local development: none beyond what runs in CI
+Run the same checks locally before pushing.
 
 ## Build (Cross-Platform)
 
-FilePilot AI supports three packaging targets, all managed by a unified entry point:
+FilePilot AI is packaged with **PyInstaller** on all three platforms. See [docs/BUILD.md](docs/BUILD.md) for complete build instructions, prerequisites, and troubleshooting.
 
 ```bash
-# Auto-detect current platform and build
+# Quick build (auto-detect platform)
 ./scripts/build.sh
-
-# Or build for a specific platform:
-./scripts/build_appimage.sh          # Linux AppImage
-./scripts/build_macos.sh --sign      # macOS .app + .dmg
-./scripts/build.sh --docker-linux    # Linux AppImage via Docker (any OS)
-.\scripts\build_installer.ps1        # Windows installer (Inno Setup)
 ```
-
-### Windows Installer
-
-- Built with **PyInstaller** + **Inno Setup 6**
-- Output: `dist/FilePilot-AI-Setup-{version}.exe`
-- Installs to `Program Files\FilePilot AI`, Start Menu & Desktop shortcuts
-- Uninstaller via Control Panel
-- English-only installer
-  > To add Chinese Simplified:
-  > 1. Download `ChineseSimplified.isl` from [jrsoftware.org](https://jrsoftware.org/isdl.php)
-  > 2. Place it in Inno Setup's `Languages` directory
-  > 3. In `filepilot-installer.iss`, add the following line after the existing `english` entry:
-  >    `Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"`
-
-
-- Optional: Authenticode digital signing (set `SIGNTOOL_PATH` + `SIGN_CERTIFICATE_SHA1`)
-
-### Linux AppImage
-
-- Built with **PyInstaller** + **appimagetool**
-- Output: `dist/FilePilot-{version}-x86_64.AppImage`
-- Bundles `.desktop` file, AppStream metainfo, and application icons
-- Portable — no installation required, runs on any Linux distribution
-
-### macOS .app + .dmg
-
-- Built with **PyInstaller** + **create-dmg**
-- Output: `dist/FilePilot-{version}.dmg`
-- Native `.app` bundle with `.icns` icon
-- Optional: Code signing via `--sign` flag (Apple Developer ID)
-- Optional: Notarization via `--notarize` (Apple Notary Service)
 
 ### CI Pipeline
 
@@ -318,25 +275,21 @@ Each CI run produces SHA256 checksums alongside the artifacts.
 
 ## Auto-Update
 
-FilePilot AI includes a built-in **auto-update checker** that queries GitHub Releases:
+FilePilot AI includes a threaded **auto-update checker** that queries GitHub Releases for new versions. See [docs/AUTO-UPDATE.md](docs/AUTO-UPDATE.md) for the full API reference and configuration details.
 
-```python
-from filepilot.updater import UpdateChecker, check_now
+- Background check every 24 hours (1 hour on failure)
+- Results cached to `~/.filepilot/update_check_cache.json`
+- Fully thread-safe — runs in a daemon thread
 
-# Background check with callback
-checker = UpdateChecker()
-checker.check_async(callback=on_result)
+## Documentation
 
-# Synchronous check
-result = check_now()
-if result.has_update:
-    print(f"Update available: {result.release.version}")
-    checker.open_download_page()
-```
+| Guide | Description |
+| ----- | ----------- |
+| [docs/BUILD.md](docs/BUILD.md) | Cross-platform build and packaging guide |
+| [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) | AI provider setup and configuration |
+| [docs/AUTO-UPDATE.md](docs/AUTO-UPDATE.md) | Auto-update system API reference |
 
-- Checks every 24 hours (1 hour on failure)
-- Results cached locally to avoid unnecessary API calls
-- Thread-safe: runs in background daemon thread
+See [docs/README.md](docs/README.md) for the full documentation index.
 
 ## Roadmap
 

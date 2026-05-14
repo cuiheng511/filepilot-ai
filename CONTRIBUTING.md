@@ -274,30 +274,16 @@ ruff check . && ruff format --check . && mypy filepilot/ && python check_syntax.
 
 ## Building with PyInstaller
 
-FilePilot can be packaged into a standalone executable using PyInstaller.
+FilePilot AI is packaged with **PyInstaller** on all three platforms. See [docs/BUILD.md](docs/BUILD.md) for complete build instructions covering Windows (Inno Setup installer, code signing), Linux (AppImage, Docker), and macOS (.app + .dmg, signing, notarization).
 
-### One-time setup
+For a quick local build on Windows:
 
 ```bash
 pip install pyinstaller
-```
-
-### Build
-
-```bash
 pyinstaller FilePilot.spec
 ```
 
 The built executable will be at `dist/FilePilot/FilePilot.exe`.
-
-### Verify the build
-
-```bash
-# Check the executable exists and report its size
-powershell -Command "Get-Item 'dist/FilePilot/FilePilot.exe' | Select Length"
-```
-
-> **Note:** PyInstaller builds are currently only supported on **Windows**. The `.spec` file is configured to produce a Windows GUI executable (no console window).
 
 ---
 
@@ -307,9 +293,11 @@ The project uses GitHub Actions for continuous integration. The pipeline is defi
 
 | Job | Runner | What it does |
 |-----|--------|-------------|
-| **lint** | ubuntu-latest | `ruff check` + `ruff format --check` on Python 3.10–3.12 |
-| **test** | ubuntu-latest, windows-latest | `pytest` with `--cov=filepilot` on Python 3.10–3.12. Coverage XML uploaded as artifact + Codecov on Linux + py3.12. Linux runs via `xvfb-run`. |
-| **build** | windows-latest (after lint + test pass) | `pyinstaller FilePilot.spec`. Build artifact uploaded and retained for 7 days. |
+| **lint** | ubuntu-latest (×3 Python versions) | `ruff check` + `ruff format --check` |
+| **test** | ubuntu-latest, windows-latest (×3 Python versions) | `pytest` with coverage. Linux runs via `xvfb-run`. Coverage reported to Codecov. |
+| **build-windows** | windows-latest | PyInstaller + Inno Setup → `.exe` installer |
+| **build-linux** | ubuntu-latest | PyInstaller + appimagetool → `.AppImage` |
+| **build-macos** | macos-latest | PyInstaller + create-dmg → `.dmg` |
 
 To trigger CI manually:
 
@@ -318,6 +306,8 @@ gh workflow run CI
 ```
 
 Or go to the Actions tab on GitHub and click **Run workflow**.
+
+See [docs/BUILD.md](docs/BUILD.md) for detailed build and CI pipeline information.
 
 ---
 

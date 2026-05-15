@@ -72,7 +72,7 @@ a = Analysis(
         'filepilot.extractors.xlsx_extractor', 'filepilot.extractors.pptx_extractor',
         'filepilot.utils.file_utils', 'filepilot.ui.tray', 'filepilot.styles.manager',
         'whoosh', 'whoosh.fields', 'whoosh.index', 'whoosh.qparser',
-        'fitz', 'PIL', 'magic', 'markdown', 'yaml', 'cryptography',
+        'fitz', 'PIL', 'markdown', 'yaml', 'cryptography',
         'docx', 'openpyxl', 'pptx', 'send2trash', 'watchdog',
     ],
     hookspath=[],
@@ -182,9 +182,14 @@ cat > "$APPDIR/usr/share/metainfo/io.github.filepilot.appdata.xml" << APPDATA
     <p>FilePilot AI is a desktop application that helps you manage, organize,
     search, and analyze files using AI-powered features.</p>
   </description>
+  <launchable type="desktop-id">io.github.filepilot.desktop</launchable>
   <url type="homepage">https://github.com/cuiheng511/filepilot-ai</url>
   <project_license>MIT</project_license>
   <metadata_license>MIT</metadata_license>
+  <content_rating type="oars-1.1" />
+  <developer id="io.github.cuiheng511">
+    <name>cuiheng511</name>
+  </developer>
   <releases>
     <release version="$VERSION" date="$(date +%Y-%m-%d)"/>
   </releases>

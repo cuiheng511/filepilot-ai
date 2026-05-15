@@ -1,6 +1,6 @@
 """Notification Toast — Non-blocking error/warning/info overlay widget"""
 
-from PySide6.QtCore import Property, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import Property, QAbstractAnimation, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QVBoxLayout, QWidget
 
@@ -71,6 +71,8 @@ class NotificationToast(QWidget):
             self.setGeometry(x, y, min(self.width(), 400), self.height())
 
     def _start_fade_in(self, duration_ms):
+        if hasattr(self, "anim") and self.anim.state() == QAbstractAnimation.Running:
+            self.anim.stop()
         self._opacity_effect.setOpacity(0.0)
         self.raise_()
         self.show()
@@ -82,6 +84,8 @@ class NotificationToast(QWidget):
         self.anim.start()
 
     def _start_fade_out(self):
+        if hasattr(self, "anim") and self.anim.state() == QAbstractAnimation.Running:
+            self.anim.stop()
         self.anim = QPropertyAnimation(self, b"opacity", self)
         self.anim.setDuration(300)
         self.anim.setStartValue(1.0)

@@ -208,19 +208,23 @@ class SettingsDialog(QDialog):
                 self.lang_combo.setCurrentIndex(idx)
 
     def get_settings(self) -> dict:
-        """Get settings values"""
+        """Get settings values, preserving keys not exposed in the dialog."""
         provider_names = ["ollama", "llamacpp", "openai", "anthropic", "custom"]
         provider = provider_names[self.provider_combo.currentIndex()]
-        return {
-            "ai_mode": "local" if provider in ("ollama", "llamacpp") else "cloud",
-            "ai_provider": provider,
-            "ai_model": self.model_input.currentText(),
-            "ai_api_base": self.api_base_input.text(),
-            "ai_api_key": self.api_key_input.text(),
-            "index_dir": self.index_dir.text(),
-            "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
-            "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
-        }
+        result = dict(self._settings)
+        result.update(
+            {
+                "ai_mode": "local" if provider in ("ollama", "llamacpp") else "cloud",
+                "ai_provider": provider,
+                "ai_model": self.model_input.currentText(),
+                "ai_api_base": self.api_base_input.text(),
+                "ai_api_key": self.api_key_input.text(),
+                "index_dir": self.index_dir.text(),
+                "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
+                "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
+            }
+        )
+        return result
 
     def accept(self):
         """Apply settings and close"""

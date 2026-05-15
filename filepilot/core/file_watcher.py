@@ -25,7 +25,6 @@ class FileWatcher(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._watched_dirs: dict[str, _ObserverLike] = {}
-        self._observer: _ObserverLike | None = None
 
     @property
     def is_available(self) -> bool:
@@ -71,7 +70,6 @@ class FileWatcher(QObject):
         observer = Observer()
         observer.schedule(QtHandler(self), dir_path, recursive=True)
         observer.start()
-        self._observer = observer
         self._watched_dirs[dir_path] = observer
         logger.info("Started watching %s", dir_path)
 

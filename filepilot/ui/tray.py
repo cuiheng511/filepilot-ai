@@ -5,9 +5,9 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from filepilot.core.file_watcher import FileWatcher
 from filepilot.core.indexer import FileIndexer
@@ -52,11 +52,7 @@ class SystemTrayManager(QObject):
         if icon_path.exists():
             self._tray_icon.setIcon(QIcon(str(icon_path)))
         else:
-            self._tray_icon.setIcon(
-                self._tray_icon.style().standardIcon(
-                    QSystemTrayIcon.Style.SP_ComputerIcon,
-                )
-            )
+            self._tray_icon.setIcon(QApplication.style().standardIcon(QStyle.SP_ComputerIcon))
 
         self._tray_icon.setToolTip(t("tray_tooltip"))
 
@@ -92,10 +88,10 @@ class SystemTrayManager(QObject):
         self._toast = self._services.get("toast")
 
         if self._watcher:
-            self._watcher.file_created.connect(self._on_file_event)
-            self._watcher.file_modified.connect(self._on_file_event)
-            self._watcher.file_deleted.connect(self._on_file_deleted)
-            self._watcher.error_occurred.connect(self._on_error)
+            self._watcher.file_created.connect(self._on_file_event, Qt.QueuedConnection)
+            self._watcher.file_modified.connect(self._on_file_event, Qt.QueuedConnection)
+            self._watcher.file_deleted.connect(self._on_file_deleted, Qt.QueuedConnection)
+            self._watcher.error_occurred.connect(self._on_error, Qt.QueuedConnection)
 
     def show(self):
         """Show the system tray icon"""

@@ -41,13 +41,14 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
-	ArchitecturesAllowed=x64compatible
-	ArchitecturesInstallIn64BitMode=x64
-	CloseApplications=no
-	RestartApplications=no
-	VersionInfoVersion={#MyAppVersion}
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+CloseApplications=no
+RestartApplications=no
+VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
-VersionInfoDescription={#MyAppName}	VersionInfoCopyright=Copyright (c) 2025 {#MyAppPublisher}
+VersionInfoDescription={#MyAppName}
+VersionInfoTextCopyright=Copyright (c) 2025 {#MyAppPublisher}
 DisableStartupPrompt=yes
 UsedUserAreasWarning=no
 
@@ -80,14 +81,28 @@ Root: HKCU; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string
 
 [Code]
 { ── Check if app is running before install ── }
+function IsFilePilotRunning(): Boolean;
+var
+  WMIService: Variant;
+  Processes: Variant;
+begin
+  Result := False;
+  try
+    WMIService := CreateOleObject('WbemScripting.SWbemLocator');
+    WMIService := WMIService.ConnectServer('.', 'root\cimv2');
+    Processes := WMIService.ExecQuery('SELECT Name FROM Win32_Process WHERE Name="FilePilot.exe"');
+    Result := (Processes.Count > 0);
+  except
+    Result := False;
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
   Result := '';
-  { Check if FilePilot.exe is running }
-  if Exec('tasklist.exe', '/FI "IMAGENAME eq FilePilot.exe" /NH', '',
-         SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+  if IsFilePilotRunning() then
   begin
     if MsgBox('FilePilot AI is currently running.'#13#13 +
               'Do you want to close it before continuing?',
@@ -95,6 +110,7 @@ begin
     begin
       Exec('taskkill.exe', '/IM FilePilot.exe /F', '',
            SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Sleep(1000);
     end
     else
       Result := 'Please close FilePilot AI manually before continuing.';

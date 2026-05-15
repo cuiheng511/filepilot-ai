@@ -237,6 +237,16 @@ class SearchPanel(BasePanel):
         def search_worker():
             if self._cancelled:
                 return
+
+            # Check cache first
+            from filepilot.core.search_cache import cache_results, get_cached_results
+
+            cached = get_cached_results(query)
+            if cached is not None:
+                if not self._cancelled:
+                    self.search_results_ready.emit(cached, query)
+                return
+
             # Execute search
             results = self.indexer.search(
                 query,
@@ -247,6 +257,7 @@ class SearchPanel(BasePanel):
             if self._cancelled:
                 return
 
+            cache_results(query, results)
             # Signal results to main thread
             self.search_results_ready.emit(results, query)
 
@@ -444,6 +455,9 @@ class SearchPanel(BasePanel):
     @Slot()
     def _on_indexing_finished(self, indexed: int, dir_path: str):
         """Indexing finished callback (main thread)"""
+        from filepilot.core.search_cache import clear_search_cache
+
+        clear_search_cache()
         status_msg = f"Indexing complete: {indexed} files indexed"
         self.status_message.emit(status_msg)
         self.index_btn.setEnabled(True)

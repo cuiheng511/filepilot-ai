@@ -31,6 +31,7 @@ def main():
 
     # Setup system tray (must be created after MainWindow)
     tray = create_tray(window, services)
+    window.tray_manager = tray
     tray.show()
 
     # Center window on screen

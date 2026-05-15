@@ -44,7 +44,6 @@ a = Analysis(
         'whoosh.qparser',
         'fitz',
         'PIL',
-        'magic',
         'markdown',
         'yaml',
         'cryptography',

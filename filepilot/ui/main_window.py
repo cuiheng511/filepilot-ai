@@ -1,6 +1,7 @@
 """FilePilot AI Main Window"""
 
 import contextlib
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, Slot
@@ -50,6 +51,8 @@ class MainWindow(QMainWindow):
         self.current_dir: Path | None = None
         self.settings = self._load_settings()
         self.services = services or {}
+        self._file_index_times: dict[str, float] = {}
+        self._INDEX_DEBOUNCE_SEC = 2.0
 
         # Enable drag-and-drop of folders
         self.setAcceptDrops(True)
@@ -162,9 +165,9 @@ class MainWindow(QMainWindow):
         # File watcher — connect signals for auto-index
         self._watcher = self.services.get("watcher")
         if self._watcher:
-            self._watcher.file_created.connect(self._on_file_changed)
-            self._watcher.file_modified.connect(self._on_file_changed)
-            self._watcher.file_deleted.connect(self._on_file_deleted)
+            self._watcher.file_created.connect(self._on_file_changed, Qt.QueuedConnection)
+            self._watcher.file_modified.connect(self._on_file_changed, Qt.QueuedConnection)
+            self._watcher.file_deleted.connect(self._on_file_deleted, Qt.QueuedConnection)
 
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
@@ -328,6 +331,7 @@ class MainWindow(QMainWindow):
     def _open_directory(self, dir_path: str):
         """Shared logic: open a directory and notify the browse panel"""
         self.current_dir = Path(dir_path)
+        self._file_index_times.clear()
         self.btn_scan.setEnabled(True)
         self.btn_index.setEnabled(True)
 
@@ -361,6 +365,12 @@ class MainWindow(QMainWindow):
 
     def _on_file_changed(self, file_path: str):
         """Handle file created/modified — incremental index update"""
+        now = time.time()
+        last = self._file_index_times.get(file_path, 0)
+        if now - last < self._INDEX_DEBOUNCE_SEC:
+            return
+        self._file_index_times[file_path] = now
+
         from filepilot.core.file_scanner import FileInfo
 
         if not self.current_dir:
@@ -569,9 +579,9 @@ class MainWindow(QMainWindow):
                 old_watcher.file_deleted.disconnect(self._on_file_deleted)
             old_watcher.stop()
         if self._watcher:
-            self._watcher.file_created.connect(self._on_file_changed)
-            self._watcher.file_modified.connect(self._on_file_changed)
-            self._watcher.file_deleted.connect(self._on_file_deleted)
+            self._watcher.file_created.connect(self._on_file_changed, Qt.QueuedConnection)
+            self._watcher.file_modified.connect(self._on_file_changed, Qt.QueuedConnection)
+            self._watcher.file_deleted.connect(self._on_file_deleted, Qt.QueuedConnection)
             if self.current_dir:
                 self._watcher.watch(self.current_dir)
         self.browse_panel.update_services(scanner=new_services.get("scanner"))

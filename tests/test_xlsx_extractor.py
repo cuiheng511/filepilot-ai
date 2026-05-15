@@ -64,15 +64,14 @@ class TestXlsxExtractor:
         # None values are filtered out before string conversion
         assert "None" not in text
 
-    def test_extract_text_no_openpyxl_fallback_csv(self, tmp_path):
-        """When openpyxl is not available, try csv fallback"""
-        test_file = tmp_path / "test.csv"
-        test_file.write_text("col1,col2\nval1,val2\n", encoding="utf-8")
+    def test_extract_text_no_openpyxl_fallback_empty(self, tmp_path):
+        """When openpyxl is not available, returns empty (xlsx is ZIP, not CSV)."""
+        test_file = tmp_path / "test.xlsx"
+        test_file.write_text("dummy", encoding="utf-8")
 
         with patch.dict("sys.modules", {"openpyxl": None}):
             text = self.extractor.extract_text(test_file)
-            assert "col1 | col2" in text
-            assert "val1 | val2" in text
+            assert text == ""
 
     def test_extract_metadata_no_openpyxl(self):
         with patch.dict("sys.modules", {"openpyxl": None}):

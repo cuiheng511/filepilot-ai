@@ -1,6 +1,8 @@
 """FilePilot AI Main Window"""
 
 import contextlib
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -29,12 +31,14 @@ from filepilot.core.file_watcher import FileWatcher
 from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
 from filepilot.ui.duplicates_panel import DuplicatesPanel
+from filepilot.ui.favorites_panel import FavoritesPanel
 from filepilot.ui.file_browser import FileBrowserPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
 from filepilot.ui.organize_panel import OrganizePanel
 from filepilot.ui.search_panel import SearchPanel
 from filepilot.ui.settings_dialog import SettingsDialog
+from filepilot.ui.shortcut_editor import DEFAULT_SHORTCUTS
 from filepilot.ui.summary_panel import SummaryPanel
 
 
@@ -101,6 +105,7 @@ class MainWindow(QMainWindow):
             "duplicates": self._add_nav_item(t("nav_duplicates"), t("duplicates_desc")),
             "summary": self._add_nav_item(t("nav_summary"), t("summary_desc")),
             "index": self._add_nav_item(t("nav_index"), t("index_desc")),
+            "favorites": self._add_nav_item("⭐ Favorites", "Quick access to saved directories"),
         }
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
@@ -124,6 +129,7 @@ class MainWindow(QMainWindow):
             cloud_ai=self.services.get("cloud_ai"),
         )
         self.index_panel = IndexPanel(indexer=indexer, scanner=scanner)
+        self.favorites_panel = FavoritesPanel()
 
         self.content_stack.addWidget(self.browse_panel)  # 0
         self.content_stack.addWidget(self.search_panel)  # 1
@@ -131,6 +137,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.duplicates_panel)  # 3
         self.content_stack.addWidget(self.summary_panel)  # 4
         self.content_stack.addWidget(self.index_panel)  # 5
+        self.content_stack.addWidget(self.favorites_panel)  # 6
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -169,6 +176,14 @@ class MainWindow(QMainWindow):
             self._watcher.file_modified.connect(self._on_file_changed, Qt.QueuedConnection)
             self._watcher.file_deleted.connect(self._on_file_deleted, Qt.QueuedConnection)
 
+        # Track recently opened files
+        self.browse_panel.file_opened.connect(self._on_file_opened)
+
+        # Favorites panel — navigate to directory
+        self.favorites_panel.navigate_to_directory.connect(
+            lambda path: self._open_directory(path)
+        )
+
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
         super().resizeEvent(event)
@@ -197,6 +212,10 @@ class MainWindow(QMainWindow):
         # Recent folders submenu
         self._recent_menu = file_menu.addMenu("Recent Folders")
         self._refresh_recent_menu()
+
+        # Recent files submenu
+        self._recent_files_menu = file_menu.addMenu(t("menu_recent_files"))
+        self._refresh_recent_files_menu()
 
         file_menu.addSeparator()
         exit_action = QAction("E&xit", self)
@@ -238,6 +257,65 @@ class MainWindow(QMainWindow):
         """Open a recently used folder"""
         if path and Path(path).is_dir():
             self._open_directory(path)
+
+    def _refresh_recent_files_menu(self):
+        """Refresh the Recent Files submenu from settings"""
+        self._recent_files_menu.clear()
+
+        from filepilot.core.config import get_recent_files
+
+        recent = get_recent_files(self.settings)
+        if not recent:
+            empty = QAction("(none)", self)
+            empty.setEnabled(False)
+            self._recent_files_menu.addAction(empty)
+        else:
+            for path in recent:
+                name = Path(path).name
+                parent = Path(path).parent.name
+                action = QAction(f"📄 {name}  ({parent})", self)
+                action.setToolTip(path)
+                action.triggered.connect(lambda checked, p=path: self._on_recent_file(p))
+                self._recent_files_menu.addAction(action)
+
+    @Slot()
+    def _on_recent_file(self, path: str):
+        """Open a recently used file"""
+        if not path:
+            return
+        p = Path(path)
+        if not p.exists():
+            self.status_label.setText("File no longer exists: " + p.name)
+            # Remove from recent files
+            rf = self.settings.get("recent_files", [])
+            self.settings["recent_files"] = [x for x in rf if x != path]
+            self._save_settings()
+            self._refresh_recent_files_menu()
+            return
+        try:
+            fp = str(p)
+            if sys.platform == "win32":
+                os.startfile(fp)
+            elif sys.platform == "darwin":
+                import subprocess
+
+                subprocess.Popen(["open", fp])
+            else:
+                import subprocess
+
+                subprocess.Popen(["xdg-open", fp])
+            self.status_label.setText("Opened: " + p.name)
+        except Exception:
+            self.status_label.setText("Failed to open: " + p.name)
+
+    @Slot()
+    def _on_file_opened(self, file_path: str):
+        """Record a file as recently opened"""
+        from filepilot.core.config import add_recent_file
+
+        self.settings = add_recent_file(self.settings, file_path)
+        self._save_settings()
+        self._refresh_recent_files_menu()
 
     def _setup_toolbar(self):
         """Setup toolbar"""
@@ -285,17 +363,13 @@ class MainWindow(QMainWindow):
         self.status_bar.addWidget(self.status_label)
 
     def _setup_shortcuts(self):
-        """Setup keyboard shortcuts Ctrl+1~6 to switch panels"""
-        panel_actions = [
-            ("Ctrl+1", "File Browser", 0),
-            ("Ctrl+2", "File Search", 1),
-            ("Ctrl+3", "File Organizer", 2),
-            ("Ctrl+4", "Duplicate Finder", 3),
-            ("Ctrl+5", "AI Summary", 4),
-            ("Ctrl+6", "File Index", 5),
-        ]
-        for shortcut, name, index in panel_actions:
+        """Setup keyboard shortcuts to switch panels — load from config if available."""
+        user_overrides = self.settings.get("shortcuts", {})
+
+        for index, (name, default_key) in enumerate(DEFAULT_SHORTCUTS.items()):
+            shortcut = user_overrides.get(name, default_key)
             action = QAction(f"Switch to {name}", self)
+            action.setObjectName(f"shortcut_{name.replace(' ', '_')}")
             action.setShortcut(shortcut)
             action.triggered.connect(lambda checked, i=index: self._switch_to_panel(i))
             self.addAction(action)
@@ -324,7 +398,7 @@ class MainWindow(QMainWindow):
     def _on_nav_changed(self, index: int):
         """Navigation changed"""
         self.content_stack.setCurrentIndex(index)
-        names = ["Browse", "Search", "Organize", "Duplicates", "Summary", "Index"]
+        names = ["Browse", "Search", "Organize", "Duplicates", "Summary", "Index", "Favorites"]
         if 0 <= index < len(names) and hasattr(self, "status_label"):
             self.status_label.setText(f"Current: {names[index]}")
 
@@ -351,6 +425,10 @@ class MainWindow(QMainWindow):
         # Notify browse panel
         self.browse_panel.load_directory(dir_path)
 
+        # Update favorites panel with current directory
+        self.favorites_panel.set_current_dir(dir_path)
+        self.file_stats_panel.set_current_dir(dir_path)
+
     @Slot()
     def _on_open_folder(self):
         """Open folder dialog"""
@@ -371,7 +449,7 @@ class MainWindow(QMainWindow):
             return
         self._file_index_times[file_path] = now
 
-        from filepilot.core.file_scanner import FileInfo
+        from filepilot.core.file_scanner import FileScanner
 
         if not self.current_dir:
             return
@@ -379,15 +457,6 @@ class MainWindow(QMainWindow):
         if not path.exists() or not path.is_relative_to(self.current_dir):
             return
         # Only index supported file types
-        import mimetypes
-
-        from filepilot.core.file_scanner import (
-            get_file_category,
-            get_file_created_time,
-            get_file_modified_time,
-            get_file_size_str,
-        )
-
         ext = path.suffix.lower()
         if ext and ext.lstrip(".").lower() in (
             "pdf",
@@ -439,21 +508,9 @@ class MainWindow(QMainWindow):
             "csv",
         ):
             try:
-                stat = path.stat()
+                info = FileScanner.create_file_info(path)
             except OSError:
                 return
-            info = FileInfo(
-                path=path,
-                name=path.name,
-                extension=ext,
-                size_bytes=stat.st_size,
-                size_str=get_file_size_str(stat.st_size),
-                category=get_file_category(path),
-                mime_type=mimetypes.guess_type(str(path))[0] or "application/octet-stream",
-                modified_time=get_file_modified_time(path),
-                created_time=get_file_created_time(path),
-                is_directory=path.is_dir(),
-            )
             self.index_panel.indexer.index_files(
                 [info],
                 content_extractor=self.search_panel._extract_file_content,

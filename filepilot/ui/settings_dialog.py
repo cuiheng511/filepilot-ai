@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -10,12 +11,16 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from filepilot.i18n import SUPPORTED_LANGUAGES, set_language, t
+from filepilot.ui.shortcut_editor import ShortcutEditor
 
 
 class SettingsDialog(QDialog):
@@ -51,6 +56,14 @@ class SettingsDialog(QDialog):
         # General settings tab
         general_tab = self._create_general_tab()
         tabs.addTab(general_tab, "⚙️ General")
+
+        # Shortcuts tab
+        shortcuts_tab = self._create_shortcuts_tab()
+        tabs.addTab(shortcuts_tab, "⌨️ Shortcuts")
+
+        # Scheduled tasks tab
+        tasks_tab = self._create_tasks_tab()
+        tabs.addTab(tasks_tab, "⏰ Scheduled Tasks")
 
         layout.addWidget(tabs)
 
@@ -175,6 +188,150 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return widget
 
+    def _create_shortcuts_tab(self) -> QWidget:
+        """Create shortcuts customization tab"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        overrides = self._settings.get("shortcuts", {})
+        self.shortcut_editor = ShortcutEditor(overrides)
+        layout.addWidget(self.shortcut_editor)
+
+        return widget
+
+    def _create_tasks_tab(self) -> QWidget:
+        """Create scheduled tasks management tab"""
+
+        from filepilot.core.task_scheduler import TaskScheduler
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(12, 12, 12, 12)
+
+        desc = QLabel(
+            "Schedule automatic file scanning, indexing, duplicate finding, and organization.\n"
+            "Tasks run in the background at specified times."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #888; margin-bottom: 8px;")
+        layout.addWidget(desc)
+
+        # Toolbar
+        toolbar_layout = QVBoxLayout()
+        self.task_list = QListWidget()
+        self.task_list.setAlternatingRowColors(True)
+        toolbar_layout.addWidget(self.task_list, 1)
+
+        btn_layout = QVBoxLayout()
+        self.btn_add_task = QPushButton("➕ Add Task")
+        self.btn_remove_task = QPushButton("❌ Remove Selected")
+        self.btn_remove_task.setEnabled(False)
+        btn_layout.addWidget(self.btn_add_task)
+        btn_layout.addWidget(self.btn_remove_task)
+        btn_layout.addStretch()
+        toolbar_layout.addLayout(btn_layout)
+
+        layout.addLayout(toolbar_layout, 1)
+
+        self.scheduler = TaskScheduler()
+        self._refresh_task_list()
+
+        self.btn_add_task.clicked.connect(self._on_add_task)
+        self.btn_remove_task.clicked.connect(self._on_remove_task)
+        self.task_list.itemSelectionChanged.connect(
+            lambda: self.btn_remove_task.setEnabled(
+                len(self.task_list.selectedItems()) > 0
+            )
+        )
+
+        return widget
+
+    def _refresh_task_list(self):
+        """Refresh the task list in settings dialog."""
+        self.task_list.clear()
+        tasks = self.scheduler.get_all_tasks()
+        for task in tasks:
+            from pathlib import Path
+
+            status = "✅" if task.enabled else "⏸️"
+            item = QListWidgetItem(
+                f"{status} [{task.task_type.upper()}] {Path(task.directory).name} "
+                f"- {task.schedule_type} at {task.schedule_time}"
+            )
+            item.setToolTip(
+                f"ID: {task.task_id}\n"
+                f"Directory: {task.directory}\n"
+                f"Schedule: {task.schedule_type} at {task.schedule_time}\n"
+                f"Enabled: {task.enabled}\n"
+                f"Last Run: {task.last_run or 'Never'}"
+            )
+            item.setData(Qt.UserRole, task.task_id)
+            self.task_list.addItem(item)
+
+    def _on_add_task(self):
+        """Add a new scheduled task via dialog."""
+        from PySide6.QtWidgets import QComboBox, QFileDialog, QFormLayout, QTimeEdit
+
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Scheduled Task")
+        dialog_layout = QFormLayout(dialog)
+
+        type_combo = QComboBox()
+        type_combo.addItems(["Scan", "Index", "Duplicate Finder", "Organize"])
+        dialog_layout.addRow("Task Type:", type_combo)
+
+        dir_layout = QVBoxLayout()
+        dir_input = QLineEdit()
+        dir_input.setPlaceholderText("Select directory...")
+        dir_browse = QPushButton("Browse")
+        dir_browse.clicked.connect(
+            lambda: dir_input.setText(
+                QFileDialog.getExistingDirectory(dialog, "Select Directory")
+            )
+        )
+        dir_layout.addWidget(dir_input)
+        dir_layout.addWidget(dir_browse)
+        dialog_layout.addRow("Directory:", dir_layout)
+
+        schedule_combo = QComboBox()
+        schedule_combo.addItems(["Daily", "Weekly", "Monthly"])
+        dialog_layout.addRow("Schedule:", schedule_combo)
+
+        time_edit = QTimeEdit()
+        time_edit.setDisplayFormat("HH:mm")
+        dialog_layout.addRow("Time:", time_edit)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        dialog_layout.addRow(buttons)
+
+        if dialog.exec():
+            type_map = {
+                "Scan": "scan",
+                "Index": "index",
+                "Duplicate Finder": "dedup",
+                "Organize": "organize",
+            }
+            schedule_map = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly"}
+            self.scheduler.add_task(
+                task_type=type_map[type_combo.currentText()],
+                directory=dir_input.text().strip(),
+                schedule_type=schedule_map[schedule_combo.currentText()],
+                schedule_time=time_edit.time().toString("HH:mm"),
+            )
+            self._refresh_task_list()
+
+    def _on_remove_task(self):
+        """Remove selected task."""
+        for item in self.task_list.selectedItems():
+            task_id = item.data(Qt.UserRole)
+            if task_id:
+                self.scheduler.remove_task(task_id)
+        self._refresh_task_list()
+
     def _parse_file_size(self, text: str) -> int:
         """Parse file size input, default to 500 on invalid input"""
         try:
@@ -222,6 +379,9 @@ class SettingsDialog(QDialog):
                 "index_dir": self.index_dir.text(),
                 "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
                 "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
+                "shortcuts": self.shortcut_editor.get_overrides()
+            if hasattr(self, "shortcut_editor")
+            else self._settings.get("shortcuts", {}),
             }
         )
         return result

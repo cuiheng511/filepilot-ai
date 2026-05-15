@@ -34,6 +34,11 @@ DEFAULTS = {
     "theme": "dark",
     "language": "en",
     "recent_dirs": [],
+    "recent_files": [],
+    "favorite_dirs": [],
+    "search_history": [],
+    "file_tags": {},
+    "shortcuts": {},
 }
 
 
@@ -192,3 +197,25 @@ def save(settings: dict):
         )
     except Exception as e:
         logger.warning("Failed to save settings: %s", e)
+
+
+def add_recent_file(settings: dict, file_path: str | Path, max_entries: int = 15) -> dict:
+    """Add a file to the recent files list, preserving order and deduplicating.
+
+    Returns the updated settings dict.
+    """
+    path_str = str(Path(file_path).resolve())
+    recent = list(settings.get("recent_files", []))
+    # Remove if already present
+    recent = [p for p in recent if p != path_str]
+    # Add to front
+    recent.insert(0, path_str)
+    # Trim to max
+    settings["recent_files"] = recent[:max_entries]
+    return settings
+
+
+def get_recent_files(settings: dict, max_entries: int = 15) -> list[str]:
+    """Get the recent files list, filtered to only existing files."""
+    recent = list(settings.get("recent_files", []))
+    return [p for p in recent if Path(p).exists()][:max_entries]

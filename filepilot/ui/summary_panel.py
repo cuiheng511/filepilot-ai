@@ -23,6 +23,7 @@ from filepilot.ui.base_panel import BasePanel
 from filepilot.utils.file_utils import CAT_CODE, CAT_MARKDOWN, CAT_OFFICE, CAT_PDF, CAT_TEXT
 
 SUPPORTED_EXTS = CAT_CODE | CAT_PDF | CAT_MARKDOWN | CAT_TEXT | CAT_OFFICE
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".gif", ".webp"}
 
 
 class SummaryPanel(BasePanel):
@@ -141,6 +142,11 @@ class SummaryPanel(BasePanel):
         self.cb_include_code.setChecked(True)
         right_layout.addWidget(self.cb_include_code)
 
+        self.cb_ocr_images = QCheckBox("Extract text from images (OCR)")
+        self.cb_ocr_images.setChecked(True)
+        self.cb_ocr_images.setToolTip("Use Tesseract OCR to extract text from image files")
+        right_layout.addWidget(self.cb_ocr_images)
+
         right_layout.addStretch()
 
         self.btn_generate = QPushButton("🚀 Generate Summary")
@@ -217,17 +223,24 @@ class SummaryPanel(BasePanel):
             self,
             "Select files for summarization",
             str(self.current_dir or str(Path.home())),
-            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt);;All files (*.*)",
+            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt *.png *.jpg *.jpeg *.tiff *.bmp *.gif *.webp);;All files (*.*)",
         )
         for fp in files:
             path = Path(fp)
-            if path.suffix.lower() not in SUPPORTED_EXTS:
+            is_text = path.suffix.lower() in SUPPORTED_EXTS
+            is_image = path.suffix.lower() in IMAGE_EXTS
+            if not is_text and not is_image:
+                continue
+            if is_image and not self.cb_ocr_images.isChecked():
                 continue
             existing = [
                 self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())
             ]
             if str(path) not in existing:
-                item = QListWidgetItem(f"{path.name} ({path.suffix})")
+                label = f"{path.name} ({path.suffix})"
+                if is_image:
+                    label = f"🖼️ {path.name} ({path.suffix})"
+                item = QListWidgetItem(label)
                 item.setData(Qt.UserRole, str(path))
                 item.setToolTip(str(path))
                 self.file_list.addItem(item)
@@ -323,11 +336,19 @@ class SummaryPanel(BasePanel):
             # Read file contents
             contents = []
             total = len(files)
+            use_ocr = self.cb_ocr_images.isChecked()
+
             for i, fp in enumerate(files):
                 if self._cancelled:
                     return
                 try:
-                    text = fp.read_text(encoding="utf-8", errors="replace")
+                    if fp.suffix.lower() in IMAGE_EXTS and use_ocr:
+                        from filepilot.extractors.ocr_extractor import OCRExtractor
+
+                        ocr = OCRExtractor()
+                        text = ocr.extract_text(fp) or "[OCR extracted no text]"
+                    else:
+                        text = fp.read_text(encoding="utf-8", errors="replace")
                     contents.append((fp.name, text))
                 except Exception:
                     contents.append((fp.name, "[Error reading file]"))
@@ -394,8 +415,15 @@ class SummaryPanel(BasePanel):
                 self.summary_ready.emit(summary or "No summary generated")
                 self.keyword_ready.emit(keywords_text or "No keywords extracted")
                 self.status_message.emit(f"✅ Summary complete — processed {len(files)} files")
-                self.btn_generate.setEnabled(True)
-                self.progress_bar.setVisible(False)
-                self.btn_cancel.setVisible(False)
+                from PySide6.QtCore import QMetaObject, Qt
+
+                QMetaObject.invokeMethod(self, "_on_summary_done", Qt.QueuedConnection)
 
         Thread(target=worker, daemon=True).start()
+
+    @Slot()
+    def _on_summary_done(self) -> None:
+        """Restore UI after summary generation completes (main thread only)."""
+        self.btn_generate.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.btn_cancel.setVisible(False)

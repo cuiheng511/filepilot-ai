@@ -161,37 +161,16 @@ class SystemTrayManager(QObject):
 
     def _on_file_event(self, file_path: str):
         """Handle file created/modified event"""
-        import mimetypes
-
-        from filepilot.core.file_scanner import FileInfo
-        from filepilot.utils.file_utils import (
-            get_file_category,
-            get_file_created_time,
-            get_file_modified_time,
-            get_file_size_str,
-        )
+        from filepilot.core.file_scanner import FileScanner
 
         if self._indexer:
             try:
                 path = Path(file_path)
-                stat = path.stat()
-                ext = path.suffix.lower()
-                info = FileInfo(
-                    path=path,
-                    name=path.name,
-                    extension=ext,
-                    size_bytes=stat.st_size,
-                    size_str=get_file_size_str(stat.st_size),
-                    category=get_file_category(path),
-                    mime_type=mimetypes.guess_type(str(path))[0] or "application/octet-stream",
-                    modified_time=get_file_modified_time(path),
-                    created_time=get_file_created_time(path),
-                    is_directory=path.is_dir(),
-                )
+                info = FileScanner.create_file_info(path)
                 # Extract and index incrementally
                 self._indexer.index_files([info])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to index file %s: %s", file_path, e)
         else:
             # No indexer — skip auto-indexing
             logger.debug("No indexer available, skipping auto-index for: %s", file_path)

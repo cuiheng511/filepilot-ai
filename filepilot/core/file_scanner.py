@@ -175,6 +175,11 @@ class FileScanner:
 
     def _create_file_info(self, file_path: Path) -> FileInfo:
         """Create FileInfo from file path"""
+        return FileScanner.create_file_info(file_path)
+
+    @staticmethod
+    def create_file_info(file_path: Path) -> FileInfo:
+        """Create FileInfo from file path (static factory)"""
         stat = file_path.stat()
         extension = file_path.suffix.lower()
         category = get_file_category(file_path)

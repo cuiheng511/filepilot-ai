@@ -236,8 +236,8 @@ class FileIndexer:
                 fragment = result.highlights(field_name, top=2)
                 if fragment:
                     return fragment  # type: ignore[no-any-return]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to generate highlights: %s", e)
         return ""
 
     def _format_dt(self, dt: datetime | None) -> str:

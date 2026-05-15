@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.4.1
+Version 0.5.0
 
 </div>
 
@@ -44,6 +44,7 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 - File type, category, MIME, and hash detection
 - Rich metadata: size, date, dimensions, duration
 - Respects hidden-file and .gitignore filters
+- **File statistics** with distribution by type/size/date + treemap visualization
 
 </td>
 <td width="33%">
@@ -54,15 +55,17 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 - Keyword, fuzzy, and boolean queries
 - Filter by type, date range, and file size
 - Export results to CSV
+- **Search history** with dropdown quick-recall
 
 </td>
 <td width="33%">
 
-### AI summaries
+### AI summaries + OCR
 
 - Built-in extractors for PDF, Markdown, code, images, DOCX, XLSX, and PPTX
 - Local (Ollama, llama.cpp) or cloud AI providers (OpenAI, Anthropic)
 - Batch summary workflow for multi-file processing
+- **OCR text extraction** from images (Tesseract integration)
 - Pluggable provider interface with unified API
 
 </td>
@@ -80,11 +83,11 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 </td>
 <td width="33%">
 
-### Safe organization
+### Safe organization + regex rename
 
 - Organize by file type, date, extension, or size range
 - Custom rename templates with variables
-- Preview changes before applying
+- **Batch regex rename** with preview before execution
 - Undo-log support for rollback
 
 </td>
@@ -92,7 +95,11 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 
 ### Desktop workflow
 
-- Native PySide6 desktop interface
+- Native PySide6 desktop interface with **7 navigable panels**
+- **Favorites** for quick directory access
+- **Recent files & folders** tracking
+- **Customizable keyboard shortcuts**
+- **Scheduled tasks** (auto scan/index/dedup)
 - Light and dark theme support
 - System tray integration with background file watcher
 - Toast notifications and 18 UI languages
@@ -114,6 +121,10 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 | AI Summary | Index |
 | --- | --- |
 | ![Generate AI summaries](docs/assets/screenshots/05-summary.png) | ![Manage search index](docs/assets/screenshots/06-index.png) |
+
+| Favorites |
+| --- |
+| ![Quick access to saved directories](docs/assets/screenshots/07-favorites.png) |
 
 ## Quick Start
 
@@ -195,11 +206,11 @@ Cloud providers only receive the content you choose to summarize. Local scanning
 filepilot-ai/
 |-- filepilot/
 |   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher
-|   |-- extractors/          # PDF, Markdown, code, image, DOCX, XLSX, PPTX
+|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher, task scheduler
+|   |-- extractors/          # PDF, Markdown, code, image, DOCX, XLSX, PPTX, OCR
 |   |-- resources/           # Application icons
 |   |-- styles/              # Theme manager and QSS themes
-|   |-- ui/                  # PySide6 panels, tray, settings, notifications
+|   |-- ui/                  # PySide6 panels, tray, settings, shortcut editor
 |   |-- app.py               # Application bootstrap
 |   |-- cli.py               # Command-line interface
 |   |-- i18n.py              # Translation catalog
@@ -223,11 +234,15 @@ flowchart LR
     Core --> Duplicates["Duplicate finder"]
     Core --> Organizer["Organizer"]
     Core --> Watcher["Directory watcher"]
+    Core --> Scheduler["Task scheduler"]
     Scanner --> Extractors["Content extractors"]
+    Extractors --> OCR["OCR extractor"]
     Extractors --> Summarizer["AI summarizer"]
     Summarizer --> Providers["Local and cloud AI providers"]
     Duplicates --> send2trash["send2trash"]
     send2trash --> RecycleBin["System Recycle Bin (safe deletion)"]
+    UI --> Shortcuts["Shortcut editor"]
+    UI --> Settings["Settings dialog"]
 ```
 
 ## Security and Privacy
@@ -294,9 +309,9 @@ See [docs/README.md](docs/README.md) for the full documentation index.
 ## Roadmap
 
 - Application screenshots and demo GIFs
-- Summary cache with invalidation
-- Large-folder indexing performance tuning
-- More organization templates
+- File tags with cross-directory search
+- Plugin system for custom extractors
+- Cloud sync integration
 - More end-to-end packaging tests
 
 ## Contributing

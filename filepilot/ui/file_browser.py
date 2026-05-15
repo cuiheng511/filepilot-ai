@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from threading import Thread
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -39,6 +39,8 @@ from filepilot.utils.file_utils import (
 
 class FileBrowserPanel(BasePanel):
     """File browser panel — browse, scan, preview files"""
+
+    file_opened = Signal(str)  # Emitted when a file is opened (double-click)
 
     def __init__(self, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
@@ -92,6 +94,11 @@ class FileBrowserPanel(BasePanel):
         self.btn_export.clicked.connect(self._on_export)
         self.btn_export.setEnabled(False)
         toolbar_layout.addWidget(self.btn_export)
+
+        self.btn_stats = QPushButton("📊 Stats")
+        self.btn_stats.clicked.connect(self._on_show_stats)
+        self.btn_stats.setEnabled(False)
+        toolbar_layout.addWidget(self.btn_stats)
 
         toolbar_layout.addStretch()
 
@@ -210,6 +217,7 @@ class FileBrowserPanel(BasePanel):
         self._cancelling = False
         self.btn_refresh.setEnabled(False)
         self.btn_export.setEnabled(False)
+        self.btn_stats.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.btn_cancel.setVisible(True)
@@ -313,6 +321,7 @@ class FileBrowserPanel(BasePanel):
 
         self.btn_refresh.setEnabled(True)
         self.btn_export.setEnabled(True)
+        self.btn_stats.setEnabled(True)
 
         total_size = sum(f.size_bytes for f in files)
         size_str = get_file_size_str(total_size)
@@ -406,6 +415,10 @@ class FileBrowserPanel(BasePanel):
     @Slot(int, int)
     def _on_file_double_click(self, row: int, column: int):
         """Handle file double-click — try to open externally"""
+        import logging
+
+        logger = logging.getLogger("filepilot.file_browser")
+
         path_item = self.file_table.item(row, 0)
         if path_item:
             file_path = Path(path_item.data(Qt.UserRole))
@@ -418,8 +431,10 @@ class FileBrowserPanel(BasePanel):
                         subprocess.Popen(["open", fp])
                     else:
                         subprocess.Popen(["xdg-open", fp])
-                except Exception:
-                    pass
+                    self.file_opened.emit(str(file_path))
+                except Exception as e:
+                    logger.warning("Failed to open file %s: %s", file_path, e)
+                    self.status_message.emit(f"Failed to open file: {file_path.name}")
 
     @Slot()
     def _on_export(self):
@@ -470,3 +485,26 @@ class FileBrowserPanel(BasePanel):
             self.status_message.emit(f"✅ Exported to {path.name}")
         except Exception as e:
             self.status_message.emit(f"❌ Export failed: {e}")
+
+    @Slot()
+    def _on_show_stats(self):
+        """Show file statistics dialog for current directory."""
+        if not self.current_dir:
+            return
+
+        from PySide6.QtWidgets import QDialog, QVBoxLayout
+
+        from filepilot.ui.file_stats_panel import FileStatsPanel
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"📊 File Statistics — {self.current_dir.name}")
+        dialog.setMinimumSize(900, 700)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        stats_panel = FileStatsPanel(scanner=self.scanner)
+        layout.addWidget(stats_panel)
+
+        stats_panel.analyze_directory(self.current_dir)
+        dialog.exec()

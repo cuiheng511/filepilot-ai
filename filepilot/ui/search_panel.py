@@ -7,10 +7,10 @@ from threading import Thread
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QProgressBar,
@@ -120,14 +120,17 @@ class SearchPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # Search bar
+        # Search bar — QComboBox with history dropdown
         search_layout = QHBoxLayout()
-        self.search_input = QLineEdit()
+        self.search_input = QComboBox()
         self.search_input.setObjectName("searchInput")
+        self.search_input.setEditable(True)
+        self.search_input.setInsertPolicy(QComboBox.NoInsert)
         self.search_input.setPlaceholderText(
             "Enter search keywords, e.g.: find PDFs about deep learning..."
         )
-        self.search_input.returnPressed.connect(self._on_search)
+        self.search_input.lineEdit().returnPressed.connect(self._on_search)
+        self.search_input.activated.connect(self._on_search)
 
         self.search_btn = QPushButton("🔍 Search")
         self.search_btn.setObjectName("btnSearch")
@@ -136,6 +139,9 @@ class SearchPanel(BasePanel):
         search_layout.addWidget(self.search_input, 1)
         search_layout.addWidget(self.search_btn)
         layout.addLayout(search_layout)
+
+        # Load search history from settings
+        self._load_search_history()
 
         # Search options
         options_layout = QHBoxLayout()
@@ -161,6 +167,11 @@ class SearchPanel(BasePanel):
         self.clear_btn = QPushButton("Clear Results")
         self.clear_btn.clicked.connect(self._clear_results)
         options_layout.addWidget(self.clear_btn)
+
+        self.clear_history_btn = QPushButton("🗑 Clear History")
+        self.clear_history_btn.setToolTip("Clear search history")
+        self.clear_history_btn.clicked.connect(self._clear_search_history)
+        options_layout.addWidget(self.clear_history_btn)
 
         layout.addLayout(options_layout)
 
@@ -213,10 +224,54 @@ class SearchPanel(BasePanel):
         self.index_btn.setEnabled(True)
         self.status_message.emit("⏹️ Operation cancelled")
 
+    def _load_search_history(self):
+        """Load search history from settings and populate dropdown."""
+        from filepilot.core import config
+
+        settings = config.load()
+        history = list(settings.get("search_history", []))
+        self.search_input.clear()
+        for q in history:
+            self.search_input.addItem(q)
+
+    def _save_search_history(self, query: str):
+        """Append query to search history in settings (max 20)."""
+        from filepilot.core import config
+
+        max_history = 20
+        settings = config.load()
+        history = list(settings.get("search_history", []))
+        # Remove duplicate if exists
+        if query in history:
+            history.remove(query)
+        # Add to front
+        history.insert(0, query)
+        # Trim
+        settings["search_history"] = history[:max_history]
+        config.save(settings)
+
+        # Refresh dropdown items without clearing current text
+        current_text = self.search_input.currentText()
+        self.search_input.clear()
+        for q in history[:max_history]:
+            self.search_input.addItem(q)
+        self.search_input.setEditText(current_text)
+
+    @Slot()
+    def _clear_search_history(self):
+        """Clear all search history."""
+        from filepilot.core import config
+
+        settings = config.load()
+        settings["search_history"] = []
+        config.save(settings)
+        self.search_input.clear()
+        self.status_message.emit("Search history cleared.")
+
     @Slot()
     def _on_search(self):
         """Execute search"""
-        query = self.search_input.text().strip()
+        query = self.search_input.currentText().strip()
         if not query:
             return
 
@@ -226,7 +281,8 @@ class SearchPanel(BasePanel):
             self.result_list.addItem(
                 "⚠️ Index is empty. Please build the index first before searching.",
             )
-            return
+            return        # Save to search history (after validation, before search)
+        self._save_search_history(query)
 
         self._cancelled = False
         self._cancelling = False
@@ -347,7 +403,7 @@ class SearchPanel(BasePanel):
         }
         if ext in text_exts:
             try:
-                return file_info.path.read_text(encoding="utf-8", errors="ignore")[:5000]
+                return file_info.path.read_text(encoding="utf-8", errors="replace")[:5000]
             except Exception:
                 return ""
         return ""
@@ -471,7 +527,7 @@ class SearchPanel(BasePanel):
     def _clear_results(self):
         """Clear search results"""
         self.result_list.clear()
-        self.search_input.clear()
+        self.search_input.setEditText("")
         self.stats_label.setText("Ready")
 
     @Slot()

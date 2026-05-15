@@ -1,6 +1,5 @@
 """XLSX Content Extractor"""
 
-import csv
 from pathlib import Path
 
 
@@ -17,29 +16,24 @@ class XlsxExtractor:
             return self._fallback_extract(file_path)
         try:
             wb = load_workbook(str(file_path), read_only=True, data_only=True)
-            parts = []
-            for sheet_name in wb.sheetnames:
-                ws = wb[sheet_name]
-                parts.append(f"=== {sheet_name} ===")
-                for row in ws.iter_rows(values_only=True):
-                    cells = [str(c) for c in row if c is not None]
-                    if cells:
-                        parts.append(" | ".join(cells))
-            wb.close()
-            return "\n".join(parts)
+            try:
+                parts = []
+                for sheet_name in wb.sheetnames:
+                    ws = wb[sheet_name]
+                    parts.append(f"=== {sheet_name} ===")
+                    for row in ws.iter_rows(values_only=True):
+                        cells = [str(c) for c in row if c is not None]
+                        if cells:
+                            parts.append(" | ".join(cells))
+                return "\n".join(parts)
+            finally:
+                wb.close()
         except Exception:
             return self._fallback_extract(file_path)
 
     def _fallback_extract(self, file_path: str | Path) -> str:
-        """Fallback extraction method without openpyxl: use csv reader"""
-        try:
-            with open(file_path, encoding="utf-8", errors="replace") as f:
-                reader = csv.reader(f)
-                return "\n".join(
-                    " | ".join(row) for row in reader if any(cell.strip() for cell in row)
-                )
-        except Exception:
-            return ""
+        """Fallback when openpyxl is unavailable — returns empty since xlsx is a ZIP format."""
+        return ""
 
     def extract_metadata(self, file_path: str | Path) -> dict:
         """Extract XLSX metadata"""
@@ -49,14 +43,16 @@ class XlsxExtractor:
             return {}
         try:
             wb = load_workbook(str(file_path), read_only=True)
-            meta = {
-                "sheets": wb.sheetnames,
-                "sheet_count": len(wb.sheetnames),
-            }
-            if wb.properties:
-                meta["title"] = wb.properties.title or ""
-                meta["author"] = wb.properties.creator or ""
-            wb.close()
-            return meta
+            try:
+                meta = {
+                    "sheets": wb.sheetnames,
+                    "sheet_count": len(wb.sheetnames),
+                }
+                if wb.properties:
+                    meta["title"] = wb.properties.title or ""
+                    meta["author"] = wb.properties.creator or ""
+                return meta
+            finally:
+                wb.close()
         except Exception:
             return {}

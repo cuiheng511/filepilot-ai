@@ -8,7 +8,7 @@
 
 #define MyAppName "FilePilot AI"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.4.1"
+  #define MyAppVersion "0.5.0"
 #endif
 #define MyAppPublisher "cuiheng511"
 #define MyAppURL "https://github.com/cuiheng511/filepilot-ai"

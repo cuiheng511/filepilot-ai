@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0] - 2026-05-15
+
+### Added
+- **Batch regex rename** — Regex pattern/replacement in Organize panel with preview
+- **OCR text extraction** — Tesseract integration in AI Summary panel for images
+- **File statistics & treemap** — Stats button in File Browser opens distribution dialog
+- **Scheduled tasks** — Auto scan/index/dedup in Settings dialog
+- **Shortcut editor** — Customizable keyboard shortcuts in Settings dialog
+- **Search history** — QComboBox-based history dropdown in Search panel
+- **Recent files** — Track and reopen recently used files
+- **Favorites** — Quick-access directory bookmarks panel
+
+### Changed
+- **UI consolidation** — 10 panels reduced to 7 (Stats→Browse, OCR→Summary, Tasks→Settings)
+- **Version bump** — `0.4.1` → `0.5.0`
+
 ## [0.4.1] - 2026-05-15
 
 ### Fixed

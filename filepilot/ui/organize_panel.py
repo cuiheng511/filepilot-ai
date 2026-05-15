@@ -1,5 +1,6 @@
-"""Organize Panel — Auto-classify, smart rename"""
+"""Organize Panel — Auto-classify, smart rename, batch regex rename"""
 
+import re
 from pathlib import Path
 from threading import Thread
 
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QProgressBar,
     QPushButton,
     QTableWidget,
@@ -157,6 +159,42 @@ class OrganizePanel(BasePanel):
         rename_layout.addWidget(self.template_btn)
 
         layout.addLayout(rename_layout)
+
+        # ── Batch Regex Rename ──
+        regex_group = QGroupBox("\U0001f504 Batch Regex Rename")
+        regex_layout = QVBoxLayout()
+        regex_layout.setSpacing(8)
+
+        regex_pattern_layout = QHBoxLayout()
+        regex_pattern_layout.addWidget(QLabel("Pattern:"))
+        self.regex_pattern_input = QLineEdit()
+        self.regex_pattern_input.setPlaceholderText(r"e.g., ^(\d{4})-(\d{2})-(\d{2})_")
+        regex_pattern_layout.addWidget(self.regex_pattern_input, 1)
+        regex_layout.addLayout(regex_pattern_layout)
+
+        regex_replacement_layout = QHBoxLayout()
+        regex_replacement_layout.addWidget(QLabel("Replace:"))
+        self.regex_replacement_input = QLineEdit()
+        self.regex_replacement_input.setPlaceholderText(r"e.g., \2/\3/\1_")
+        regex_replacement_layout.addWidget(self.regex_replacement_input, 1)
+        regex_layout.addLayout(regex_replacement_layout)
+
+        regex_options_layout = QHBoxLayout()
+        self.regex_case_cb = QCheckBox("Case insensitive")
+        self.regex_preview_btn = QPushButton("Preview")
+        self.regex_preview_btn.clicked.connect(self._on_regex_preview)
+        self.regex_execute_btn = QPushButton("Execute")
+        self.regex_execute_btn.setObjectName("btnSuccess")
+        self.regex_execute_btn.clicked.connect(self._on_regex_execute)
+        self.regex_execute_btn.setEnabled(False)
+        regex_options_layout.addWidget(self.regex_case_cb)
+        regex_options_layout.addStretch()
+        regex_options_layout.addWidget(self.regex_preview_btn)
+        regex_options_layout.addWidget(self.regex_execute_btn)
+        regex_layout.addLayout(regex_options_layout)
+
+        regex_group.setLayout(regex_layout)
+        layout.addWidget(regex_group)
 
         # ── Action Buttons ──
         action_layout = QHBoxLayout()
@@ -544,3 +582,214 @@ class OrganizePanel(BasePanel):
         self.result_table.setRowCount(0)
         self.btn_execute.setEnabled(False)
         self.stats_label.setText("Ready")
+
+    # ── Batch Regex Rename ──
+
+    @Slot()
+    def _on_regex_preview(self):
+        """Preview regex rename results."""
+        pattern = self.regex_pattern_input.text().strip()
+        if not pattern:
+            self.status_message.emit("\u26a0\ufe0f Please enter a regex pattern")
+            return
+
+        try:
+            flags = re.IGNORECASE if self.regex_case_cb.isChecked() else 0
+            compiled = re.compile(pattern, flags)
+        except re.error as e:
+            self.status_message.emit(f"\u274c Invalid regex: {e}")
+            return
+
+        if not self.source_dir:
+            self.status_message.emit("\u26a0\ufe0f Please select a source folder first")
+            return
+
+        self._cancelled = False
+        self._cancelling = False
+        self.progress_bar.setVisible(True)
+        self.btn_cancel.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.status_message.emit("Scanning files for regex preview...")
+
+        def worker():
+            files = []
+            for f in self.scanner.scan(
+                str(self.source_dir),
+                progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
+            ):
+                if self._cancelled:
+                    return
+                files.append(f)
+
+            if self._cancelled:
+                return
+
+            replacement = self.regex_replacement_input.text()
+            operations = []
+            for f in files:
+                new_name = compiled.sub(replacement, f.name)
+                if new_name != f.name:
+                    operations.append({
+                        "source": str(f.path),
+                        "destination": str(f.path.parent / new_name),
+                        "category": "Regex Rename",
+                        "size": f.size_str,
+                    })
+
+            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
+            QMetaObject.invokeMethod(
+                self,
+                "_display_regex_preview",
+                Qt.QueuedConnection,
+                Q_ARG(list, operations),
+            )
+
+        Thread(target=worker, daemon=True).start()
+
+    @Slot()
+    def _display_regex_preview(self, operations: list[dict]):
+        """Display regex rename preview results."""
+        self.result_table.setSortingEnabled(False)
+        self.result_table.setRowCount(len(operations))
+
+        for row, op in enumerate(operations):
+            self.result_table.setItem(row, 0, QTableWidgetItem(op["source"]))
+            self.result_table.setItem(row, 1, QTableWidgetItem(op["destination"]))
+            self.result_table.setItem(row, 2, QTableWidgetItem(op["category"]))
+            self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
+
+            status = QTableWidgetItem("\U0001f4cb Preview")
+            status.setTextAlignment(Qt.AlignCenter)
+            status.setForeground(Qt.gray)
+            self.result_table.setItem(row, 4, status)
+
+        self.result_table.setSortingEnabled(True)
+        self.regex_execute_btn.setEnabled(len(operations) > 0)
+        self.progress_bar.setVisible(False)
+        self.btn_cancel.setVisible(False)
+
+        self.stats_label.setText(
+            f"\U0001f441\ufe0f Regex Preview: {len(operations)} files will be renamed"
+        )
+
+    @Slot()
+    def _on_regex_execute(self):
+        """Execute regex rename on scanned files."""
+        pattern = self.regex_pattern_input.text().strip()
+        if not pattern:
+            return
+
+        try:
+            flags = re.IGNORECASE if self.regex_case_cb.isChecked() else 0
+            compiled = re.compile(pattern, flags)
+        except re.error as e:
+            self.status_message.emit(f"\u274c Invalid regex: {e}")
+            return
+
+        if not self.files:
+            self.status_message.emit("\u26a0\ufe0f Please scan files first")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Regex Rename",
+            f"Rename {len(self.files)} files using regex pattern?\n\n"
+            f"Pattern: {pattern}\n"
+            f"Replace: {self.regex_replacement_input.text()}\n\n"
+            "This will rename files. Backup recommended.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self._cancelled = False
+        self._cancelling = False
+        self.btn_execute.setEnabled(False)
+        self.btn_preview.setEnabled(False)
+        self.regex_execute_btn.setEnabled(False)
+        self.regex_preview_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.btn_cancel.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.status_message.emit("Renaming files with regex...")
+
+        def worker():
+            replacement = self.regex_replacement_input.text()
+            operations = []
+            success_count = 0
+            error_count = 0
+
+            for i, f in enumerate(self.files):
+                if self._cancelled:
+                    return
+
+                new_name = compiled.sub(replacement, f.name)
+                if new_name != f.name:
+                    new_path = f.path.parent / new_name
+                    try:
+                        f.path.rename(new_path)
+                        operations.append({
+                            "source": str(f.path),
+                            "destination": str(new_path),
+                            "category": "Regex Rename",
+                            "size": f.size_str,
+                            "status": "\u2705 Renamed",
+                        })
+                        success_count += 1
+                    except Exception as e:
+                        operations.append({
+                            "source": str(f.path),
+                            "destination": str(new_path),
+                            "category": "Regex Rename",
+                            "size": f.size_str,
+                            "status": f"\u274c Error: {e}",
+                        })
+                        error_count += 1
+
+                self.progress_updated.emit(int((i + 1) / len(self.files) * 100))
+
+            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
+            QMetaObject.invokeMethod(
+                self,
+                "_display_regex_execution",
+                Qt.QueuedConnection,
+                Q_ARG(list, operations),
+                Q_ARG(int, success_count),
+                Q_ARG(int, error_count),
+            )
+
+        Thread(target=worker, daemon=True).start()
+
+    @Slot()
+    def _display_regex_execution(self, operations: list[dict], success_count: int, error_count: int):
+        """Display regex rename execution results."""
+        self.result_table.setSortingEnabled(False)
+        self.result_table.setRowCount(len(operations))
+
+        for row, op in enumerate(operations):
+            self.result_table.setItem(row, 0, QTableWidgetItem(op["source"]))
+            self.result_table.setItem(row, 1, QTableWidgetItem(op["destination"]))
+            self.result_table.setItem(row, 2, QTableWidgetItem(op["category"]))
+            self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
+
+            status = QTableWidgetItem(op.get("status", "\u2705 Renamed"))
+            status.setTextAlignment(Qt.AlignCenter)
+            if "\u2705" in op.get("status", ""):
+                status.setForeground(Qt.green)
+            elif "\u274c" in op.get("status", ""):
+                status.setForeground(Qt.red)
+            self.result_table.setItem(row, 4, status)
+
+        self.result_table.setSortingEnabled(True)
+        self.btn_preview.setEnabled(True)
+        self.regex_preview_btn.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.btn_cancel.setVisible(False)
+
+        self.stats_label.setText(
+            f"\u2705 Regex rename complete: {success_count} renamed"
+            + (f", {error_count} errors" if error_count else "")
+        )

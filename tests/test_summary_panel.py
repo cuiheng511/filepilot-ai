@@ -111,8 +111,8 @@ class TestSummaryPanelFileSelection:
 
     def test_add_unsupported_file_skipped(self):
         """Test unsupported files are not added"""
-        unsupported = self.tmp_dir / "image.jpg"
-        unsupported.write_bytes(b"\xff\xd8\xff\xe0")
+        unsupported = self.tmp_dir / "program.exe"
+        unsupported.write_bytes(b"\x00" * 100)
 
         with patch(
             "PySide6.QtWidgets.QFileDialog.getOpenFileNames", return_value=([str(unsupported)], "")

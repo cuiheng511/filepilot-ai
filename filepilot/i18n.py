@@ -115,6 +115,8 @@ _translations: dict[str, dict[str, str]] = {
         "tray_pause": "⏸️ 暂停监控",
         "tray_watching_paused": "⏸️ 后台监控已暂停",
         "tray_watching_resumed": "▶️ 后台监控已恢复",
+        # Recent
+        "menu_recent_files": "最近文件",
     },
     "en": {
         # General
@@ -201,6 +203,8 @@ _translations: dict[str, dict[str, str]] = {
         "tray_pause": "\u23f8\ufe0f Pause Watching",
         "tray_watching_paused": "\u23f8\ufe0f Background watching paused",
         "tray_watching_resumed": "\u25b6\ufe0f Background watching resumed",
+        # Recent
+        "menu_recent_files": "Recent Files",
     },
     # ── Japanese (日本語) ──
     "ja": {

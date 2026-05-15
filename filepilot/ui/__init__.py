@@ -6,11 +6,10 @@ from .file_stats_panel import FileStatsPanel
 from .index_panel import IndexPanel
 from .main_window import MainWindow
 from .notification import NotificationToast
-from .ocr_panel import OCRPanel
 from .organize_panel import OrganizePanel
-from .scheduled_tasks_panel import ScheduledTasksPanel
 from .search_panel import SearchPanel
 from .settings_dialog import SettingsDialog
+from .shortcut_editor import ShortcutEditor
 from .summary_panel import SummaryPanel
 
 __all__ = [
@@ -22,10 +21,9 @@ __all__ = [
     "IndexPanel",
     "MainWindow",
     "NotificationToast",
-    "OCRPanel",
     "OrganizePanel",
-    "ScheduledTasksPanel",
     "SearchPanel",
     "SettingsDialog",
+    "ShortcutEditor",
     "SummaryPanel",
 ]

@@ -295,8 +295,10 @@ class FileStatsPanel(BasePanel):
         """Remove all distribution sections from the content area."""
         while self._content_layout.count():
             child = self._content_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            if child is not None:
+                w = child.widget()
+                if w is not None:
+                    w.deleteLater()
         self._section_type = None
         self._section_size = None
         self._section_date = None
@@ -406,7 +408,9 @@ class FileStatsPanel(BasePanel):
                         "size": sum(f.size_bytes for f in matched),
                     }
                 )
-        category_stats.sort(key=lambda x: x["count"], reverse=True)
+        from typing import cast
+
+        category_stats.sort(key=lambda x: cast(int, x.get("count", 0)), reverse=True)
 
         return {
             "total_files": total_files,

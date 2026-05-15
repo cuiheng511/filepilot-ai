@@ -122,10 +122,6 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 | --- | --- |
 | ![Generate AI summaries](docs/assets/screenshots/05-summary.png) | ![Manage search index](docs/assets/screenshots/06-index.png) |
 
-| Favorites |
-| --- |
-| ![Quick access to saved directories](docs/assets/screenshots/07-favorites.png) |
-
 ## Quick Start
 
 ### Requirements

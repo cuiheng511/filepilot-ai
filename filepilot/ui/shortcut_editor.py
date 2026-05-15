@@ -108,7 +108,7 @@ class ShortcutEditor(QWidget):
         """Validate shortcuts and highlight conflicts in real-time."""
         kse = self.sender()
         if kse is None:
-            return
+            return  # type: ignore[unreachable]
         action = kse.objectName()
         key_text = seq.toString()
 
@@ -145,7 +145,7 @@ class ShortcutEditor(QWidget):
         """Store the override when editing is complete."""
         kse = self.sender()
         if kse is None:
-            return
+            return  # type: ignore[unreachable]
         action = kse.objectName()
         key_text = kse.keySequence().toString()
 

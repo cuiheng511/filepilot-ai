@@ -73,10 +73,15 @@ class OCRExtractor:
             logger.warning("Unsupported image format: %s", path.suffix)
             return None
 
+        tesseract_path = self.tesseract_path
+        if tesseract_path is None:
+            logger.warning("Tesseract path is not set")
+            return None
+
         try:
             result = subprocess.run(
                 [
-                    self.tesseract_path,
+                    tesseract_path,
                     str(path),
                     "stdout",
                     "-l",

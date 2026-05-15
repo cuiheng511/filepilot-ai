@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.1] - 2026-05-15
+
+### Fixed
+- **Windows PyInstaller crash** — Removed unused `python-magic` dependency that required missing libmagic DLL
+- **Thread safety** — Watcher signals now use `Qt.QueuedConnection` to prevent cross-thread widget access
+- **File change debounce** — `_on_file_changed` debounced to 2s; dict cleared on directory switch
+- **Settings data loss** — `get_settings()` now preserves `recent_dirs`, `theme` and other non-UI keys
+- **Search cache** — Integrated into search flow; auto-invalidated on index rebuild
+- **AppImage build** — Added `<launchable>`, `<content_rating>`, `<developer>` to AppStream XML
+- **Inno Setup** — Process detection via WMI instead of always-true `tasklist`; fixed `VersionInfoCopyright` directive
+- **Tray icon** — Correct `QStyle.SP_ComputerIcon` enum path
+- **Notification** — Stop old animation before starting new one to prevent GC issues
+- **FileWatcher** — Removed redundant `self._observer` field; added directory existence guard
+- **Main entry** — Tray reference saved on window to prevent GC
+
+### Changed
+- **Version bump** — `0.4.0` → `0.4.1`
+
 ## [0.4.0] - 2026-05-14
 
 ### Added

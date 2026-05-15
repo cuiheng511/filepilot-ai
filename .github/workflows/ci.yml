@@ -473,7 +473,7 @@ jobs:
       - name: Create DMG
         run: |
           if [ -d "dist/FilePilot.app" ]; then
-            VERSION=$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.4.0")
+            VERSION=$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.4.1")
             DMG_SRC="/tmp/FilePilot-dmg-src"
             rm -rf "$DMG_SRC"
             mkdir -p "$DMG_SRC"

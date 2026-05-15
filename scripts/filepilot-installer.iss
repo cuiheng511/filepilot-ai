@@ -48,7 +48,7 @@ RestartApplications=no
 VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName}
-VersionInfoTextCopyright=Copyright (c) 2025 {#MyAppPublisher}
+VersionInfoCopyright=Copyright (c) 2025 {#MyAppPublisher}
 DisableStartupPrompt=yes
 UsedUserAreasWarning=no
 

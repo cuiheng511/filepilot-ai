@@ -70,9 +70,21 @@ _DATE_RANGES = [
 ]
 
 _TREEMAP_COLORS = [
-    "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
-    "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9",
-    "#F8B500", "#5D8AA8", "#E6B0AA", "#7DCEA0", "#AED6F1",
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#96CEB4",
+    "#FFEAA7",
+    "#DDA0DD",
+    "#98D8C8",
+    "#F7DC6F",
+    "#BB8FCE",
+    "#85C1E9",
+    "#F8B500",
+    "#5D8AA8",
+    "#E6B0AA",
+    "#7DCEA0",
+    "#AED6F1",
 ]
 
 
@@ -160,9 +172,7 @@ class FileStatsPanel(BasePanel):
     analyze_requested = Signal(str)
     stats_ready = Signal(dict)
 
-    def __init__(
-        self, scanner: FileScanner | None = None, parent=None
-    ):
+    def __init__(self, scanner: FileScanner | None = None, parent=None):
         super().__init__(parent)
         self.scanner = scanner or FileScanner()
         self.current_dir: str | None = None
@@ -338,12 +348,14 @@ class FileStatsPanel(BasePanel):
         for label, lo, hi in _SIZE_RANGES:
             matched = [f for f in files if lo <= f.size_bytes < hi]
             if matched:
-                by_size.append({
-                    "label": label,
-                    "count": len(matched),
-                    "size": sum(f.size_bytes for f in matched),
-                    "files": matched,
-                })
+                by_size.append(
+                    {
+                        "label": label,
+                        "count": len(matched),
+                        "size": sum(f.size_bytes for f in matched),
+                        "files": matched,
+                    }
+                )
 
         # By date — non-overlapping ranges
         now = datetime.now()
@@ -354,9 +366,18 @@ class FileStatsPanel(BasePanel):
 
         date_groups = [
             ("Today", lambda f: f.modified_time and f.modified_time >= today_start),
-            ("This Week", lambda f: f.modified_time and week_start <= f.modified_time < today_start),
-            ("This Month", lambda f: f.modified_time and month_start <= f.modified_time < week_start),
-            ("This Year", lambda f: f.modified_time and year_start <= f.modified_time < month_start),
+            (
+                "This Week",
+                lambda f: f.modified_time and week_start <= f.modified_time < today_start,
+            ),
+            (
+                "This Month",
+                lambda f: f.modified_time and month_start <= f.modified_time < week_start,
+            ),
+            (
+                "This Year",
+                lambda f: f.modified_time and year_start <= f.modified_time < month_start,
+            ),
             ("Older", lambda f: f.modified_time and f.modified_time < year_start),
             ("Unknown", lambda f: f.modified_time is None),
         ]
@@ -365,22 +386,26 @@ class FileStatsPanel(BasePanel):
         for label, predicate in date_groups:
             matched = [f for f in files if predicate(f)]
             if matched:
-                by_date_final.append({
-                    "label": label,
-                    "count": len(matched),
-                    "size": sum(f.size_bytes for f in matched),
-                })
+                by_date_final.append(
+                    {
+                        "label": label,
+                        "count": len(matched),
+                        "size": sum(f.size_bytes for f in matched),
+                    }
+                )
 
         # Build category stats with proper enum objects
         category_stats = []
         for cat in FileCategory:
             matched = [f for f in files if f.category == cat]
             if matched:
-                category_stats.append({
-                    "category": cat,
-                    "count": len(matched),
-                    "size": sum(f.size_bytes for f in matched),
-                })
+                category_stats.append(
+                    {
+                        "category": cat,
+                        "count": len(matched),
+                        "size": sum(f.size_bytes for f in matched),
+                    }
+                )
         category_stats.sort(key=lambda x: x["count"], reverse=True)
 
         return {
@@ -406,8 +431,8 @@ class FileStatsPanel(BasePanel):
 
         # Update stat cards
         self._update_stat("Total Files", f"{stats['total_files']:,}")
-        self._update_stat("Total Size", self._fmt_size(stats['total_size']))
-        self._update_stat("Categories", str(len(stats['by_category'])))
+        self._update_stat("Total Size", self._fmt_size(stats["total_size"]))
+        self._update_stat("Categories", str(len(stats["by_category"])))
 
         # Rebuild distribution sections
         self._clear_sections()
@@ -418,7 +443,9 @@ class FileStatsPanel(BasePanel):
             stats["by_category"],
             lambda item: self._make_distribution_row(
                 icon=_CATEGORY_ICONS.get(item["category"], "\U0001f4c1"),
-                label=item["category"].value if hasattr(item["category"], "value") else str(item["category"]),
+                label=item["category"].value
+                if hasattr(item["category"], "value")
+                else str(item["category"]),
                 count=item["count"],
                 size=item["size"],
                 total=stats["total_files"],
@@ -465,7 +492,9 @@ class FileStatsPanel(BasePanel):
 
         # Update treemap with top 20 files by size
         treemap_data = []
-        top_files = sorted(stats.get("all_files", []), key=lambda f: f.size_bytes, reverse=True)[:20]
+        top_files = sorted(stats.get("all_files", []), key=lambda f: f.size_bytes, reverse=True)[
+            :20
+        ]
         for i, f in enumerate(top_files):
             color = _TREEMAP_COLORS[i % len(_TREEMAP_COLORS)]
             treemap_data.append((f.name, f.size_bytes, color))
@@ -550,17 +579,13 @@ class FileStatsPanel(BasePanel):
         # Progress bar (visual)
         bar = QFrame()
         bar.setFixedHeight(6)
-        bar.setStyleSheet(
-            "background: rgba(128,128,128,0.12); border-radius: 3px;"
-        )
+        bar.setStyleSheet("background: rgba(128,128,128,0.12); border-radius: 3px;")
         bar_layout = QHBoxLayout(bar)
         bar_layout.setContentsMargins(0, 0, 0, 0)
 
         fill = QFrame()
         fill.setFixedHeight(6)
-        fill.setStyleSheet(
-            f"background: {color}; border-radius: 3px;"
-        )
+        fill.setStyleSheet(f"background: {color}; border-radius: 3px;")
         # Use a fixed percentage width via fixed pixel size
         bar_width = 300  # max width of the bar
         fill_width = max(int(bar_width * pct / 100), 2)

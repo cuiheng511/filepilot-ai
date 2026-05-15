@@ -240,9 +240,7 @@ class SettingsDialog(QDialog):
         self.btn_add_task.clicked.connect(self._on_add_task)
         self.btn_remove_task.clicked.connect(self._on_remove_task)
         self.task_list.itemSelectionChanged.connect(
-            lambda: self.btn_remove_task.setEnabled(
-                len(self.task_list.selectedItems()) > 0
-            )
+            lambda: self.btn_remove_task.setEnabled(len(self.task_list.selectedItems()) > 0)
         )
 
         return widget
@@ -273,7 +271,6 @@ class SettingsDialog(QDialog):
         """Add a new scheduled task via dialog."""
         from PySide6.QtWidgets import QComboBox, QFileDialog, QFormLayout, QTimeEdit
 
-
         dialog = QDialog(self)
         dialog.setWindowTitle("Add Scheduled Task")
         dialog_layout = QFormLayout(dialog)
@@ -287,9 +284,7 @@ class SettingsDialog(QDialog):
         dir_input.setPlaceholderText("Select directory...")
         dir_browse = QPushButton("Browse")
         dir_browse.clicked.connect(
-            lambda: dir_input.setText(
-                QFileDialog.getExistingDirectory(dialog, "Select Directory")
-            )
+            lambda: dir_input.setText(QFileDialog.getExistingDirectory(dialog, "Select Directory"))
         )
         dir_layout.addWidget(dir_input)
         dir_layout.addWidget(dir_browse)
@@ -380,8 +375,8 @@ class SettingsDialog(QDialog):
                 "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
                 "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
                 "shortcuts": self.shortcut_editor.get_overrides()
-            if hasattr(self, "shortcut_editor")
-            else self._settings.get("shortcuts", {}),
+                if hasattr(self, "shortcut_editor")
+                else self._settings.get("shortcuts", {}),
             }
         )
         return result

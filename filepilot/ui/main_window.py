@@ -180,9 +180,7 @@ class MainWindow(QMainWindow):
         self.browse_panel.file_opened.connect(self._on_file_opened)
 
         # Favorites panel — navigate to directory
-        self.favorites_panel.navigate_to_directory.connect(
-            lambda path: self._open_directory(path)
-        )
+        self.favorites_panel.navigate_to_directory.connect(lambda path: self._open_directory(path))
 
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""

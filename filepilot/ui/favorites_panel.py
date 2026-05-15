@@ -156,10 +156,12 @@ class FavoritesPanel(BasePanel):
             self.status_message.emit("Directory no longer exists.")
             return
 
-        self.favorites.append({
-            "name": Path(path).name,
-            "path": path,
-        })
+        self.favorites.append(
+            {
+                "name": Path(path).name,
+                "path": path,
+            }
+        )
         self._save_favorites()
         self._rebuild_list()
         self._update_add_button_state()

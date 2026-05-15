@@ -15,6 +15,7 @@ class TestTaskScheduler(TestCase):
 
     def _make_scheduler(self):
         import filepilot.core.task_scheduler as ts
+
         self.patcher = patch.object(ts, "TASKS_FILE", self.temp_file)
         self.patcher.start()
         return TaskScheduler()

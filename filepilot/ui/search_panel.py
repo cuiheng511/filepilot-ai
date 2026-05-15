@@ -281,7 +281,7 @@ class SearchPanel(BasePanel):
             self.result_list.addItem(
                 "⚠️ Index is empty. Please build the index first before searching.",
             )
-            return        # Save to search history (after validation, before search)
+            return  # Save to search history (after validation, before search)
         self._save_search_history(query)
 
         self._cancelled = False

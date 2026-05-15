@@ -629,12 +629,14 @@ class OrganizePanel(BasePanel):
             for f in files:
                 new_name = compiled.sub(replacement, f.name)
                 if new_name != f.name:
-                    operations.append({
-                        "source": str(f.path),
-                        "destination": str(f.path.parent / new_name),
-                        "category": "Regex Rename",
-                        "size": f.size_str,
-                    })
+                    operations.append(
+                        {
+                            "source": str(f.path),
+                            "destination": str(f.path.parent / new_name),
+                            "category": "Regex Rename",
+                            "size": f.size_str,
+                        }
+                    )
 
             from PySide6.QtCore import Q_ARG, QMetaObject, Qt
 
@@ -730,22 +732,26 @@ class OrganizePanel(BasePanel):
                     new_path = f.path.parent / new_name
                     try:
                         f.path.rename(new_path)
-                        operations.append({
-                            "source": str(f.path),
-                            "destination": str(new_path),
-                            "category": "Regex Rename",
-                            "size": f.size_str,
-                            "status": "\u2705 Renamed",
-                        })
+                        operations.append(
+                            {
+                                "source": str(f.path),
+                                "destination": str(new_path),
+                                "category": "Regex Rename",
+                                "size": f.size_str,
+                                "status": "\u2705 Renamed",
+                            }
+                        )
                         success_count += 1
                     except Exception as e:
-                        operations.append({
-                            "source": str(f.path),
-                            "destination": str(new_path),
-                            "category": "Regex Rename",
-                            "size": f.size_str,
-                            "status": f"\u274c Error: {e}",
-                        })
+                        operations.append(
+                            {
+                                "source": str(f.path),
+                                "destination": str(new_path),
+                                "category": "Regex Rename",
+                                "size": f.size_str,
+                                "status": f"\u274c Error: {e}",
+                            }
+                        )
                         error_count += 1
 
                 self.progress_updated.emit(int((i + 1) / len(self.files) * 100))
@@ -764,7 +770,9 @@ class OrganizePanel(BasePanel):
         Thread(target=worker, daemon=True).start()
 
     @Slot()
-    def _display_regex_execution(self, operations: list[dict], success_count: int, error_count: int):
+    def _display_regex_execution(
+        self, operations: list[dict], success_count: int, error_count: int
+    ):
         """Display regex rename execution results."""
         self.result_table.setSortingEnabled(False)
         self.result_table.setRowCount(len(operations))

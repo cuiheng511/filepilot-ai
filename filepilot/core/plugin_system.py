@@ -179,7 +179,8 @@ class SampleMarkdownExtractor(BaseFileExtractor):
         return file_path.read_text(encoding="utf-8", errors="replace")
 
     def extract_metadata(self, file_path: Path) -> dict:
-        return {"line_count": len(file_path.read_text().splitlines())}
+        text = file_path.read_text(encoding="utf-8", errors="replace")
+        return {"line_count": len(text.splitlines())}
 ''',
                 encoding="utf-8",
             )

@@ -306,6 +306,7 @@ jobs:
             --hidden-import filepilot.core.event_bus \
             --hidden-import filepilot.core.worker \
             --hidden-import filepilot.core.errors \
+            --hidden-import filepilot.core.index_db \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
@@ -325,6 +326,7 @@ jobs:
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \
             --hidden-import fitz --hidden-import PIL \
+            --hidden-import markdown \
             --hidden-import yaml --hidden-import cryptography \
             --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
             --hidden-import send2trash --hidden-import watchdog \
@@ -455,6 +457,7 @@ jobs:
             --hidden-import filepilot.core.event_bus \
             --hidden-import filepilot.core.worker \
             --hidden-import filepilot.core.errors \
+            --hidden-import filepilot.core.index_db \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
@@ -474,6 +477,7 @@ jobs:
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \
             --hidden-import fitz --hidden-import PIL \
+            --hidden-import markdown \
             --hidden-import yaml --hidden-import cryptography \
             --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
             --hidden-import send2trash --hidden-import watchdog \

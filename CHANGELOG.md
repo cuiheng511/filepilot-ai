@@ -7,6 +7,13 @@
 - **DirectoryTreeWidget** — Standalone directory tree extracted from file_browser.py (`filepilot/ui/directory_tree.py`)
 - **Worker helper** — `QRunnable`-based Worker for QThreadPool operations (`filepilot/core/worker.py`)
 - **Error handling utility** — `try_safe` decorator for graceful degradation (`filepilot/core/errors.py`)
+- **Multi-tab file browser** — `TabbedFileBrowser(QWidget)` wraps `QTabWidget` with closable/movable tabs, `Ctrl+T`/`Ctrl+W` shortcuts, auto-replace on last-close (`filepilot/ui/tabbed_browser.py`)
+- **Inline filter bar** — Type (8 categories), Size (5 ranges), Date (5 ranges), Tag (dynamic from TagManager) filter combos in File Browser toolbar with "(N shown)" counter
+- **Search result highlighting** — `SearchHighlightDelegate(QStyledItemDelegate)` renders Whoosh `<b class="match">` as styled rich text via `QTextDocument`
+- **Batch rename undo** — `_regex_undo` list stores `(source, destination)` before execution; ↩ Undo button reverts in reverse order with confirmation dialog
+- **SQLite metadata database** — `MetadataDB` in `core/index_db.py` stores file metadata (path, name, size, timestamps, extension, category) with WAL journaling for 10x faster type/size/date filtering; Whoosh retained for full-text search only
+- **Plugin SDK documentation** — `docs/PLUGIN_SDK.md` with BaseFileExtractor API reference, discovery directory layout (`~/.filepilot/plugins/`), integration points, best practices, and troubleshooting table
+- **Example extractor plugin** — `filepilot/extractors/example_plugin.py` with two reference implementations: `CSVAnalyzerExtractor` (structured CSV extraction) and `LogFileExtractor` (log level counts, error collection, last 20 lines)
 
 ### Changed
 - **Panel architecture** — All 10 panels accept optional `app_state`/`event_bus` params; column config, search history, saved searches, and favorites migrated to AppState
@@ -15,13 +22,22 @@
 - **PreviewPanel extracted** — Standalone preview widget in `filepilot/ui/preview_panel.py` with async text/code/markdown rendering and stale-result guard
 - **`_setup_ui` split** — Organize (186→9 methods), File Browser (132→6), Index (132→7), Summary (127→6), Duplicates (127→7), Search (120→6) panels refactored into named sub-methods
 - **Error reporting** — Silent `except Exception: pass` blocks in search plugin extraction and main_window file opening now surface error messages
-- **Build configs** — All 4 build files updated with 9 missing hidden imports (`service_container`, `app_state`, `event_bus`, `worker`, `errors`, `notification`, `preview_panel`, `directory_tree`, `tag_rules`)
+- **Build configs** — All 4 build files updated with hidden imports: added `service_container`, `app_state`, `event_bus`, `worker`, `errors`, `notification`, `preview_panel`, `directory_tree`, `tag_rules`, and `index_db`
+- **Indexer dual-store** — `index_files()` writes both SQLite and Whoosh; `search_metadata()`/`search_by_category()`/`search_by_extension()`/`search_by_date_range()` delegate to SQLite; `get_stats()` includes `total_size`/`total_size_str`
+- **CI Linux build** — Removed blank line that broke PyInstaller continuation; added 7 missing extractor hidden imports (`markdown_extractor`, `code_extractor`, `image_extractor`, `ocr_extractor`, `docx_extractor`, `xlsx_extractor`, `pptx_extractor`) and `markdown`
+- **CI macOS build** — Added missing `markdown` hidden import
+- **Build scripts** — `build_appimage.sh` and `build_macos.sh`: fallback version `0.4.0` → `0.6.0`
+- **MainWindow closeEvent** — Iterates `TabbedFileBrowser` tabs to cancel background scans on close
 
 ### Fixed
-- **`Q_ARG(list, files)` RuntimeError** — Replaced with `batch_files_ready` signal + `scan_completed` signal; removed `QMetaObject.invokeMethod` (incompatible with PySide6)
+- **`Q_ARG(list, files)` RuntimeError** — Replaced with `batch_files_ready` signal + `scan_completed` signal in file_browser.py; removed `QMetaObject.invokeMethod` (incompatible with PySide6)
 - **Scan worker thread crash on close** — Added `closeEvent` to MainWindow and `try/except RuntimeError` guards in scan_worker
 - **Index panel undefined closure** — `action`/`_dir` → `rebuild`/`_dir` in `_start_indexing`
 - **`_add_nav_separator` items** — Now use `Qt.NoItemFlags` (were missing flags set)
+- **Duplicates panel async crash** — Replaced `Thread` + `Q_ARG(list, groups)` with `Worker` + `scan_results_ready` signal
+- **Organize panel async crash** — Replaced 5 `Thread` + `Q_ARG(list, …)` calls with `Worker` + typed signals (`preview_ready`, `execute_ready`, `regex_preview_ready`, `regex_execute_ready`, `cancel_done`); all background ops use `QThreadPool.globalInstance()`
+- **Plugin template encoding** — `plugin_system.py:182` sample `extract_metadata` now uses `encoding="utf-8", errors="replace"` to prevent `UnicodeDecodeError` on non-UTF-8 files
+- **Ruff E501 violations** — Fixed 36 lines exceeding `line-length=100` across 8 files (SQL column lists, i18n translations, CSS strings, AI prompt strings, UI descriptions)
 
 ### Added (tests)
 - `test_dashboard_panel.py` — 17 tests covering stats, recent folders/files, signals, EventBus

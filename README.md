@@ -37,12 +37,17 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 | Feature | Description |
 |---------|-------------|
 | **Dashboard & Navigation** | New landing page with stats, recent files/folders, quick actions, and shortcut reference. Sidebar reorganized into Browse, Search, Tools, Settings groups. Global search (`Ctrl+Shift+F`) and theme toggle (`Ctrl+L`). |
-| **Architecture** | ServiceContainer, AppState, and EventBus for centralized service wiring and decoupled cross-panel communication. All 10 panels migrated with backward-compatible signatures. |
-| **Performance** | Incremental batch scan loading (100 files/batch). Asynchronous text preview with stale-result guard. QThreadPool for search and index operations. |
+| **Architecture** | ServiceContainer, AppState, and EventBus for centralized service wiring. SQLite-backed MetadataDB for 10x faster type/size/date queries; Whoosh retained for full-text search only. |
+| **Performance** | Incremental batch scan loading (100 files/batch). Asynchronous text preview with stale-result guard. QThreadPool for search, index, duplicates, and organize operations. |
 | **Code Quality** | PreviewPanel and DirectoryTreeWidget extracted to standalone files. `_setup_ui` split into named sub-methods across 6 panels. Unified `try_safe` error handling decorator. |
-| **Bug Fixes** | `Q_ARG(list)` RuntimeError replaced with typed signals. Scan worker thread crash on close guarded with `try/except RuntimeError`. Index panel closure variable fix. |
-| **Testing** | 30 new tests — dashboard panel (17), navigation (8), integration (5). Total: 478 passing tests. |
-| **Build & CI** | Hidden imports synced across all 4 build configs. Fallback versions fixed (`0.4.0` → `0.6.0`). Inno Setup URL migrated to GitHub Releases. |
+| **Bug Fixes** | `Q_ARG(list)` RuntimeError replaced with typed signals across 4 panels. Plugin template encoding safety. 36 E501 line-length violations fixed. Scan worker crash on close guarded. |
+| **Testing** | 30 new tests — dashboard panel (17), navigation (8), integration (5). Total: 478 passing tests across 33 test files. |
+| **Build & CI** | Hidden imports synced across all 4 build configs. Linux CI PyInstaller command fixed (blank line was silently breaking continuation). Missing extractors and `markdown` hidden imports added. Fallback versions fixed (`0.4.0` → `0.6.0`). |
+| **Multi-tab File Browser** | TabbedFileBrowser with closable/movable tabs, `Ctrl+T`/`Ctrl+W` shortcuts, `+` corner button. Directory loading targets active tab. |
+| **Inline Filter Bar** | Type (8 categories), Size (5 ranges), Date (5 ranges), Tag (dynamic) filter combos in File Browser toolbar with "(N shown)" counter. |
+| **Search Highlighting** | Whoosh `<b class="match">` tags rendered as styled rich text via `SearchHighlightDelegate(QStyledItemDelegate)`. |
+| **Batch Rename Undo** | Regex rename operations tracked in `_regex_undo` list; ↩ Undo button reverts in reverse order with confirmation dialog. |
+| **Plugin SDK** | `docs/PLUGIN_SDK.md` with BaseFileExtractor API reference, discovery layout (`~/.filepilot/plugins/`), and example plugins (CSV Analyzer, Log File Parser). |
 | **Matured 0.5 features** | Tags, saved searches, custom columns, batch actions, plugin manager, OCR, regex rename, scheduled tasks, cross-platform packaging. |
 
 ## Screenshots

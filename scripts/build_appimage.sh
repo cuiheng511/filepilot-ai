@@ -17,7 +17,7 @@
 set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────────────────────────
-VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.4.0")"
+VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.0")"
 ARCH="${APPIMAGE_ARCH:-$(uname -m)}"
 APP_NAME="FilePilot"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -69,7 +69,7 @@ a = Analysis(
         'filepilot.core.config', 'filepilot.core.task_scheduler',
         'filepilot.core.tag_manager', 'filepilot.core.tag_rules', 'filepilot.core.plugin_system',
         'filepilot.core.service_container', 'filepilot.core.app_state', 'filepilot.core.event_bus',
-        'filepilot.core.worker', 'filepilot.core.errors',
+        'filepilot.core.worker', 'filepilot.core.errors', 'filepilot.core.index_db',
         'filepilot.extractors.pdf_extractor',
         'filepilot.extractors.markdown_extractor', 'filepilot.extractors.code_extractor',
         'filepilot.extractors.image_extractor', 'filepilot.extractors.ocr_extractor',

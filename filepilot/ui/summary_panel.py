@@ -230,7 +230,9 @@ class SummaryPanel(BasePanel):
             self,
             "Select files for summarization",
             str(self.current_dir or str(Path.home())),
-            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp *.c *.h *.go *.rs *.rb *.php *.swift *.kt *.png *.jpg *.jpeg *.tiff *.bmp *.gif *.webp);;All files (*.*)",
+            "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp"
+            " *.c *.h *.go *.rs *.rb *.php *.swift *.kt"
+            " *.png *.jpg *.jpeg *.tiff *.bmp *.gif *.webp);;All files (*.*)",
         )
         for fp in files:
             path = Path(fp)
@@ -381,21 +383,25 @@ class SummaryPanel(BasePanel):
             try:
                 if prefer_local and self._local_ai:
                     summary = self._local_ai.generate(
-                        f"Please generate a concise summary of the following content:\n\n{combined_text}",
+                        f"Please generate a concise summary of"
+                        f" the following content:\n\n{combined_text}",
                     )
                     self.progress_updated.emit(70)
 
                     keywords_text = self._local_ai.generate(
-                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}",
+                        f"Extract 5-10 key keywords from the following content,"
+                        f" separated by commas:\n\n{combined_text}",
                     )
                 elif self._cloud_ai:
                     summary = self._cloud_ai.generate(
-                        f"Please generate a concise summary of the following content:\n\n{combined_text}",
+                        f"Please generate a concise summary of"
+                        f" the following content:\n\n{combined_text}",
                     )
                     self.progress_updated.emit(70)
 
                     keywords_text = self._cloud_ai.generate(
-                        f"Extract 5-10 key keywords from the following content, separated by commas:\n\n{combined_text}",
+                        f"Extract 5-10 key keywords from the following content,"
+                        f" separated by commas:\n\n{combined_text}",
                     )
                 else:
                     # Fallback: use summarizer

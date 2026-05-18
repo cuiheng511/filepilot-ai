@@ -44,7 +44,6 @@ from filepilot.styles.manager import ThemeManager
 from filepilot.ui.dashboard_panel import DashboardPanel
 from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.favorites_panel import FavoritesPanel
-from filepilot.ui.file_browser import FileBrowserPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
 from filepilot.ui.organize_panel import OrganizePanel
@@ -53,6 +52,7 @@ from filepilot.ui.search_panel import SearchPanel
 from filepilot.ui.settings_dialog import SettingsDialog
 from filepilot.ui.shortcut_editor import DEFAULT_SHORTCUTS
 from filepilot.ui.summary_panel import SummaryPanel
+from filepilot.ui.tabbed_browser import TabbedFileBrowser
 from filepilot.ui.tags_panel import TagsPanel
 
 
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
         svc = self.services
 
         self.dashboard_panel = DashboardPanel(app_state=self.state, event_bus=self.event_bus)
-        self.browse_panel = FileBrowserPanel(
+        self.browse_panel = TabbedFileBrowser(
             scanner=svc.scanner, app_state=self.state, event_bus=self.event_bus
         )
         self.search_panel = SearchPanel(
@@ -271,7 +271,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent):
         """Cancel background operations on close."""
         if hasattr(self, "browse_panel"):
-            self.browse_panel._cancelled = True
+            for i in range(self.browse_panel._tabs.count()):
+                panel = self.browse_panel._tabs.widget(i)
+                if hasattr(panel, "_cancelled"):
+                    panel._cancelled = True
         event.accept()
 
     def _connect_event_bus(self):
@@ -783,7 +786,7 @@ class MainWindow(QMainWindow):
             self,
             "About FilePilot AI",
             f"<h2>FilePilot AI v{__version__}</h2>"
-            "<p>Smart file manager — automatically organize, categorize, and search your local files.</p>"
+            "<p>Smart file manager — organize, categorize, and search your local files.</p>"
             "<p>Features: file type recognition, auto-rename, auto-categorize<br>"
             "PDF/Markdown summarization, file indexing, deduplication, AI search</p>"
             "<hr>"

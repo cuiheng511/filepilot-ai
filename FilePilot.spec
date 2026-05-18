@@ -37,6 +37,7 @@ a = Analysis(
         'filepilot.core.event_bus',
         'filepilot.core.worker',
         'filepilot.core.errors',
+        'filepilot.core.index_db',
         'filepilot.extractors.pdf_extractor',
         'filepilot.extractors.markdown_extractor',
         'filepilot.extractors.code_extractor',

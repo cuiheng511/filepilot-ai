@@ -1,4 +1,4 @@
-"""File Statistics & Disk Visualization panel — file distribution by type, size, date, and treemap."""
+"""File Statistics & Disk Visualization panel — file distribution by type, size, date, treemap."""
 
 import logging
 from datetime import datetime, timedelta
@@ -519,7 +519,8 @@ class FileStatsPanel(BasePanel):
         container = QFrame()
         container.setObjectName("statsSection")
         container.setStyleSheet(
-            "QFrame#statsSection { background: rgba(128,128,128,0.06); border-radius: 8px; padding: 4px; }"
+            "QFrame#statsSection { background: rgba(128,128,128,0.06);"
+            " border-radius: 8px; padding: 4px; }"
         )
         section_layout = QVBoxLayout(container)
         section_layout.setContentsMargins(12, 8, 12, 8)

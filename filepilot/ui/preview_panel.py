@@ -137,7 +137,8 @@ class PreviewPanel(QWidget):
         if cat == "PDF":
             self.text_preview.setHtml(
                 f"<p><b>📕 PDF file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}"
+                f"<p><i>Use the 'AI Summary' panel"
+                f" to extract content from this PDF.</i></p>{stats_html}"
             )
         elif cat == "Office":
             self.text_preview.setHtml(
@@ -164,7 +165,8 @@ class PreviewPanel(QWidget):
                 styled = f"""
                 <style>
                   body {{ font-family: -apple-system, 'Segoe UI', sans-serif; padding: 12px; }}
-                  pre {{ background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 6px; overflow-x: auto; }}
+                  pre {{ background: #1e1e1e; color: #d4d4d4; padding: 10px;"
+                  " border-radius: 6px; overflow-x: auto; }}
                   code {{ background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }}
                   img {{ max-width: 100%; }}
                   table {{ border-collapse: collapse; width: 100%; }}
@@ -188,7 +190,8 @@ class PreviewPanel(QWidget):
                 table = "".join(html_lines)
                 styled = f"""
                 <style>
-                  body {{ margin:0; padding:8px; font-family:'Cascadia Code','Fira Code','Consolas',monospace; font-size:13px; }}
+                  body {{ margin:0; padding:8px;"
+                  " font-family:'Cascadia Code','Consolas',monospace; font-size:13px; }}
                   table {{ border-spacing:0; width:100%; }}
                   tr:hover td {{ background:#2a2a2a; }}
                 </style>

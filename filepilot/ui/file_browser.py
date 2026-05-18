@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Thread
 
@@ -13,6 +14,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
@@ -107,6 +109,7 @@ class FileBrowserPanel(BasePanel):
 
         self._create_header(layout)
         self._create_toolbar(layout)
+        self._create_filter_bar(layout)
         self._create_progress_bar(layout)
         self._create_splitter(layout)
         self._create_stats_bar(layout)
@@ -162,10 +165,139 @@ class FileBrowserPanel(BasePanel):
         toolbar_layout.addWidget(self.btn_cancel)
         layout.addLayout(toolbar_layout)
 
+    def _create_filter_bar(self, layout):
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
+        self.filter_type = QComboBox()
+        self.filter_type.addItems(
+            ["All Types", "Document", "Image", "Video", "Audio", "Archive", "Code", "Other"]
+        )
+        self.filter_type.currentIndexChanged.connect(self._apply_filter)
+        filter_layout.addWidget(QLabel("Type:"))
+        filter_layout.addWidget(self.filter_type)
+        self.filter_size = QComboBox()
+        self.filter_size.addItems(["All Sizes", "< 1 MB", "1–10 MB", "10–100 MB", "> 100 MB"])
+        self.filter_size.currentIndexChanged.connect(self._apply_filter)
+        filter_layout.addWidget(QLabel("Size:"))
+        filter_layout.addWidget(self.filter_size)
+        self.filter_date = QComboBox()
+        self.filter_date.addItems(["Any Date", "Today", "This Week", "This Month", "This Year"])
+        self.filter_date.currentIndexChanged.connect(self._apply_filter)
+        filter_layout.addWidget(QLabel("Date:"))
+        filter_layout.addWidget(self.filter_date)
+        self.filter_tags = QComboBox()
+        self.filter_tags.addItem("Any Tag")
+        self._refresh_filter_tags()
+        self.filter_tags.currentIndexChanged.connect(self._apply_filter)
+        filter_layout.addWidget(QLabel("Tag:"))
+        filter_layout.addWidget(self.filter_tags)
+        self.filter_count = QLabel("")
+        self.filter_count.setObjectName("statusLabel")
+        filter_layout.addWidget(self.filter_count)
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
+    def _refresh_filter_tags(self):
+        current = self.filter_tags.currentText()
+        self.filter_tags.blockSignals(True)
+        self.filter_tags.clear()
+        self.filter_tags.addItem("Any Tag")
+        for tag in self.tag_manager.get_all_tags():
+            self.filter_tags.addItem(tag)
+        idx = self.filter_tags.findText(current)
+        if idx >= 0:
+            self.filter_tags.setCurrentIndex(idx)
+        self.filter_tags.blockSignals(False)
+
     def _create_progress_bar(self, layout):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
+
+    def _apply_filter(self):
+        """Re-display files with current filter criteria."""
+        if not self.files:
+            return
+        filtered = self._get_filtered_files()
+        self._display_filtered(filtered)
+
+    def _get_filtered_files(self) -> list[FileInfo]:
+        files = self.files
+        hidden = self.cb_show_hidden.isChecked()
+        files = [f for f in files if hidden or not f.name.startswith(".")]
+        type_text = self.filter_type.currentText()
+        if type_text != "All Types":
+            files = [f for f in files if get_category_name(f.path.suffix.lower()) == type_text]
+        size_text = self.filter_size.currentText()
+        if size_text == "< 1 MB":
+            files = [f for f in files if f.size_bytes < 1_048_576]
+        elif size_text == "1–10 MB":
+            files = [f for f in files if 1_048_576 <= f.size_bytes < 10_485_760]
+        elif size_text == "10–100 MB":
+            files = [f for f in files if 10_485_760 <= f.size_bytes < 104_857_600]
+        elif size_text == "> 100 MB":
+            files = [f for f in files if f.size_bytes >= 104_857_600]
+        date_text = self.filter_date.currentText()
+        now = datetime.now()
+        if date_text == "Today":
+            files = [f for f in files if f.modified_time.date() == now.date()]
+        elif date_text == "This Week":
+            start = now - timedelta(days=now.weekday())
+            files = [f for f in files if f.modified_time.date() >= start.date()]
+        elif date_text == "This Month":
+            files = [
+                f
+                for f in files
+                if f.modified_time.date().month == now.month
+                and f.modified_time.date().year == now.year
+            ]
+        elif date_text == "This Year":
+            files = [f for f in files if f.modified_time.date().year == now.year]
+        tag_text = self.filter_tags.currentText()
+        if tag_text != "Any Tag":
+            files = [f for f in files if self.tag_manager.has_tag(str(f.path), tag_text)]
+        return files
+
+    def _display_filtered(self, files: list[FileInfo]):
+        """Display a filtered file list in the table."""
+        self.file_table.setRowCount(0)
+        self.file_table.setSortingEnabled(False)
+        self.file_table.setRowCount(len(files))
+        for row, f in enumerate(files):
+            cat = get_category_name(f.path.suffix.lower())
+            icon = CATEGORY_ICONS.get(cat, "📁")
+            for col, key in enumerate(self._column_keys):
+                if key == "name":
+                    item = QTableWidgetItem(f"{icon}  {f.name}")
+                    item.setData(Qt.UserRole, str(f.path))
+                elif key == "size":
+                    item = QTableWidgetItem(f.size_str)
+                elif key == "type":
+                    item = QTableWidgetItem(cat)
+                elif key == "modified":
+                    item = QTableWidgetItem(f.modified_time.strftime("%Y-%m-%d %H:%M"))
+                elif key == "created":
+                    created = getattr(f, "created_time", None)
+                    item = QTableWidgetItem(created.strftime("%Y-%m-%d %H:%M") if created else "-")
+                elif key == "path":
+                    item = QTableWidgetItem(str(f.path))
+                elif key == "extension":
+                    item = QTableWidgetItem(f.extension.lower())
+                elif key == "tags":
+                    tags = self.tag_manager.get_tags(f.path)
+                    tag_display = ", ".join(tags[:3]) if tags else ""
+                    item = QTableWidgetItem(tag_display)
+                    item.setToolTip("Tags: " + ", ".join(tags) if tags else "No tags")
+                    if tags:
+                        color = self.tag_manager.get_color(f.path)
+                        if color:
+                            item.setForeground(QColor(color))
+                else:
+                    item = QTableWidgetItem("")
+                self.file_table.setItem(row, col, item)
+        self.file_table.setSortingEnabled(True)
+        self.filter_count.setText(f"({len(files)} shown)" if len(files) != len(self.files) else "")
+        self._update_stat("📊 Total Files", str(len(files)))
 
     def _create_splitter(self, layout):
         main_splitter = QSplitter(Qt.Horizontal)
@@ -223,7 +355,9 @@ class FileBrowserPanel(BasePanel):
         self.scan_completed.connect(self._on_scan_completed)
 
     def _on_scan_completed(self, _dir_path: str):
+        self._refresh_filter_tags()
         self._finalize_scan(self.files)
+        self._apply_filter()
 
     def load_directory(self, dir_path: str | Path):
         """Load a directory into the tree"""
@@ -802,7 +936,7 @@ class FileBrowserPanel(BasePanel):
         self._save_column_config()
 
         if self.current_dir:
-            self._redisplay_files()
+            self._apply_filter()
 
     @Slot(int, int)
     def _on_file_double_click(self, row: int, column: int):

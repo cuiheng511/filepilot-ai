@@ -2,9 +2,8 @@
 
 import re
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -31,12 +30,19 @@ from filepilot.core.file_organizer import (
     SizeRule,
 )
 from filepilot.core.file_scanner import FileInfo, FileScanner
+from filepilot.core.worker import Worker
 from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 
 class OrganizePanel(BasePanel):
     """File Organize Panel"""
+
+    preview_ready = Signal(list, list)
+    execute_ready = Signal(list)
+    regex_preview_ready = Signal(list)
+    regex_execute_ready = Signal(list, int, int)
+    cancel_done = Signal()
 
     RULE_MAP = {
         "category": CategoryRule,
@@ -61,6 +67,9 @@ class OrganizePanel(BasePanel):
         self.scanner = scanner or FileScanner()
         self.state = app_state
         self.event_bus = event_bus
+
+        self._regex_undo: list[dict] = []
+        self._pool = QThreadPool.globalInstance()
 
         self._setup_ui()
         self._connect_signals()
@@ -198,10 +207,14 @@ class OrganizePanel(BasePanel):
         self.regex_execute_btn.setObjectName("btnSuccess")
         self.regex_execute_btn.clicked.connect(self._on_regex_execute)
         self.regex_execute_btn.setEnabled(False)
+        self.regex_undo_btn = QPushButton("\u21a9\ufe0f Undo Rename")
+        self.regex_undo_btn.clicked.connect(self._on_regex_undo)
+        self.regex_undo_btn.setEnabled(False)
         regex_options_layout.addWidget(self.regex_case_cb)
         regex_options_layout.addStretch()
         regex_options_layout.addWidget(self.regex_preview_btn)
         regex_options_layout.addWidget(self.regex_execute_btn)
+        regex_options_layout.addWidget(self.regex_undo_btn)
         regex_layout.addLayout(regex_options_layout)
         regex_group.setLayout(regex_layout)
         layout.addWidget(regex_group)
@@ -262,6 +275,11 @@ class OrganizePanel(BasePanel):
     def _connect_signals(self):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.status_message.connect(self.stats_label.setText)
+        self.preview_ready.connect(self._display_preview)
+        self.execute_ready.connect(self._display_execution)
+        self.regex_preview_ready.connect(self._display_regex_preview)
+        self.regex_execute_ready.connect(self._display_regex_execution)
+        self.cancel_done.connect(self._on_cancel_done)
 
     # ── Directory Selection ──
 
@@ -362,24 +380,20 @@ class OrganizePanel(BasePanel):
         self.result_table.setRowCount(0)
         self.status_message.emit("Scanning files...")
 
-        def worker():
-            # Scan files (cancellable)
+        def preview_worker():
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
                 progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
             ):
                 if self._cancelled:
-                    from PySide6.QtCore import QMetaObject, Qt
-
-                    QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
+                    self.cancel_done.emit()
                     return
                 files.append(f)
 
             if self._cancelled:
                 return
 
-            # Generate preview
             rules = self._get_selected_rules()
             rename = bool(self.rename_input.text().strip())
             pattern = self.rename_input.text().strip()
@@ -393,17 +407,11 @@ class OrganizePanel(BasePanel):
                 rename_pattern=pattern or None,
             )
 
-            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+            self.preview_ready.emit(operations, files)
 
-            QMetaObject.invokeMethod(
-                self,
-                "_display_preview",
-                Qt.QueuedConnection,
-                Q_ARG(list, operations),
-                Q_ARG(list, files),
-            )
-
-        Thread(target=worker, daemon=True).start()
+        worker = Worker(preview_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot()
     def _display_preview(self, operations: list[dict], files: list | None = None):
@@ -478,15 +486,13 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setValue(0)
         self.status_message.emit("Organizing files...")
 
-        def worker():
+        def execute_worker():
             rules = self._get_selected_rules()
             rename = bool(self.rename_input.text().strip())
             pattern = self.rename_input.text().strip()
 
             if self._cancelled:
-                from PySide6.QtCore import QMetaObject, Qt
-
-                QMetaObject.invokeMethod(self, "_on_cancel_done", Qt.QueuedConnection)
+                self.cancel_done.emit()
                 return
 
             operations = self.organizer.organize(
@@ -502,16 +508,11 @@ class OrganizePanel(BasePanel):
             )
 
             if not self._cancelled:
-                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+                self.execute_ready.emit(operations)
 
-                QMetaObject.invokeMethod(
-                    self,
-                    "_display_execution",
-                    Qt.QueuedConnection,
-                    Q_ARG(list, operations),
-                )
-
-        Thread(target=worker, daemon=True).start()
+        worker = Worker(execute_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot()
     def _display_execution(self, operations: list[dict]):
@@ -566,7 +567,8 @@ class OrganizePanel(BasePanel):
         reply = QMessageBox.question(
             self,
             "Confirm Undo",
-            "Undo the last organize operation? Files will be moved back to their original locations.",
+            "Undo the last organize operation?"
+            " Files will be moved back to their original locations.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -609,6 +611,8 @@ class OrganizePanel(BasePanel):
             self.status_message.emit("\u26a0\ufe0f Please select a source folder first")
             return
 
+        self._regex_undo.clear()
+        self.regex_undo_btn.setEnabled(False)
         self._cancelled = False
         self._cancelling = False
         self.progress_bar.setVisible(True)
@@ -616,7 +620,7 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setValue(0)
         self.status_message.emit("Scanning files for regex preview...")
 
-        def worker():
+        def regex_preview_worker():
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
@@ -643,16 +647,11 @@ class OrganizePanel(BasePanel):
                         }
                     )
 
-            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+            self.regex_preview_ready.emit(operations)
 
-            QMetaObject.invokeMethod(
-                self,
-                "_display_regex_preview",
-                Qt.QueuedConnection,
-                Q_ARG(list, operations),
-            )
-
-        Thread(target=worker, daemon=True).start()
+        worker = Worker(regex_preview_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot()
     def _display_regex_preview(self, operations: list[dict]):
@@ -722,11 +721,12 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setValue(0)
         self.status_message.emit("Renaming files with regex...")
 
-        def worker():
+        def regex_execute_worker():
             replacement = self.regex_replacement_input.text()
             operations = []
             success_count = 0
             error_count = 0
+            undo_ops = []
 
             for i, f in enumerate(self.files):
                 if self._cancelled:
@@ -746,6 +746,7 @@ class OrganizePanel(BasePanel):
                                 "status": "\u2705 Renamed",
                             }
                         )
+                        undo_ops.append({"source": str(f.path), "destination": str(new_path)})
                         success_count += 1
                     except Exception as e:
                         operations.append(
@@ -761,18 +762,12 @@ class OrganizePanel(BasePanel):
 
                 self.progress_updated.emit(int((i + 1) / len(self.files) * 100))
 
-            from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+            self._regex_undo = undo_ops
+            self.regex_execute_ready.emit(operations, success_count, error_count)
 
-            QMetaObject.invokeMethod(
-                self,
-                "_display_regex_execution",
-                Qt.QueuedConnection,
-                Q_ARG(list, operations),
-                Q_ARG(int, success_count),
-                Q_ARG(int, error_count),
-            )
-
-        Thread(target=worker, daemon=True).start()
+        worker = Worker(regex_execute_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot()
     def _display_regex_execution(
@@ -802,7 +797,41 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
 
+        self.regex_undo_btn.setEnabled(success_count > 0)
         self.stats_label.setText(
             f"\u2705 Regex rename complete: {success_count} renamed"
             + (f", {error_count} errors" if error_count else "")
+        )
+
+    @Slot()
+    def _on_regex_undo(self):
+        """Undo the last regex rename operation."""
+        if not self._regex_undo:
+            return
+        reply = QMessageBox.question(
+            self,
+            "Confirm Undo Rename",
+            f"Undo the last regex rename? {len(self._regex_undo)} file(s) will be renamed back.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        restored = 0
+        errors = 0
+        for op in reversed(self._regex_undo):
+            src = Path(op["source"])
+            dst = Path(op["destination"])
+            try:
+                if dst.exists():
+                    dst.rename(src)
+                    restored += 1
+            except Exception as e:
+                errors += 1
+                self.status_message.emit(f"\u274c Undo error: {e}")
+        self._regex_undo.clear()
+        self.regex_undo_btn.setEnabled(False)
+        self.stats_label.setText(
+            f"\u21a9\ufe0f Undo complete: {restored} restored"
+            + (f", {errors} errors" if errors else "")
         )

@@ -2,9 +2,8 @@
 
 import importlib
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -24,11 +23,14 @@ from filepilot.core.app_state import AppState
 from filepilot.core.duplicate_finder import DuplicateFinder
 from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
+from filepilot.core.worker import Worker
 from filepilot.ui.base_panel import BasePanel
 
 
 class DuplicatesPanel(BasePanel):
     """Duplicate file finder panel"""
+
+    scan_results_ready = Signal(list, list, list)
 
     def __init__(
         self,
@@ -47,6 +49,7 @@ class DuplicatesPanel(BasePanel):
         self.state = app_state
         self.event_bus = event_bus
 
+        self._pool = QThreadPool.globalInstance()
         self._setup_ui()
         self._connect_signals()
 
@@ -187,6 +190,7 @@ class DuplicatesPanel(BasePanel):
     def _connect_signals(self):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.status_message.connect(self.stats_label.setText)
+        self.scan_results_ready.connect(self._display_results)
 
     # ── Folder selection ──
 
@@ -236,7 +240,7 @@ class DuplicatesPanel(BasePanel):
         self._update_stat("📊 Scanned", "Scanning...")
         self.status_message.emit("Scanning files...")
 
-        def worker():
+        def scan_worker():
             # 1. Scan files (cancellable)
             files = []
             for f in self.scanner.scan(
@@ -268,18 +272,11 @@ class DuplicatesPanel(BasePanel):
                 similar_groups = self.finder.find_similar_by_name(files)
 
             if not self._cancelled:
-                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+                self.scan_results_ready.emit(groups, similar_groups, files)
 
-                QMetaObject.invokeMethod(
-                    self,
-                    "_display_results",
-                    Qt.QueuedConnection,
-                    Q_ARG(list, groups),
-                    Q_ARG(list, similar_groups),
-                    Q_ARG(list, files),
-                )
-
-        Thread(target=worker, daemon=True).start()
+        worker = Worker(scan_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot(list, list, list)
     def _display_results(

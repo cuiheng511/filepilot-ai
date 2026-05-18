@@ -3,7 +3,8 @@
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
+from PySide6.QtCore import QPoint, QSize, Qt, QThreadPool, Signal, Slot
+from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -14,6 +15,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QStyle,
+    QStyledItemDelegate,
     QVBoxLayout,
 )
 
@@ -74,6 +77,37 @@ _EXTRACTORS = {
     ".xlsx": XlsxExtractor(),
     ".pptx": PptxExtractor(),
 }
+
+
+class SearchHighlightDelegate(QStyledItemDelegate):
+    """Delegate that renders search results with rich-text highlighting."""
+
+    def paint(self, painter, option, index):
+        painter.save()
+        html = index.data(Qt.UserRole + 1)
+        if not html:
+            super().paint(painter, option, index)
+            painter.restore()
+            return
+        if option.state & QStyle.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setHtml(f'<div style="color: {option.palette.text().color().name()};">{html}</div>')
+        doc.setTextWidth(option.rect.width() - 8)
+        painter.translate(option.rect.topLeft() + QPoint(4, 2))
+        doc.drawContents(painter)
+        painter.restore()
+
+    def sizeHint(self, option, index):  # noqa: N802
+        html = index.data(Qt.UserRole + 1)
+        if not html:
+            return super().sizeHint(option, index)
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setHtml(f"<div>{html}</div>")
+        doc.setTextWidth(400)
+        return QSize(int(doc.idealWidth()) + 10, int(doc.size().height()) + 6)
 
 
 class SearchPanel(BasePanel):
@@ -140,7 +174,8 @@ class SearchPanel(BasePanel):
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
-            "Natural language search for local files. Supports search by file name, content, type, and date.\n"
+            "Natural language search for local files."
+            " Supports search by file name, content, type, and date.\n"
             'Example: "PDF files modified last week" or "find documents about machine learning"',
         )
         desc.setObjectName("sectionDesc")
@@ -224,6 +259,7 @@ class SearchPanel(BasePanel):
     def _create_results_list(self, layout):
         self.result_list = QListWidget()
         self.result_list.setAlternatingRowColors(True)
+        self.result_list.setItemDelegate(SearchHighlightDelegate(self.result_list))
         layout.addWidget(self.result_list, 1)
 
     def _create_status(self, layout):
@@ -556,19 +592,30 @@ class SearchPanel(BasePanel):
             }
             icon = icon_map.get(category, "📁")
 
-            display_text = f"{icon}  {filename}"
+            # Convert Whoosh highlights to styled HTML
             if highlights:
-                # Truncate on a space boundary to avoid breaking emoji/multi-byte chars
-                hl = highlights
-                if len(hl) > 100:
-                    hl = hl[:100].rsplit(" ", 1)[0] + "…"
-                display_text += f"\n   📌 {hl}"
-            display_text += (
-                f"\n   📂 {filepath}  |  {size_str}  |  {modified}  |  Match: {score:.0%}"
+                hl = highlights.replace(
+                    '<b class="match">',
+                    '<b style="color:#e67e22;background:#fff3e0;">',
+                )
+                if len(hl) > 200:
+                    hl = hl[:200].rsplit(" ", 1)[0] + "…"
+                snippet = f'<div style="color:#888;font-size:11px;margin-top:2px;">📌 {hl}</div>'
+            else:
+                snippet = ""
+
+            html = (
+                f'<div style="font-size:13px;line-height:1.4;">'
+                f"<div>{icon} <b>{filename}</b></div>"
+                f"{snippet}"
+                f'<div style="color:#999;font-size:10px;margin-top:1px;">'
+                f"📂 {filepath} | {size_str} | {modified} | Match: {score:.0%}"
+                f"</div></div>"
             )
 
-            item = QListWidgetItem(display_text)
+            item = QListWidgetItem()
             item.setData(Qt.UserRole, filepath)
+            item.setData(Qt.UserRole + 1, html)
             item.setToolTip(f"Path: {filepath}\nMatch: {score:.0%}")
             self.result_list.addItem(item)
 

@@ -36,10 +36,12 @@ from filepilot.ui.file_browser import FileBrowserPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
 from filepilot.ui.organize_panel import OrganizePanel
+from filepilot.ui.plugin_manager_panel import PluginManagerPanel
 from filepilot.ui.search_panel import SearchPanel
 from filepilot.ui.settings_dialog import SettingsDialog
 from filepilot.ui.shortcut_editor import DEFAULT_SHORTCUTS
 from filepilot.ui.summary_panel import SummaryPanel
+from filepilot.ui.tags_panel import TagsPanel
 
 
 class MainWindow(QMainWindow):
@@ -106,6 +108,8 @@ class MainWindow(QMainWindow):
             "summary": self._add_nav_item(t("nav_summary"), t("summary_desc")),
             "index": self._add_nav_item(t("nav_index"), t("index_desc")),
             "favorites": self._add_nav_item("⭐ Favorites", "Quick access to saved directories"),
+            "tags": self._add_nav_item("\U0001f3f7\ufe0f Tags", "File tags and color markers"),
+            "plugins": self._add_nav_item("\U0001f50c Plugins", "Extractor plugin manager"),
         }
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
@@ -130,6 +134,8 @@ class MainWindow(QMainWindow):
         )
         self.index_panel = IndexPanel(indexer=indexer, scanner=scanner)
         self.favorites_panel = FavoritesPanel()
+        self.tags_panel = TagsPanel()
+        self.plugin_manager_panel = PluginManagerPanel()
 
         self.content_stack.addWidget(self.browse_panel)  # 0
         self.content_stack.addWidget(self.search_panel)  # 1
@@ -138,6 +144,8 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.summary_panel)  # 4
         self.content_stack.addWidget(self.index_panel)  # 5
         self.content_stack.addWidget(self.favorites_panel)  # 6
+        self.content_stack.addWidget(self.tags_panel)  # 7
+        self.content_stack.addWidget(self.plugin_manager_panel)  # 8
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -396,7 +404,17 @@ class MainWindow(QMainWindow):
     def _on_nav_changed(self, index: int):
         """Navigation changed"""
         self.content_stack.setCurrentIndex(index)
-        names = ["Browse", "Search", "Organize", "Duplicates", "Summary", "Index", "Favorites"]
+        names = [
+            "Browse",
+            "Search",
+            "Organize",
+            "Duplicates",
+            "Summary",
+            "Index",
+            "Favorites",
+            "Tags",
+            "Plugins",
+        ]
         if 0 <= index < len(names) and hasattr(self, "status_label"):
             self.status_label.setText(f"Current: {names[index]}")
 

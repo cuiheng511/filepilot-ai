@@ -7,10 +7,12 @@ from .index_panel import IndexPanel
 from .main_window import MainWindow
 from .notification import NotificationToast
 from .organize_panel import OrganizePanel
+from .plugin_manager_panel import PluginManagerPanel
 from .search_panel import SearchPanel
 from .settings_dialog import SettingsDialog
 from .shortcut_editor import ShortcutEditor
 from .summary_panel import SummaryPanel
+from .tags_panel import TagsPanel
 
 __all__ = [
     "BasePanel",
@@ -22,8 +24,10 @@ __all__ = [
     "MainWindow",
     "NotificationToast",
     "OrganizePanel",
+    "PluginManagerPanel",
     "SearchPanel",
     "SettingsDialog",
     "ShortcutEditor",
     "SummaryPanel",
+    "TagsPanel",
 ]

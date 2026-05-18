@@ -22,6 +22,8 @@ DEFAULT_SHORTCUTS: dict[str, str] = {
     "AI Summary": "Ctrl+5",
     "File Index": "Ctrl+6",
     "Favorites": "Ctrl+7",
+    "Tags": "Ctrl+8",
+    "Plugins": "Ctrl+9",
 }
 
 

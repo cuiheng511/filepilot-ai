@@ -39,6 +39,7 @@ DEFAULTS = {
     "search_history": [],
     "file_tags": {},
     "shortcuts": {},
+    "file_browser_columns": ["name", "size", "type", "modified", "path", "tags"],
 }
 
 

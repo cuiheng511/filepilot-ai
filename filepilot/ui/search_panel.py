@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
+from filepilot.core.plugin_system import get_plugin_manager
+from filepilot.core.tag_manager import TagManager
 from filepilot.extractors import (
     CodeExtractor,
     DocxExtractor,
@@ -88,6 +90,7 @@ class SearchPanel(BasePanel):
         self.current_dir: Path | None = None
         self._cancelled = False
         self._cancelling = False
+        self.tag_manager = TagManager()
 
         self._setup_ui()
         self._connect_signals()
@@ -152,6 +155,13 @@ class SearchPanel(BasePanel):
         self.content_cb = QCheckBox("Search content")
         self.content_cb.setChecked(True)
         options_layout.addWidget(self.content_cb)
+
+        options_layout.addWidget(QLabel("Tag:"))
+        self.tag_filter = QComboBox()
+        self.tag_filter.addItem("All")
+        self.tag_filter.setMinimumWidth(120)
+        self._refresh_tag_filter()
+        options_layout.addWidget(self.tag_filter)
 
         options_layout.addStretch()
 
@@ -319,11 +329,27 @@ class SearchPanel(BasePanel):
 
         Thread(target=search_worker, daemon=True).start()
 
+    def _refresh_tag_filter(self):
+        current = self.tag_filter.currentText()
+        self.tag_filter.clear()
+        self.tag_filter.addItem("All")
+        for tag in self.tag_manager.get_all_tags():
+            self.tag_filter.addItem(tag)
+        idx = self.tag_filter.findText(current)
+        if idx >= 0:
+            self.tag_filter.setCurrentIndex(idx)
+
     @Slot()
     def _display_results(self, results: list[dict], query: str):
         """Display search results"""
         self.result_list.clear()
         self.search_btn.setEnabled(True)
+
+        selected_tag = self.tag_filter.currentText().strip()
+        if selected_tag and selected_tag != "All":
+            results = [
+                r for r in results if self.tag_manager.has_tag(r.get("path", ""), selected_tag)
+            ]
 
         if not results:
             item = QListWidgetItem(f'No results found for "{query}"')
@@ -388,6 +414,15 @@ class SearchPanel(BasePanel):
                 return extractor.extract_text(file_info.path)  # type: ignore[no-any-return, attr-defined]
             except Exception:
                 return ""
+        # Try plugin extractors
+        plugin_ext = get_plugin_manager().get_extractor_for(ext)
+        if plugin_ext:
+            try:
+                text = plugin_ext.extract_text(file_info.path)
+                if text:
+                    return text
+            except Exception:
+                pass
         # Fallback: try reading as text for small text files
         text_exts = {
             ".txt",

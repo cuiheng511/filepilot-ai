@@ -5,6 +5,7 @@ from pathlib import Path
 
 from filepilot.ai.cloud_ai import CloudAI
 from filepilot.ai.local_ai import LocalAI
+from filepilot.core.plugin_system import get_plugin_manager
 
 
 class Summarizer:
@@ -171,6 +172,16 @@ class Summarizer:
                 def_names = [d["name"] for d in defs[:20]]
                 context_parts.append(f"Functions/Classes: {', '.join(def_names)}")
             return f"{' | '.join(context_parts)}\n\n{code[:6000]}"
+
+        # Try plugin extractors
+        plugin_ext = get_plugin_manager().get_extractor_for(ext)
+        if plugin_ext:
+            try:
+                text = plugin_ext.extract_text(file_path)
+                if text:
+                    return text
+            except Exception:
+                pass
 
         try:
             return file_path.read_text(encoding="utf-8", errors="replace")

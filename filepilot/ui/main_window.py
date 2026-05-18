@@ -103,38 +103,34 @@ class MainWindow(QMainWindow):
         # Nav items with category grouping
         self._nav_items = {}
         self._nav_item_indices = {}
+        self._nav_key_to_row: dict[str, int] = {}
+        self._nav_row_to_stack_index: dict[int, int] = {}
+        self._stack_index_to_nav_row: dict[int, int] = {}
+        self._panel_indices: dict[str, int] = {}
 
         # ── Dashboard ──
-        self._add_nav_item("🏠 Dashboard", "Overview and quick actions")
+        self._add_nav_item("🏠 Dashboard", "Overview and quick actions", "dashboard", 0)
 
         # ── Browse group ──
         self._add_nav_separator("📂 Browse")
-        self._nav_items["browse"] = self._add_nav_item(t("nav_browse"), t("browse_desc"))
-        self._nav_items["favorites"] = self._add_nav_item(
-            "⭐ Favorites", "Quick access to saved directories"
-        )
+        self._add_nav_item(t("nav_browse"), t("browse_desc"), "browse", 1)
+        self._add_nav_item("⭐ Favorites", "Quick access to saved directories", "favorites", 2)
 
         # ── Search group ──
         self._add_nav_separator("🔍 Search")
-        self._nav_items["search"] = self._add_nav_item(t("nav_search"), t("search_desc"))
-        self._nav_items["tags"] = self._add_nav_item(
-            "\U0001f3f7\ufe0f Tags", "File tags and color markers"
-        )
+        self._add_nav_item(t("nav_search"), t("search_desc"), "search", 3)
+        self._add_nav_item("\U0001f3f7\ufe0f Tags", "File tags and color markers", "tags", 4)
 
         # ── Tools group ──
         self._add_nav_separator("🛠 Tools")
-        self._nav_items["organize"] = self._add_nav_item(t("nav_organize"), t("organize_desc"))
-        self._nav_items["duplicates"] = self._add_nav_item(
-            t("nav_duplicates"), t("duplicates_desc")
-        )
-        self._nav_items["summary"] = self._add_nav_item(t("nav_summary"), t("summary_desc"))
-        self._nav_items["index"] = self._add_nav_item(t("nav_index"), t("index_desc"))
+        self._add_nav_item(t("nav_organize"), t("organize_desc"), "organize", 5)
+        self._add_nav_item(t("nav_duplicates"), t("duplicates_desc"), "duplicates", 6)
+        self._add_nav_item(t("nav_summary"), t("summary_desc"), "summary", 7)
+        self._add_nav_item(t("nav_index"), t("index_desc"), "index", 8)
 
         # ── Settings group ──
         self._add_nav_separator("⚙️ Settings")
-        self._nav_items["plugins"] = self._add_nav_item(
-            "\U0001f50c Plugins", "Extractor plugin manager"
-        )
+        self._add_nav_item("\U0001f50c Plugins", "Extractor plugin manager", "plugins", 9)
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -223,7 +219,7 @@ class MainWindow(QMainWindow):
         self.dashboard_panel.btn_scan.clicked.connect(self._on_scan)
         self.dashboard_panel.btn_index.clicked.connect(self._on_index)
         self.dashboard_panel.btn_find_duplicates.clicked.connect(
-            lambda: self._switch_to_panel(self._nav_item_indices.get("duplicates", 6))
+            lambda: self._switch_to_panel(self._panel_indices.get("duplicates", 6))
         )
 
         # Initialize dashboard with recent data
@@ -236,13 +232,28 @@ class MainWindow(QMainWindow):
         if hasattr(self, "drop_overlay"):
             self.drop_overlay.setGeometry(self.centralWidget().rect())
 
-    def _add_nav_item(self, text: str, tooltip: str) -> QListWidgetItem:
+    def _add_nav_item(
+        self,
+        text: str,
+        tooltip: str,
+        panel_key: str | None = None,
+        stack_index: int | None = None,
+    ) -> QListWidgetItem:
         """Add a navigation item"""
         item = QListWidgetItem(text)
         item.setToolTip(tooltip)
         item.setSizeHint(QSize(0, 45))
         self.nav_list.addItem(item)
-        self._nav_item_indices[text] = self.nav_list.count() - 1
+        nav_row = self.nav_list.count() - 1
+        self._nav_item_indices[text] = nav_row
+        if panel_key is not None:
+            self._nav_items[panel_key] = item
+            self._nav_key_to_row[panel_key] = nav_row
+        if stack_index is not None:
+            self._nav_row_to_stack_index[nav_row] = stack_index
+            self._stack_index_to_nav_row[stack_index] = nav_row
+            if panel_key is not None:
+                self._panel_indices[panel_key] = stack_index
         return item
 
     def _add_nav_separator(self, text: str):
@@ -424,12 +435,26 @@ class MainWindow(QMainWindow):
         """Setup keyboard shortcuts to switch panels — load from config if available."""
         user_overrides = self.settings.get("shortcuts", {})
 
-        for index, (name, default_key) in enumerate(DEFAULT_SHORTCUTS.items()):
+        shortcut_panels = {
+            "File Browser": "browse",
+            "File Search": "search",
+            "File Organizer": "organize",
+            "Duplicate Finder": "duplicates",
+            "AI Summary": "summary",
+            "File Index": "index",
+            "Favorites": "favorites",
+            "Tags": "tags",
+            "Plugins": "plugins",
+        }
+
+        for name, default_key in DEFAULT_SHORTCUTS.items():
             shortcut = user_overrides.get(name, default_key)
+            panel_key = shortcut_panels.get(name)
+            stack_index = self._panel_indices.get(panel_key or "", 0)
             action = QAction(f"Switch to {name}", self)
             action.setObjectName(f"shortcut_{name.replace(' ', '_')}")
             action.setShortcut(shortcut)
-            action.triggered.connect(lambda checked, i=index: self._switch_to_panel(i))
+            action.triggered.connect(lambda checked, i=stack_index: self._switch_to_panel(i))
             self.addAction(action)
 
         # Global search shortcut (Ctrl+Shift+F)
@@ -448,7 +473,7 @@ class MainWindow(QMainWindow):
 
     def _on_global_search(self):
         """Switch to search panel and focus search input"""
-        search_index = self._nav_item_indices.get("\U0001f50d Search", 3)
+        search_index = self._panel_indices.get("search", 3)
         self._switch_to_panel(search_index)
         if hasattr(self.search_panel, "search_input"):
             self.search_panel.search_input.setFocus()
@@ -456,7 +481,9 @@ class MainWindow(QMainWindow):
     def _switch_to_panel(self, index: int):
         """Switch to specified panel"""
         self.content_stack.setCurrentIndex(index)
-        self.nav_list.setCurrentRow(index)
+        nav_row = self._stack_index_to_nav_row.get(index)
+        if nav_row is not None and self.nav_list.currentRow() != nav_row:
+            self.nav_list.setCurrentRow(nav_row)
 
     def _load_settings(self) -> dict:
         """Load settings (unified via app.load_settings)"""
@@ -481,7 +508,11 @@ class MainWindow(QMainWindow):
         if item and not (item.flags() & Qt.ItemIsEnabled):
             return
 
-        self.content_stack.setCurrentIndex(index)
+        stack_index = self._nav_row_to_stack_index.get(index)
+        if stack_index is None:
+            return
+
+        self.content_stack.setCurrentIndex(stack_index)
         names = [
             "Dashboard",
             "Browse",
@@ -494,8 +525,8 @@ class MainWindow(QMainWindow):
             "Index",
             "Plugins",
         ]
-        if 0 <= index < len(names) and hasattr(self, "status_label"):
-            self.status_label.setText(f"Current: {names[index]}")
+        if 0 <= stack_index < len(names) and hasattr(self, "status_label"):
+            self.status_label.setText(f"Current: {names[stack_index]}")
 
     def _open_directory(self, dir_path: str):
         """Shared logic: open a directory and notify the browse panel"""
@@ -696,7 +727,7 @@ class MainWindow(QMainWindow):
         """Build index"""
         if self.current_dir:
             self.index_panel.index_directory(self.current_dir)
-            self.nav_list.setCurrentRow(5)  # Switch to index panel
+            self._switch_to_panel(self._panel_indices.get("index", 8))
 
     @Slot()
     def _on_settings(self):

@@ -146,9 +146,6 @@ class SearchPanel(BasePanel):
         # Load search history from settings
         self._load_search_history()
 
-        # Load saved searches
-        self._refresh_saved_searches()
-
         # Search options
         options_layout = QHBoxLayout()
         self.fuzzy_cb = QCheckBox("Fuzzy search")
@@ -173,6 +170,9 @@ class SearchPanel(BasePanel):
         self.saved_combo.customContextMenuRequested.connect(self._on_saved_context_menu)
         self.saved_combo.activated.connect(self._on_load_saved_search)
         options_layout.addWidget(self.saved_combo)
+
+        # Load saved searches after the combo box exists.
+        self._refresh_saved_searches()
 
         self.btn_save_search = QPushButton("💾 Save")
         self.btn_save_search.clicked.connect(self._on_save_search)
@@ -473,7 +473,9 @@ class SearchPanel(BasePanel):
         """Display search results"""
         self.result_list.clear()
         self.search_btn.setEnabled(True)
+        self.btn_cancel.setVisible(False)
         self.btn_save_search.setEnabled(bool(results))
+        self.export_btn.setEnabled(bool(results))
 
         selected_tag = self.tag_filter.currentText().strip()
         if selected_tag and selected_tag != "All":

@@ -69,14 +69,14 @@ class SummaryPanel(BasePanel):
             self._summarizer = Summarizer()
 
         if self._local_ai is None:
-            from filepilot.ai.local_ai import LocalAI
+            from filepilot.ai.local_ai import OllamaProvider
 
-            self._local_ai = LocalAI()
+            self._local_ai = OllamaProvider()
 
         if self._cloud_ai is None:
-            from filepilot.ai.cloud_ai import CloudAI
+            from filepilot.ai.cloud_ai import OpenAIProvider
 
-            self._cloud_ai = CloudAI()
+            self._cloud_ai = OpenAIProvider()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

@@ -144,10 +144,10 @@ class DashboardPanel(BasePanel):
         self, total_files: int = 0, total_size: str = "—", categories: int = 0, tags: int = 0
     ):
         """Update dashboard statistics"""
-        self.stat_total_files.setText(f"📊 Total Files\n{total_files:,}")
-        self.stat_total_size.setText(f"💾 Total Size\n{total_size}")
-        self.stat_categories.setText(f"📁 Categories\n{categories}")
-        self.stat_tags.setText(f"🏷️ Tags\n{tags}")
+        self._update_stat("📊 Total Files", f"{total_files:,}")
+        self._update_stat("💾 Total Size", total_size)
+        self._update_stat("📁 Categories", str(categories))
+        self._update_stat("🏷️ Tags", str(tags))
 
     def update_recent_folders(self, folders: list[str]):
         """Update recent folders list"""
@@ -174,7 +174,10 @@ class DashboardPanel(BasePanel):
             return
         for file_path in files[:10]:
             path = Path(file_path)
-            modified = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            try:
+                modified = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            except (OSError, FileNotFoundError):
+                modified = "unknown"
             item = QListWidgetItem(f"📄 {path.name}")
             item.setToolTip(f"{file_path}\nModified: {modified}")
             item.setData(Qt.UserRole, file_path)

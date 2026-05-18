@@ -6,7 +6,7 @@ from enum import Enum, auto
 from threading import Thread
 from uuid import uuid4
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 
 logger = logging.getLogger("filepilot.task_queue")
 
@@ -67,7 +67,9 @@ class TaskQueueWorker(QObject):
     def cancel_all(self):
         self._cancelled = True
         self._queue.clear()
+        self._running = False
 
+    @Slot()
     def _process_next(self):
         if self._cancelled or not self._queue:
             self._running = False
@@ -92,6 +94,9 @@ class TaskQueueWorker(QObject):
                 task.error = str(e)
                 self.task_failed.emit(task.id, str(e))
             finally:
-                self._process_next()
+                # Use QTimer to avoid recursive stack growth
+                from PySide6.QtCore import QMetaObject, Qt
+
+                QMetaObject.invokeMethod(self, "_process_next", Qt.QueuedConnection)
 
         Thread(target=run, daemon=True).start()

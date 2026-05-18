@@ -9,6 +9,7 @@ The encryption key is derived from a machine-local salt file ~/.filepilot/.key_s
 """
 
 import base64
+import contextlib
 import json
 import logging
 import os
@@ -74,9 +75,9 @@ def _get_fernet_key() -> bytes | None:
     try:
         salt = _ensure_salt()
         # Use machine hostname + a fixed local identifier as the "password"
-        material = (
-            os.uname().nodename.encode("utf-8") if hasattr(os, "uname") else b"filepilot-local"
-        )
+        material = b"filepilot-local"
+        with contextlib.suppress(AttributeError, OSError):
+            material = os.uname().nodename.encode("utf-8")  # type: ignore[attr-defined]
         # On Windows, use COMPUTERNAME instead
         if not material or material == b"filepilot-local":
             material = os.environ.get("COMPUTERNAME", "filepilot-local").encode("utf-8")

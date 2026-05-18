@@ -142,7 +142,7 @@ class PluginManager:
     def get_supported_extensions(self) -> set[str]:
         if not self._loaded:
             self.discover()
-            exts = set()
+        exts = set()
         for extractor in self._extractors:
             for ext in getattr(extractor, "extensions", []):
                 exts.add(ext.lower())

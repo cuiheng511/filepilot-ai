@@ -447,8 +447,8 @@ class FileStatsPanel(BasePanel):
             stats["by_category"],
             lambda item: self._make_distribution_row(
                 icon=_CATEGORY_ICONS.get(item["category"], "\U0001f4c1"),
-                label=item["category"].value
-                if hasattr(item["category"], "value")
+                label=item["category"].label
+                if hasattr(item["category"], "label")
                 else str(item["category"]),
                 count=item["count"],
                 size=item["size"],

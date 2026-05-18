@@ -4,7 +4,7 @@
 
 # FilePilot AI
 
-**A local-first AI file manager for scanning, searching, deduplicating, summarizing, and organizing your files.**
+**A local-first AI file manager for searching, organizing, deduplicating, summarizing, tagging, and indexing your files.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![PySide6](https://img.shields.io/badge/Desktop-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
@@ -20,9 +20,9 @@ Version 0.6.0
 
 ## Overview
 
-FilePilot AI is a local-first desktop file manager that helps you inspect, index, search, deduplicate, summarize, and organize your local storage — all through a preview-first workflow.
+FilePilot AI is a desktop file manager built for people who need to understand large local folders before they move, delete, rename, or summarize anything.
 
-Your files stay on your machine unless you explicitly choose a cloud AI provider for summarization.
+It combines recursive scanning, preview-first organization, duplicate detection, full-text indexing, file tags, saved searches, OCR, and optional AI summaries in one PySide6 application. Core file operations stay local by default. Cloud AI providers are only used when you explicitly configure and run AI summarization.
 
 ## Demo
 
@@ -32,103 +32,71 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 
 </div>
 
-## Highlights
+## What's New in 0.6
 
-<table>
-<tr>
-<td width="33%">
-
-### Smart scanning
-
-- Recursive directory scanning with depth controls
-- File type, category, MIME, and hash detection
-- Rich metadata: size, date, dimensions, duration
-- Respects hidden-file and .gitignore filters
-- **File statistics** with distribution by type/size/date + treemap visualization
-
-</td>
-<td width="33%">
-
-### Fast local search
-
-- Whoosh-powered full-text index
-- Keyword, fuzzy, and boolean queries
-- Filter by type, date range, and file size
-- Export results to CSV
-- **Search history** with dropdown quick-recall
-
-</td>
-<td width="33%">
-
-### AI summaries + OCR
-
-- Built-in extractors for PDF, Markdown, code, images, DOCX, XLSX, and PPTX
-- Local (Ollama, llama.cpp) or cloud AI providers (OpenAI, Anthropic)
-- Batch summary workflow for multi-file processing
-- **OCR text extraction** from images (Tesseract integration)
-- Pluggable provider interface with unified API
-
-</td>
-</tr>
-<tr>
-<td width="33%">
-
-### Duplicate cleanup
-
-- Size-bucket grouping for first pass
-- Fast partial-hash pre-filter
-- Full SHA-256 content verification
-- Safe deletion via system Recycle Bin (send2trash)
-
-</td>
-<td width="33%">
-
-### Safe organization + regex rename
-
-- Organize by file type, date, extension, or size range
-- Custom rename templates with variables
-- **Batch regex rename** with preview before execution
-- Undo-log support for rollback
-
-</td>
-<td width="33%">
-
-### Desktop workflow
-
-- Native PySide6 desktop interface with **10 navigable panels**
-- **Dashboard** with quick stats, recent folders/files, and shortcuts reference
-- **File tags** with color markers, cross-directory search, and automation rules
-- **Custom columns** in file browser — show/hide name, size, type, modified, created, path, extension, tags
-- **Batch file operations** — Copy, Move, Delete (to Recycle Bin) with confirmation
-- **File comparison** — Side-by-side diff dialog with added/removed line stats
-- **Saved searches** — Persist queries with filters and tag constraints
-- **Plugin system** — Extensible extractor pipeline with plugin manager UI
-- **Archive browsing** — Preview zip/tar/tar.gz/tar.bz2/tar.xz contents inline
-- **Favorites** for quick directory access
-- **Recent files & folders** tracking
-- **Customizable keyboard shortcuts**
-- **Scheduled tasks** (auto scan/index/dedup)
-- Light and dark theme support
-- System tray integration with background file watcher
-- Toast notifications and 18 UI languages
-
-</td>
-</tr>
-</table>
+- Dashboard landing page with quick stats, recent folders, recent files, quick actions, and shortcut reference.
+- Reworked sidebar navigation with grouped sections for Browse, Search, Tools, and Settings.
+- Faster desktop workflow with global search (`Ctrl+Shift+F`) and theme toggle (`Ctrl+L`).
+- Matured 0.5 feature set: tags, saved searches, custom file-browser columns, batch actions, plugin manager, OCR, regex rename, scheduled tasks, and cross-platform packaging.
 
 ## Screenshots
 
-| Browse | Search |
+| Dashboard | File Browser |
 | --- | --- |
-| ![Browse local folders](docs/assets/screenshots/01-browse.png) | ![Search indexed files](docs/assets/screenshots/02-search.png) |
+| ![Dashboard](docs/assets/screenshots/01-dashboard.png) | ![File browser](docs/assets/screenshots/02-browse.png) |
+
+| Search | Tags |
+| --- | --- |
+| ![Search](docs/assets/screenshots/03-search.png) | ![Tags](docs/assets/screenshots/04-tags.png) |
 
 | Organize | Duplicates |
 | --- | --- |
-| ![Preview file organization](docs/assets/screenshots/03-organize.png) | ![Detect duplicate files](docs/assets/screenshots/04-duplicates.png) |
+| ![Organize](docs/assets/screenshots/05-organize.png) | ![Duplicates](docs/assets/screenshots/06-duplicates.png) |
 
 | AI Summary | Index |
 | --- | --- |
-| ![Generate AI summaries](docs/assets/screenshots/05-summary.png) | ![Manage search index](docs/assets/screenshots/06-index.png) |
+| ![AI summary](docs/assets/screenshots/07-summary.png) | ![Index management](docs/assets/screenshots/08-index.png) |
+
+| Plugin Manager |
+| --- |
+| ![Plugin manager](docs/assets/screenshots/09-plugins.png) |
+
+## Feature Set
+
+### Desktop Workflow
+
+- Native PySide6 interface with dashboard-first navigation.
+- File browser with preview pane, archive browsing, custom columns, and batch copy/move/delete actions.
+- Favorites, recent folders, recent files, global search shortcut, customizable shortcuts, light/dark themes, tray support, and toast notifications.
+- 18 UI languages through the built-in i18n system.
+
+### Search and Indexing
+
+- Whoosh-powered local full-text index.
+- Keyword, fuzzy, and boolean search with content extraction.
+- Search history, saved searches, tag filtering, CSV export, and incremental index updates.
+
+### Organization and Cleanup
+
+- Organize by file type, date, extension, or size range.
+- Rename templates and batch regex rename with preview before execution.
+- Duplicate detection with size grouping, partial-hash filtering, full SHA-256 verification, and safe deletion through the system recycle bin.
+- Undo-log support for organization workflows.
+
+### AI, OCR, and Extractors
+
+- AI summaries and keyword extraction for PDF, Markdown, code, text, Office files, and images.
+- OCR support through Tesseract for image text extraction.
+- Local providers: Ollama, llama.cpp, LM Studio, or OpenAI-compatible local endpoints.
+- Cloud providers: OpenAI, Anthropic, and custom OpenAI-compatible APIs.
+- Plugin system for custom content extractors.
+
+### Build and Release
+
+- Windows PyInstaller build plus Inno Setup installer.
+- Linux AppImage build.
+- macOS `.app` and `.dmg` build.
+- GitHub Actions pipeline for linting, tests, and three-platform packaging.
 
 ## Quick Start
 
@@ -136,10 +104,11 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 
 - Python 3.10 or newer
 - Windows, macOS, or Linux
-- Optional: Ollama, llama.cpp, or LM Studio for local AI
-- Optional: OpenAI, Anthropic, or any OpenAI-compatible endpoint for cloud AI
+- Optional: Ollama, llama.cpp, LM Studio, or another local AI runtime
+- Optional: OpenAI, Anthropic, or any OpenAI-compatible cloud endpoint
+- Optional: Tesseract OCR for image text extraction
 
-### Install and Run
+### Run from Source
 
 ```bash
 git clone https://github.com/cuiheng511/filepilot-ai.git
@@ -161,10 +130,10 @@ python -m filepilot.main
 
 ```bash
 pip install -e ".[test,dev]"
-pytest
 ruff check .
 ruff format --check .
 mypy
+pytest
 ```
 
 ## CLI Examples
@@ -172,6 +141,9 @@ mypy
 ```bash
 # Scan a folder
 python -m filepilot.cli scan ~/Documents
+
+# Search indexed files
+python -m filepilot.cli search ~/Documents "machine learning"
 
 # Find duplicate files
 python -m filepilot.cli duplicates ~/Downloads
@@ -182,27 +154,24 @@ python -m filepilot.cli export ~/Projects --format csv -o report.csv
 # Analyze disk usage
 python -m filepilot.cli disk-usage ~/
 
-# Search indexed files
-python -m filepilot.cli search ~/Documents "machine learning"
-
 # Preview an organization plan before moving anything
 python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category date
 ```
 
 ## AI Providers
 
-FilePilot AI supports both local and cloud AI providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup guides, configuration reference, and privacy details for each provider.
+FilePilot AI supports local and cloud AI providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup details, configuration examples, and provider-specific privacy notes.
 
 | Provider | Mode | Default URL |
-| -------- | ---- | ----------- |
+| --- | --- | --- |
 | Ollama | Local | `http://localhost:11434` |
 | llama.cpp / vLLM | Local | `http://localhost:8080` |
 | LM Studio | Local | `http://localhost:1234` |
 | OpenAI | Cloud | `https://api.openai.com/v1` |
 | Anthropic | Cloud | `https://api.anthropic.com` |
-| Custom endpoint | Cloud / Local | User-defined |
+| Custom endpoint | Cloud or local | User-defined |
 
-Cloud providers only receive the content you choose to summarize. Local scanning, indexing, organization, and duplicate detection do not require AI.
+Cloud providers only receive the content you choose to summarize. Scanning, indexing, tags, search, duplicate detection, and organization do not require cloud AI.
 
 ## Project Structure
 
@@ -210,19 +179,20 @@ Cloud providers only receive the content you choose to summarize. Local scanning
 filepilot-ai/
 |-- filepilot/
 |   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher, task scheduler, tag rules
-|   |-- extractors/          # PDF, Markdown, code, image, DOCX, XLSX, PPTX, OCR
+|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher, scheduler
+|   |-- extractors/          # PDF, Markdown, code, image, Office, OCR extractors
 |   |-- resources/           # Application icons
 |   |-- styles/              # Theme manager and QSS themes
-|   |-- ui/                  # PySide6 panels (dashboard, browser, search, tags, etc.), tray, settings, shortcut editor
+|   |-- ui/                  # PySide6 panels and dialogs
 |   |-- app.py               # Application bootstrap
 |   |-- cli.py               # Command-line interface
 |   |-- i18n.py              # Translation catalog
 |   `-- main.py              # GUI entry point
 |-- tests/                   # Unit and UI tests
-|-- scripts/                 # Build scripts (Windows/macOS/Linux installers)
-|-- .github/workflows/       # CI pipeline (3-platform builds)
-|-- FilePilot.spec           # PyInstaller build config (Windows)
+|-- scripts/                 # Windows, Linux, and macOS build scripts
+|-- docs/                    # Build and AI provider guides
+|-- .github/workflows/       # CI pipeline
+|-- FilePilot.spec           # Windows PyInstaller build config
 |-- pyproject.toml           # Package metadata and tooling
 `-- requirements.txt         # Runtime dependencies
 ```
@@ -231,94 +201,57 @@ filepilot-ai/
 
 ```mermaid
 flowchart LR
-    UI["PySide6 UI"] --> Core["Core services"]
+    UI["PySide6 desktop UI"] --> Core["Core services"]
     CLI["CLI"] --> Core
     Core --> Scanner["File scanner"]
     Core --> Indexer["Whoosh indexer"]
     Core --> Duplicates["Duplicate finder"]
     Core --> Organizer["Organizer"]
+    Core --> Tags["Tags and saved searches"]
     Core --> Watcher["Directory watcher"]
     Core --> Scheduler["Task scheduler"]
     Scanner --> Extractors["Content extractors"]
     Extractors --> OCR["OCR extractor"]
+    Extractors --> Plugins["Extractor plugins"]
     Extractors --> Summarizer["AI summarizer"]
     Summarizer --> Providers["Local and cloud AI providers"]
-    Duplicates --> send2trash["send2trash"]
-    send2trash --> RecycleBin["System Recycle Bin (safe deletion)"]
-    UI --> Shortcuts["Shortcut editor"]
-    UI --> Settings["Settings dialog"]
+    Duplicates --> Recycle["System recycle bin via send2trash"]
 ```
+
+## Build Installers
+
+For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
+
+| Platform | Output |
+| --- | --- |
+| Windows | `dist/FilePilot/` and `dist/FilePilot-AI-Setup-*.exe` |
+| Linux | `FilePilot-AI-*.AppImage` |
+| macOS | `FilePilot AI.app` and `FilePilot-AI-*.dmg` |
 
 ## Security and Privacy
 
 | Area | Design |
 | --- | --- |
-| Local-first workflow | File scanning, indexing, duplicate detection, and organization run locally |
+| Local-first workflow | File scanning, indexing, duplicate detection, tags, and organization run locally |
 | Optional AI | Summarization can use local models or explicit cloud providers |
-| Key storage | API keys use OS keyring when available, with encrypted fallback storage |
-| Deletion safety | Duplicate removal uses the system recycle bin through `send2trash` |
+| API keys | Stored with OS keyring when available, with encrypted fallback storage |
+| Safe deletion | Duplicate cleanup uses the system recycle bin through `send2trash` |
 | Telemetry | No analytics, tracking, or background phone-home behavior |
 
 ## Quality Gates
 
-The CI pipeline runs:
-
-- `pytest` — unit and UI tests
-- `ruff check .` — linting
-- `ruff format --check .` — formatting
-- `mypy` — static type checking
-- `pip check` — dependency consistency
-
-Run the same checks locally before pushing.
-
-## Build (Cross-Platform)
-
-FilePilot AI is packaged with **PyInstaller** on all three platforms. See [docs/BUILD.md](docs/BUILD.md) for complete build instructions, prerequisites, and troubleshooting.
-
 ```bash
-# Quick build (auto-detect platform)
-./scripts/build.sh
+ruff check .
+ruff format --check .
+mypy
+pytest
 ```
 
-### CI Pipeline
-
-The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically builds all three platforms:
-
-| Job | Platform | Runner | Artifact | Retention |
-| --- | -------- | ------ | -------- | --------- |
-| `build-windows` | Windows | `windows-latest` | `.exe` installer | 30 days |
-| `build-linux` | Linux | `ubuntu-latest` | `.AppImage` | 30 days |
-| `build-macos` | macOS | `macos-latest` | `.dmg` | 30 days |
-
-Each CI run produces SHA256 checksums alongside the artifacts.
-
-## Auto-Update
-
-FilePilot AI includes a threaded **auto-update checker** that queries GitHub Releases for new versions. See [docs/AUTO-UPDATE.md](docs/AUTO-UPDATE.md) for the full API reference and configuration details.
-
-- Background check every 24 hours (1 hour on failure)
-- Results cached to `~/.filepilot/update_check_cache.json`
-- Fully thread-safe — runs in a daemon thread
-
-## Documentation
-
-| Guide | Description |
-| ----- | ----------- |
-| [docs/BUILD.md](docs/BUILD.md) | Cross-platform build and packaging guide |
-| [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) | AI provider setup and configuration |
-| [docs/AUTO-UPDATE.md](docs/AUTO-UPDATE.md) | Auto-update system API reference |
-
-See [docs/README.md](docs/README.md) for the full documentation index.
-
-## Roadmap
-
-- Application screenshots and demo GIFs
-- Cloud sync integration
-- More end-to-end packaging tests
+The CI pipeline runs linting, tests, coverage upload, and packaged builds for Windows, Linux, and macOS.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, style rules, and pull request guidance.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), keep changes focused, and include tests for behavior changes.
 
 ## License
 

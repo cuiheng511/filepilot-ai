@@ -189,16 +189,21 @@ jobs:
 
       - name: Download Inno Setup
         run: |
-          $innoUrl = "https://jrsoftware.org/download.php/innosetup.exe"
-          $innoInstaller = "$env:TEMP\innosetup.exe"
+          $innoVersion = "6.7.1"
+          $innoUrl = "https://files.jrsoftware.org/is/6/innosetup-$innoVersion.exe"
+          $innoInstaller = "$env:TEMP\innosetup-$innoVersion.exe"
           $innoDir = "$env:TEMP\InnoSetup"
-          Write-Host "Downloading latest Inno Setup..."
-          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing -MaximumRedirection 10
-          if (-not (Test-Path $innoInstaller)) { throw "Inno Setup download failed" }
+          Write-Host "Downloading Inno Setup $innoVersion..."
+          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing
+          if (-not (Test-Path $innoInstaller)) { throw "Inno Setup download failed: $innoUrl" }
+          $installerSize = (Get-Item $innoInstaller).Length
+          if ($installerSize -lt 1MB) { throw "Inno Setup download looks invalid ($installerSize bytes)" }
           Write-Host "Installing Inno Setup..."
           Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /DIR=$innoDir /NORESTART /SUPPRESSMSGBOXES" -Wait
+          $iscc = "$innoDir\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found after Inno Setup install: $iscc" }
           Write-Host "Inno Setup installed to $innoDir"
-          echo "ISCC_PATH=$innoDir\ISCC.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Compile Inno Setup installer
         run: |

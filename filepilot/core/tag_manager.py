@@ -119,3 +119,7 @@ class TagManager:
         if to_remove:
             self._save()
         return len(to_remove)
+
+    def get_tag_count(self) -> int:
+        """Return the total number of unique tags."""
+        return len(self.get_all_tags())

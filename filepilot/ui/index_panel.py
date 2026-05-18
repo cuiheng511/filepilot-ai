@@ -330,14 +330,17 @@ class IndexPanel(BasePanel):
                 self.progress_updated.emit(0)
                 self.progress_text.emit(f"Indexing {len(files)} files...")
 
-                # Index files (cancellable)
-                for i, f in enumerate(files):
+                # Index files in batches for better performance
+                batch_size = 100
+                for batch_start in range(0, len(files), batch_size):
                     if self._cancelled:
                         return
-                    self.indexer.index_files([f])
-                    pct = int((i + 1) / len(files) * 90) + 10
+                    batch = files[batch_start : batch_start + batch_size]
+                    self.indexer.index_files(batch)
+                    pct = int((batch_start + len(batch)) / len(files) * 90) + 10
                     self.progress_updated.emit(pct)
-                    self.progress_text.emit(f"Index: {f.name}")
+                    if batch:
+                        self.progress_text.emit(f"Index: {batch[-1].name}")
 
                 if not self._cancelled:
                     self.indexing_finished.emit()

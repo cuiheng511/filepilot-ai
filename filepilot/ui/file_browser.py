@@ -594,6 +594,8 @@ class FileBrowserPanel(BasePanel):
     def _try_preview_archive(self, path: Path) -> bool:
         """Show archive contents in preview. Returns True if handled."""
         ext = path.suffix.lower()
+        # For compound extensions like .tar.gz, check the full name
+        name_lower = path.name.lower()
         entries: list[str] = []
 
         if ext == ".zip":
@@ -606,17 +608,25 @@ class FileBrowserPanel(BasePanel):
                         entries.append(f"📄 {info.filename}  ({size_str})")
             except Exception:
                 return False
-        elif ext in (".tar", ".tgz", ".tar.gz", ".tar.bz2", ".tar.xz", ".txz"):
+        elif ext in (".tar", ".tgz", ".gz", ".bz2", ".xz", ".txz"):
             import tarfile
 
             try:
                 mode = {
-                    "tgz": "r:gz",
-                    ".tar.gz": "r:gz",
-                    ".tar.bz2": "r:bz2",
-                    ".tar.xz": "r:xz",
+                    ".tgz": "r:gz",
+                    ".gz": "r:gz",
+                    ".bz2": "r:bz2",
+                    ".xz": "r:xz",
                     ".txz": "r:xz",
+                    ".tar": "r:",
                 }.get(ext, "r:")
+                # Refine mode for compound extensions
+                if name_lower.endswith(".tar.gz"):
+                    mode = "r:gz"
+                elif name_lower.endswith(".tar.bz2"):
+                    mode = "r:bz2"
+                elif name_lower.endswith(".tar.xz"):
+                    mode = "r:xz"
                 with tarfile.open(path, mode) as tf:  # type: ignore[call-overload]
                     for info in tf.getmembers():
                         size_str = get_file_size_str(info.size)

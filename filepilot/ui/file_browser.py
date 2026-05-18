@@ -7,9 +7,8 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -36,6 +35,7 @@ from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.tag_manager import TagManager
+from filepilot.core.worker import Worker
 from filepilot.ui.base_panel import BasePanel
 from filepilot.ui.directory_tree import DirectoryTreeWidget
 from filepilot.ui.preview_panel import PreviewPanel
@@ -170,7 +170,7 @@ class FileBrowserPanel(BasePanel):
         filter_layout.setSpacing(8)
         self.filter_type = QComboBox()
         self.filter_type.addItems(
-            ["All Types", "Document", "Image", "Video", "Audio", "Archive", "Code", "Other"]
+            ["All Types", "PDF", "Markdown", "Code", "Image", "Video", "Audio", "Office", "Text", "Other"]
         )
         self.filter_type.currentIndexChanged.connect(self._apply_filter)
         filter_layout.addWidget(QLabel("Type:"))
@@ -390,7 +390,7 @@ class FileBrowserPanel(BasePanel):
 
             for f in self.scanner.scan(
                 str(dir_path),
-                progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
+                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
             ):
                 if self._cancelled:
                     return
@@ -424,7 +424,10 @@ class FileBrowserPanel(BasePanel):
                 except RuntimeError:
                     return
 
-        Thread(target=scan_worker, daemon=True).start()
+        worker = Worker(scan_worker)
+        worker.signals.finished.connect(lambda _: None)
+        worker.signals.error.connect(self._on_scan_error)
+        QThreadPool.globalInstance().start(worker)
 
     def _append_files_batch(self, batch: list[FileInfo]):
         """Append a batch of files to the table (incremental)."""
@@ -569,6 +572,13 @@ class FileBrowserPanel(BasePanel):
             self.current_dir = path
             self.dir_label.setText(f"📂 {dir_path}")
             self.scan_directory(path)
+
+    @Slot()
+    def _on_scan_error(self, msg: str):
+        self.status_message.emit(f"Scan error: {msg}")
+        self.btn_refresh.setEnabled(True)
+        self.btn_cancel.setVisible(False)
+        self.progress_bar.setVisible(False)
 
     @Slot()
     def _on_refresh(self):

@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PySide6.QtWidgets import QMessageBox
 
 
 class TestOrganizePanelInitialState:
@@ -445,3 +446,91 @@ class TestOrganizePanelEdgeCases:
             "Supports: {name} {date} {time} {ext} {category}"
             in self.panel.rename_input.placeholderText()
         )
+
+    def test_undo_btn_disabled_by_default(self):
+        """Test undo rename button is disabled initially"""
+        assert not self.panel.regex_undo_btn.isEnabled()
+
+    def test_undo_empty_does_nothing(self):
+        """Test _on_regex_undo with empty undo stack"""
+        self.panel._regex_undo = []
+        self.panel._on_regex_undo()
+        assert self.panel._regex_undo == []
+
+
+class TestOrganizePanelRegexUndo:
+    """Tests for batch regex rename undo functionality"""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, qtbot):
+        with patch.multiple(
+            "filepilot.ui.organize_panel",
+            FileScanner=MagicMock(),
+            FileOrganizer=MagicMock(),
+        ):
+            from filepilot.ui.organize_panel import OrganizePanel
+
+            self.panel = OrganizePanel()
+            qtbot.addWidget(self.panel)
+
+    def test_undo_restores_file_in_reverse_order(self, tmp_path, monkeypatch):
+        src1 = tmp_path / "a.txt"
+        src2 = tmp_path / "b.txt"
+        dst1 = tmp_path / "a_renamed.txt"
+        dst2 = tmp_path / "b_renamed.txt"
+        dst1.write_text("a")
+        dst2.write_text("b")
+        self.panel._regex_undo = [
+            {"source": str(src1), "destination": str(dst1)},
+            {"source": str(src2), "destination": str(dst2)},
+        ]
+        self.panel.regex_undo_btn.setEnabled(True)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            lambda *a, **kw: QMessageBox.Yes,
+        )
+        self.panel._on_regex_undo()
+
+        assert self.panel._regex_undo == []
+        assert not self.panel.regex_undo_btn.isEnabled()
+        assert src1.exists()
+        assert src2.exists()
+        assert not dst1.exists()
+        assert not dst2.exists()
+
+    def test_undo_skips_nonexistent_destination_gracefully(self, tmp_path, monkeypatch):
+        """Production silently skips nonexistent destination (no error count increment)."""
+        self.panel._regex_undo = [
+            {"source": str(tmp_path / "missing.txt"), "destination": str(tmp_path / "gone.txt")},
+        ]
+        self.panel.regex_undo_btn.setEnabled(True)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            lambda *a, **kw: QMessageBox.Yes,
+        )
+        self.panel._on_regex_undo()
+
+        assert self.panel._regex_undo == []
+        assert not self.panel.regex_undo_btn.isEnabled()
+
+    def test_undo_empty_stack_does_nothing(self):
+        self.panel._regex_undo = []
+        self.panel._on_regex_undo()
+        assert self.panel._regex_undo == []
+
+    def test_undo_rejected_by_user_does_nothing(self, tmp_path, monkeypatch):
+        src = tmp_path / "old.txt"
+        dst = tmp_path / "new.txt"
+        dst.write_text("content")
+        self.panel._regex_undo = [
+            {"source": str(src), "destination": str(dst)},
+        ]
+        self.panel.regex_undo_btn.setEnabled(True)
+        monkeypatch.setattr(
+            "PySide6.QtWidgets.QMessageBox.question",
+            lambda *a, **kw: QMessageBox.No,
+        )
+        self.panel._on_regex_undo()
+
+        assert len(self.panel._regex_undo) == 1
+        assert self.panel.regex_undo_btn.isEnabled()

@@ -245,7 +245,7 @@ class DuplicatesPanel(BasePanel):
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
-                progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
+                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
             ):
                 if self._cancelled:
                     return

@@ -3,10 +3,11 @@
 import logging
 from collections.abc import Callable
 from enum import Enum, auto
-from threading import Thread
 from uuid import uuid4
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
+
+from filepilot.core.worker import Worker
 
 logger = logging.getLogger("filepilot.task_queue")
 
@@ -99,4 +100,7 @@ class TaskQueueWorker(QObject):
 
                 QMetaObject.invokeMethod(self, "_process_next", Qt.QueuedConnection)
 
-        Thread(target=run, daemon=True).start()
+        worker = Worker(run)
+        worker.signals.finished.connect(lambda _: None)
+        worker.signals.error.connect(lambda msg: logger.error("Task worker error: %s", msg))
+        QThreadPool.globalInstance().start(worker)

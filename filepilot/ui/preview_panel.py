@@ -1,9 +1,8 @@
 """Preview panel — file content, image, and archive preview (async for text)."""
 
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QLabel,
@@ -15,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.worker import Worker
 from filepilot.utils.file_utils import (
     get_category_name,
     get_file_size_str,
@@ -124,11 +124,10 @@ class PreviewPanel(QWidget):
         if is_text_like or is_markdown:
             self.preview_stack.setCurrentIndex(0)
             self.text_preview.setPlainText("Loading...")
-            Thread(
-                target=self._preview_text_worker,
-                args=(path, is_markdown),
-                daemon=True,
-            ).start()
+            worker = Worker(self._preview_text_worker, path, is_markdown)
+            worker.signals.finished.connect(lambda _: None)
+            worker.signals.error.connect(lambda msg: None)  # Errors handled in worker
+            QThreadPool.globalInstance().start(worker)
             return
 
         # PDF / Office — metadata only
@@ -157,26 +156,33 @@ class PreviewPanel(QWidget):
             if is_markdown:
                 import markdown as md_lib
 
-                raw = path.read_text(encoding="utf-8", errors="replace")[:10000]
+                with path.open(encoding="utf-8", errors="replace") as f:
+                    raw = f.read(10000)
                 html = md_lib.markdown(
                     raw,
                     extensions=["extra", "codehilite", "tables", "fenced_code"],
                 )
-                styled = f"""
-                <style>
-                  body {{ font-family: -apple-system, 'Segoe UI', sans-serif; padding: 12px; }}
-                  pre {{ background: #1e1e1e; color: #d4d4d4; padding: 10px;"
-                  " border-radius: 6px; overflow-x: auto; }}
-                  code {{ background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }}
-                  img {{ max-width: 100%; }}
-                  table {{ border-collapse: collapse; width: 100%; }}
-                  th, td {{ border: 1px solid #444; padding: 6px 10px; text-align: left; }}
-                </style>
-                {html}
-                """
+                styled = (
+                    "<style>"
+                    "  body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 12px; }"
+                    "  pre { background: #1e1e1e; color: #d4d4d4; padding: 10px;"
+                    " border-radius: 6px; overflow-x: auto; }"
+                    "  code { background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }"
+                    "  img { max-width: 100%; }"
+                    "  table { border-collapse: collapse; width: 100%; }"
+                    "  th, td { border: 1px solid #444; padding: 6px 10px; text-align: left; }"
+                    "</style>"
+                    f"{html}"
+                )
             else:
-                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
                 max_lines = 200
+                lines = []
+                with path.open(encoding="utf-8", errors="replace") as f:
+                    for _ in range(max_lines):
+                        try:
+                            lines.append(next(f).rstrip("\n\r"))
+                        except StopIteration:
+                            break
                 shown = lines[:max_lines]
                 num_width = len(str(max_lines))
                 html_lines = []
@@ -188,15 +194,15 @@ class PreviewPanel(QWidget):
                         f"<td style='white-space:pre;padding:0;'>{escaped}</td></tr>"
                     )
                 table = "".join(html_lines)
-                styled = f"""
-                <style>
-                  body {{ margin:0; padding:8px;"
-                  " font-family:'Cascadia Code','Consolas',monospace; font-size:13px; }}
-                  table {{ border-spacing:0; width:100%; }}
-                  tr:hover td {{ background:#2a2a2a; }}
-                </style>
-                <table>{table}</table>
-                """
+                styled = (
+                    "<style>"
+                    "  body { margin:0; padding:8px;"
+                    " font-family:'Cascadia Code','Consolas',monospace; font-size:13px; }"
+                    "  table { border-spacing:0; width:100%; }"
+                    "  tr:hover td { background:#2a2a2a; }"
+                    "</style>"
+                    f"<table>{table}</table>"
+                )
                 if len(lines) > max_lines:
                     styled += (
                         f"<p style='color:#888;'><i>… {len(lines) - max_lines} more lines</i></p>"

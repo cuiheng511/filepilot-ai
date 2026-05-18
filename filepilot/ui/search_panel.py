@@ -472,7 +472,9 @@ class SearchPanel(BasePanel):
                 else:
                     from filepilot.core import config
 
-                    config.save({"saved_searches": saved})
+                    settings = config.load()
+                    settings["saved_searches"] = saved
+                    config.save(settings)
                 self._refresh_saved_searches()
                 self.status_message.emit(f"Renamed to: {new_name.strip()}")
         elif action == delete_action:
@@ -675,8 +677,7 @@ class SearchPanel(BasePanel):
             item = self.result_list.item(i)
             filepath = item.data(Qt.UserRole)
             if filepath:
-                title = item.text().splitlines()[0]
-                name = title.split("  ", 1)[1] if "  " in title else title
+                name = Path(filepath).name
                 results.append(
                     {
                         "name": name,

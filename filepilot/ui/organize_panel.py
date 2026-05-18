@@ -384,7 +384,7 @@ class OrganizePanel(BasePanel):
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
-                progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
+                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
             ):
                 if self._cancelled:
                     self.cancel_done.emit()
@@ -503,7 +503,7 @@ class OrganizePanel(BasePanel):
                 rename=rename,
                 rename_pattern=pattern or None,
                 progress_callback=lambda i, name: self.progress_updated.emit(
-                    int(i / len(self.files) * 100),
+                    int(i / len(self.files) * 100) if self.files else 0,
                 ),
             )
 
@@ -624,7 +624,7 @@ class OrganizePanel(BasePanel):
             files = []
             for f in self.scanner.scan(
                 str(self.source_dir),
-                progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
+                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
             ):
                 if self._cancelled:
                     return
@@ -760,7 +760,7 @@ class OrganizePanel(BasePanel):
                         )
                         error_count += 1
 
-                self.progress_updated.emit(int((i + 1) / len(self.files) * 100))
+                self.progress_updated.emit(int((i + 1) / len(self.files) * 100) if self.files else 0)
 
             self._regex_undo = undo_ops
             self.regex_execute_ready.emit(operations, success_count, error_count)

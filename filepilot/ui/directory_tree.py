@@ -65,7 +65,11 @@ class DirectoryTreeWidget(QWidget):
             found = False
             for j in range(current.childCount()):
                 child = current.child(j)
-                if child.text(0).lstrip("📁 ") == part:
+                # Strip the "📁 " prefix from the display text for comparison
+                display_text = child.text(0)
+                if display_text.startswith("📁 "):
+                    display_text = display_text[2:].lstrip()
+                if display_text == part:
                     child.setExpanded(True)
                     current = child
                     found = True

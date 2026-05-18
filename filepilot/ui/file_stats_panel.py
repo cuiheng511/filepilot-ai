@@ -3,9 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QComboBox,
@@ -22,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from filepilot.core.file_scanner import FileCategory, FileInfo, FileScanner
+from filepilot.core.worker import Worker
 from filepilot.ui.base_panel import BasePanel
 
 logger = logging.getLogger("filepilot.stats_panel")
@@ -338,7 +338,10 @@ class FileStatsPanel(BasePanel):
             # Signal results to main thread
             self.stats_ready.emit(stats)
 
-        Thread(target=worker, daemon=True).start()
+        w = Worker(worker)
+        w.signals.finished.connect(lambda _: None)
+        w.signals.error.connect(self._on_stats_error)
+        QThreadPool.globalInstance().start(w)
 
     def _compute_stats(self, files: list[FileInfo]) -> dict:
         """Compute type, size, and date distributions."""
@@ -426,6 +429,13 @@ class FileStatsPanel(BasePanel):
         """Analyze the current directory."""
         if self.current_dir:
             self._run_analysis(self.current_dir)
+
+    @Slot(str)
+    def _on_stats_error(self, msg: str) -> None:
+        """Restore UI after analysis error."""
+        self.status_message.emit(f"Stats error: {msg}")
+        self.progress_bar.setVisible(False)
+        self.btn_analyze.setEnabled(bool(self.current_dir))
 
     @Slot(dict)
     def _on_stats_ready(self, stats: dict) -> None:

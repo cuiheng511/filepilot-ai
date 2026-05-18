@@ -128,9 +128,9 @@ class ServiceContainer:
             return self._search_cache_get(key)
         return None
 
-    def search_cache_set(self, key: str, results: Any, ttl: int = 300) -> None:
+    def search_cache_set(self, key: str, results: Any) -> None:
         if self._search_cache_set:
-            self._search_cache_set(key, results, ttl)
+            self._search_cache_set(key, results)
 
     def search_cache_clear(self) -> None:
         if self._search_cache_clear:

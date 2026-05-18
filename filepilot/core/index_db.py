@@ -137,7 +137,7 @@ class MetadataDB:
         if date_to:
             conditions.append("modified_time <= ?")
             params.append(date_to)
-        if paths is not None:
+        if paths:
             placeholders = ",".join("?" for _ in paths)
             conditions.append(f"path IN ({placeholders})")
             params.extend(paths)
@@ -183,7 +183,11 @@ class MetadataDB:
 
     def remove_prefix(self, prefix: str):
         conn = self._conn()
-        conn.execute("DELETE FROM files WHERE path LIKE ?", (f"{prefix}%",))
+        safe = prefix.replace("%", r"\%").replace("_", r"\_")
+        conn.execute(
+            "DELETE FROM files WHERE path LIKE ? ESCAPE '\\'",
+            (f"{safe}%",),
+        )
         conn.commit()
 
     def clear(self):

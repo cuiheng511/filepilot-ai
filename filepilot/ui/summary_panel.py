@@ -1,9 +1,8 @@
 """AI summary generation panel"""
 
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -21,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
+from filepilot.core.worker import Worker
 from filepilot.ui.base_panel import BasePanel
 from filepilot.utils.file_utils import CAT_CODE, CAT_MARKDOWN, CAT_OFFICE, CAT_PDF, CAT_TEXT
 
@@ -290,7 +290,10 @@ class SummaryPanel(BasePanel):
             else:
                 self.status_message.emit("No supported files found in the selected folder")
 
-        Thread(target=scan_worker, daemon=True).start()
+        worker = Worker(scan_worker)
+        worker.signals.finished.connect(lambda _: None)
+        worker.signals.error.connect(lambda msg: self.status_message.emit(f"Scan error: {msg}"))
+        QThreadPool.globalInstance().start(worker)
 
     @Slot()
     def _add_file_item(self, name: str, suffix: str, path_str: str):
@@ -313,6 +316,7 @@ class SummaryPanel(BasePanel):
         self.progress_bar.setVisible(False)
         self.btn_generate.setEnabled(True)
         self.status_message.emit("⏹️ Operation cancelled")
+        self._on_summary_done()
 
     @Slot()
     def _on_generate(self):
@@ -432,7 +436,10 @@ class SummaryPanel(BasePanel):
 
                 QMetaObject.invokeMethod(self, "_on_summary_done", Qt.QueuedConnection)
 
-        Thread(target=worker, daemon=True).start()
+        w = Worker(worker)
+        w.signals.finished.connect(lambda _: None)
+        w.signals.error.connect(lambda msg: (self.status_message.emit(f"Summary error: {msg}"), self._on_summary_done()))
+        QThreadPool.globalInstance().start(w)
 
     @Slot()
     def _on_summary_done(self) -> None:
@@ -440,3 +447,4 @@ class SummaryPanel(BasePanel):
         self.btn_generate.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
+        self._cancelling = False

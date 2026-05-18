@@ -1,8 +1,4 @@
-"""Tests for file_browser extension categorization
-
-Tests the module-level get_category_name() function and CAT_* constants
-to ensure every defined extension maps to the correct category.
-"""
+"""Tests for file_browser — extension categorization, export, and filter bar"""
 
 import csv
 import json
@@ -223,3 +219,137 @@ class TestFileBrowserExport:
 
         rows = list(csv.reader(export_path.read_text(encoding="utf-8").splitlines()))
         assert rows[1][-1] == ".txt"
+
+
+class TestFilterBar:
+    """Filter bar unit tests — _get_filtered_files logic."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, qtbot):
+        from filepilot.ui.file_browser import FileBrowserPanel
+
+        self.panel = FileBrowserPanel()
+        qtbot.addWidget(self.panel)
+        now = datetime.now()
+        self.files = [
+            FileInfo(
+                path=Path(f"/tmp/{name}"),
+                name=name,
+                extension=Path(name).suffix,
+                size_bytes=size,
+                size_str=f"{size} B",
+                category=FileCategory[cat.upper()] if cat else FileCategory.UNKNOWN,
+                mime_type="",
+                modified_time=now,
+                created_time=now,
+            )
+            for name, size, cat in [
+                ("doc.pdf", 500, "PDF"),
+                ("photo.png", 2_000_000, "IMAGE"),
+                ("video.mp4", 50_000_000, "VIDEO"),
+                ("script.py", 100, "CODE"),
+                ("notes.txt", 5_000_000, "DOCUMENT"),
+            ]
+        ]
+        self.panel.files = self.files
+
+    def test_filter_all_types(self):
+        self.panel.filter_type.setCurrentText("All Types")
+        result = self.panel._get_filtered_files()
+        assert len(result) == 5
+
+    def test_filter_by_pdf_type(self):
+        self.panel.filter_type.setCurrentText("PDF")
+        result = self.panel._get_filtered_files()
+        assert len(result) == 1
+        assert "pdf" in result[0].name
+
+    def test_filter_by_office_type(self):
+        self.panel.filter_type.setCurrentText("Office")
+        result = self.panel._get_filtered_files()
+        assert len(result) == 0  # no Office files in fixture
+
+    def test_filter_by_text_type(self):
+        self.panel.filter_type.setCurrentText("Text")
+        result = self.panel._get_filtered_files()
+        assert len(result) == 1
+        assert "txt" in result[0].name
+
+    def test_filter_by_image_type(self):
+        self.panel.filter_type.setCurrentText("Image")
+        result = self.panel._get_filtered_files()
+        assert all("png" in f.name for f in result)
+
+    def test_filter_by_code_type(self):
+        self.panel.filter_type.setCurrentText("Code")
+        result = self.panel._get_filtered_files()
+        assert all("py" in f.name for f in result)
+
+    def test_filter_small_size(self):
+        self.panel.filter_size.setCurrentText("< 1 MB")
+        result = self.panel._get_filtered_files()
+        assert all(f.size_bytes < 1_048_576 for f in result)
+
+    def test_filter_large_size(self):
+        self.panel.filter_size.setCurrentText("> 100 MB")
+        result = self.panel._get_filtered_files()
+        assert all(f.size_bytes >= 104_857_600 for f in result)
+
+    def test_filter_size_10_100(self):
+        self.panel.filter_size.setCurrentText("10–100 MB")
+        result = self.panel._get_filtered_files()
+        assert all(10_485_760 <= f.size_bytes < 104_857_600 for f in result)
+
+    def test_filter_date_today(self):
+        self.panel.filter_date.setCurrentText("Today")
+        result = self.panel._get_filtered_files()
+        assert len(result) == 5  # all have now() modified_time
+
+    def test_filter_type_and_size_combo(self):
+        self.panel.filter_type.setCurrentText("Image")
+        self.panel.filter_size.setCurrentText("< 1 MB")
+        result = self.panel._get_filtered_files()
+        # photo.png is 2MB, so should be excluded by size
+        assert len(result) == 0
+
+    def test_filter_count_label_updated(self):
+        self.panel.filter_type.setCurrentText("Code")
+        self.panel._apply_filter()
+        text = self.panel.filter_count.text()
+        assert "(1 shown)" in text or "1" in text
+
+    def test_hidden_files_filtered_when_unchecked(self):
+        hidden = FileInfo(
+            path=Path("/tmp/.hidden.txt"),
+            name=".hidden.txt",
+            extension=".txt",
+            size_bytes=50,
+            size_str="50 B",
+            category=FileCategory.DOCUMENT,
+            mime_type="",
+            modified_time=datetime.now(),
+            created_time=datetime.now(),
+        )
+        self.panel.files.append(hidden)
+        self.panel.cb_show_hidden.setChecked(False)
+        result = self.panel._get_filtered_files()
+        assert not any(f.name.startswith(".") for f in result)
+
+    def test_hidden_files_included_when_checked(self):
+        from pathlib import Path
+
+        hidden = FileInfo(
+            path=Path("/tmp/.secret.pdf"),
+            name=".secret.pdf",
+            extension=".pdf",
+            size_bytes=100,
+            size_str="100 B",
+            category=FileCategory.PDF,
+            mime_type="",
+            modified_time=datetime.now(),
+            created_time=datetime.now(),
+        )
+        self.panel.files.append(hidden)
+        self.panel.cb_show_hidden.setChecked(True)
+        result = self.panel._get_filtered_files()
+        assert any(f.name.startswith(".") for f in result)

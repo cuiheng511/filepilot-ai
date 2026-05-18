@@ -190,7 +190,7 @@ jobs:
       - name: Download Inno Setup
         run: |
           $innoVersion = "6.7.1"
-          $innoUrl = "https://files.jrsoftware.org/is/6/innosetup-$innoVersion.exe"
+          $innoUrl = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-$innoVersion.exe"
           $innoInstaller = "$env:TEMP\innosetup-$innoVersion.exe"
           $innoDir = "$env:TEMP\InnoSetup"
           Write-Host "Downloading Inno Setup $innoVersion..."

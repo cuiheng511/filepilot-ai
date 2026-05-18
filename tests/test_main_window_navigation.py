@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from filepilot.core import config
+from filepilot.core.service_container import ServiceContainer
 from filepilot.ui.dashboard_panel import DashboardPanel
 from filepilot.ui.main_window import MainWindow
 from filepilot.ui.search_panel import SearchPanel
@@ -21,7 +22,7 @@ def test_grouped_navigation_opens_matching_panel(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SALT_FILE", settings_dir / ".key_salt")
 
     app = QApplication.instance() or QApplication([])
-    window = MainWindow(services={"watcher": None})
+    window = MainWindow(services=ServiceContainer())
 
     try:
         for panel_key in (
@@ -52,7 +53,7 @@ def test_switch_to_panel_selects_matching_nav_row(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SALT_FILE", settings_dir / ".key_salt")
 
     app = QApplication.instance() or QApplication([])
-    window = MainWindow(services={"watcher": None})
+    window = MainWindow(services=ServiceContainer())
 
     try:
         window._switch_to_panel(window._panel_indices["search"])

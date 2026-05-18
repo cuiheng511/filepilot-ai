@@ -6,18 +6,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
 from filepilot import __version__
-from filepilot.ai.summarizer import Summarizer
-from filepilot.core.duplicate_finder import DuplicateFinder
-from filepilot.core.file_organizer import FileOrganizer
-from filepilot.core.file_scanner import FileScanner
-from filepilot.core.file_watcher import FileWatcher
-from filepilot.core.indexer import FileIndexer
-from filepilot.core.search_cache import (
-    cache_results,
-    clear_search_cache,
-    get_cache_stats,
-    get_cached_results,
-)
+from filepilot.core.service_container import ServiceContainer
 from filepilot.ui.tray import SystemTrayManager
 
 
@@ -48,56 +37,14 @@ def load_settings() -> dict:
 
 
 def create_services(settings: dict) -> dict:
-    """Create service module instances"""
-    from filepilot.ai.cloud_ai import AnthropicProvider, OpenAIProvider
-    from filepilot.ai.local_ai import LlamaCppProvider, OllamaProvider
+    """Create service module instances (legacy — returns raw dict)."""
+    svc = create_service_container(settings)
+    return vars(svc)
 
-    provider = settings.get("ai_provider", "ollama")
-    model = settings.get("ai_model", "qwen2.5:7b")
-    api_base = settings.get("ai_api_base", "http://localhost:11434")
-    api_key = settings.get("ai_api_key", "")
 
-    # Create the appropriate AI engine based on provider
-    provider_map = {
-        "ollama": lambda: OllamaProvider(model=model, api_base=api_base),
-        "llamacpp": lambda: LlamaCppProvider(model=model, api_base=api_base),
-        "openai": lambda: OpenAIProvider(api_key=api_key, model=model, api_base=api_base),
-        "anthropic": lambda: AnthropicProvider(api_key=api_key, model=model, api_base=api_base),
-        "custom": lambda: OpenAIProvider(api_key=api_key, model=model, api_base=api_base),
-    }
-    primary_ai = provider_map.get(provider, provider_map["ollama"])()
-
-    # Keep both local and cloud AI (backward compatibility + hybrid mode)
-    local_ai = primary_ai if provider in ("ollama", "llamacpp") else OllamaProvider()
-    cloud_ai = (
-        primary_ai
-        if provider in ("openai", "anthropic", "custom")
-        else OpenAIProvider(api_key=api_key)
-    )
-
-    # Summarizer
-    summarizer = Summarizer(
-        local_ai=local_ai,  # type: ignore[arg-type]
-        cloud_ai=cloud_ai,  # type: ignore[arg-type]
-        prefer_local=(settings.get("ai_mode", "local") in ("local", "hybrid")),
-    )
-
-    return {
-        "scanner": FileScanner(),
-        "organizer": FileOrganizer(),
-        "duplicate_finder": DuplicateFinder(),
-        "watcher": FileWatcher(),
-        "indexer": FileIndexer(
-            index_dir=settings.get("index_dir", "~/.filepilot/index"),
-        ),
-        "local_ai": local_ai,
-        "cloud_ai": cloud_ai,
-        "summarizer": summarizer,
-        "search_cache_get": get_cached_results,
-        "search_cache_set": cache_results,
-        "search_cache_clear": clear_search_cache,
-        "search_cache_stats": get_cache_stats,
-    }
+def create_service_container(settings: dict) -> ServiceContainer:
+    """Create a typed ServiceContainer from settings."""
+    return ServiceContainer.from_settings(settings)
 
 
 def create_tray(main_window, services: dict) -> SystemTrayManager:
@@ -106,3 +53,16 @@ def create_tray(main_window, services: dict) -> SystemTrayManager:
     services_with_toast["toast"] = main_window._notify
     tray = SystemTrayManager(main_window=main_window, services=services_with_toast)
     return tray
+
+
+def create_tray_from_container(main_window, svc: ServiceContainer, notify_fn) -> SystemTrayManager:
+    """Create tray from typed ServiceContainer."""
+    extra = {
+        "toast": notify_fn,
+        "scanner": svc.scanner,
+        "search_cache_get": svc.search_cache_get,
+        "search_cache_set": svc.search_cache_set,
+        "search_cache_clear": svc.search_cache_clear,
+        "search_cache_stats": svc.search_cache_stats,
+    }
+    return SystemTrayManager(main_window=main_window, services=extra)

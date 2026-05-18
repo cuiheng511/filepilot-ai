@@ -27,7 +27,10 @@ from PySide6.QtWidgets import (
 )
 
 from filepilot import __version__
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_watcher import FileWatcher
+from filepilot.core.service_container import ServiceContainer
 from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
 from filepilot.ui.dashboard_panel import DashboardPanel
@@ -48,16 +51,17 @@ from filepilot.ui.tags_panel import TagsPanel
 class MainWindow(QMainWindow):
     """FilePilot AI Main Window"""
 
-    def __init__(self, services: dict | None = None, parent=None):
+    def __init__(self, services: ServiceContainer | None = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("app_name") + " — " + t("app_subtitle"))
         self.setMinimumSize(1200, 800)
         self.resize(1400, 900)
 
-        # State
+        # Core infrastructure
+        self.state = AppState(self._load_settings(), self)
+        self.services: ServiceContainer = services or ServiceContainer()
+        self.event_bus = EventBus(self)
         self.current_dir: Path | None = None
-        self.settings = self._load_settings()
-        self.services = services or {}
         self._file_index_times: dict[str, float] = {}
         self._INDEX_DEBOUNCE_SEC = 2.0
 
@@ -65,7 +69,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
 
         # File watcher for auto-indexing
-        self._watcher: FileWatcher | None = None
+        self._watcher: FileWatcher | None = self.services.watcher
 
         # Build UI
         self._setup_ui()
@@ -76,10 +80,13 @@ class MainWindow(QMainWindow):
         # Initialize theme manager (applies QSS globally with hot-reload)
         themes_dir = Path(__file__).parent.parent / "styles" / "themes"
         self._theme_mgr = ThemeManager(themes_dir)
-        self._theme_mgr.apply_theme("dark")
+        self._theme_mgr.apply_theme(self.state.theme)
         self._theme_mgr.styles_reloaded.connect(
             lambda: self.status_label.setText("🎨 Styles reloaded"),
         )
+
+        # Connect event bus signals
+        self._connect_event_bus()
 
         # Keyboard shortcuts
         self._setup_shortcuts()
@@ -137,23 +144,20 @@ class MainWindow(QMainWindow):
         # Right content area
         self.content_stack = QStackedWidget()
 
-        # Panels (inject service instances to avoid recreation)
-        scanner = self.services.get("scanner")
-        indexer = self.services.get("indexer")
-        organizer = self.services.get("organizer")
-        finder = self.services.get("duplicate_finder")
+        # Panels (inject service instances from ServiceContainer)
+        svc = self.services
 
         self.dashboard_panel = DashboardPanel()
-        self.browse_panel = FileBrowserPanel(scanner=scanner)
-        self.search_panel = SearchPanel(indexer=indexer, scanner=scanner)
-        self.organize_panel = OrganizePanel(organizer=organizer, scanner=scanner)
-        self.duplicates_panel = DuplicatesPanel(finder=finder, scanner=scanner)
+        self.browse_panel = FileBrowserPanel(scanner=svc.scanner)
+        self.search_panel = SearchPanel(indexer=svc.indexer, scanner=svc.scanner)
+        self.organize_panel = OrganizePanel(organizer=svc.organizer, scanner=svc.scanner)
+        self.duplicates_panel = DuplicatesPanel(finder=svc.duplicate_finder, scanner=svc.scanner)
         self.summary_panel = SummaryPanel(
-            summarizer=self.services.get("summarizer"),
-            local_ai=self.services.get("local_ai"),
-            cloud_ai=self.services.get("cloud_ai"),
+            summarizer=svc.summarizer,
+            local_ai=svc.local_ai,
+            cloud_ai=svc.cloud_ai,
         )
-        self.index_panel = IndexPanel(indexer=indexer, scanner=scanner)
+        self.index_panel = IndexPanel(indexer=svc.indexer, scanner=svc.scanner)
         self.favorites_panel = FavoritesPanel()
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
@@ -200,7 +204,8 @@ class MainWindow(QMainWindow):
         self._toast = NotificationToast(self.centralWidget())
 
         # File watcher — connect signals for auto-index
-        self._watcher = self.services.get("watcher")
+        svc = self.services
+        self._watcher = svc.watcher
         if self._watcher:
             self._watcher.file_created.connect(self._on_file_changed, Qt.QueuedConnection)
             self._watcher.file_modified.connect(self._on_file_changed, Qt.QueuedConnection)
@@ -223,14 +228,26 @@ class MainWindow(QMainWindow):
         )
 
         # Initialize dashboard with recent data
-        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
-        self.dashboard_panel.update_recent_files(self.settings.get("recent_files", []))
+        self.dashboard_panel.update_recent_folders(self.state.recent_dirs)
+        self.dashboard_panel.update_recent_files(self.state.recent_files)
+
+        # Connect AppState signals
+        self.state.theme_changed.connect(self._on_theme_changed)
+        self.state.recent_dirs_changed.connect(self._refresh_recent_menu)
+        self.state.recent_files_changed.connect(self._refresh_recent_files_menu)
 
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
         super().resizeEvent(event)
         if hasattr(self, "drop_overlay"):
             self.drop_overlay.setGeometry(self.centralWidget().rect())
+
+    def _connect_event_bus(self):
+        """Wire event bus signals to handlers."""
+        self.event_bus.open_folder_requested.connect(self._open_directory)
+        self.event_bus.global_search_requested.connect(self._on_global_search)
+        self.event_bus.theme_toggled.connect(self._on_toggle_theme)
+        self.event_bus.settings_applied.connect(self._on_settings_applied)
 
     def _add_nav_item(
         self,
@@ -305,11 +322,11 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
 
-    def _refresh_recent_menu(self):
+    def _refresh_recent_menu(self, _dummy=None):
         """Refresh the Recent Folders submenu from settings"""
         self._recent_menu.clear()
 
-        recent = self.settings.get("recent_dirs", [])
+        recent = self.state.recent_dirs
         if not recent:
             empty = QAction("(none)", self)
             empty.setEnabled(False)
@@ -327,13 +344,11 @@ class MainWindow(QMainWindow):
         if path and Path(path).is_dir():
             self._open_directory(path)
 
-    def _refresh_recent_files_menu(self):
+    def _refresh_recent_files_menu(self, _dummy=None):
         """Refresh the Recent Files submenu from settings"""
         self._recent_files_menu.clear()
 
-        from filepilot.core.config import get_recent_files
-
-        recent = get_recent_files(self.settings)
+        recent = self.state.recent_files
         if not recent:
             empty = QAction("(none)", self)
             empty.setEnabled(False)
@@ -356,10 +371,10 @@ class MainWindow(QMainWindow):
         if not p.exists():
             self.status_label.setText("File no longer exists: " + p.name)
             # Remove from recent files
-            rf = self.settings.get("recent_files", [])
-            self.settings["recent_files"] = [x for x in rf if x != path]
-            self._save_settings()
-            self._refresh_recent_files_menu()
+            recent = self.state.recent_files
+            recent = [x for x in recent if x != path]
+            self.state.raw["recent_files"] = recent
+            self.state.save()
             return
         try:
             fp = str(p)
@@ -380,11 +395,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_file_opened(self, file_path: str):
         """Record a file as recently opened"""
-        from filepilot.core.config import add_recent_file
-
-        self.settings = add_recent_file(self.settings, file_path)
-        self._save_settings()
-        self._refresh_recent_files_menu()
+        self.state.add_recent_file(file_path)
+        self.state.save()
 
     def _setup_toolbar(self):
         """Setup toolbar"""
@@ -433,7 +445,7 @@ class MainWindow(QMainWindow):
 
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts to switch panels — load from config if available."""
-        user_overrides = self.settings.get("shortcuts", {})
+        user_overrides = self.state.shortcuts
 
         shortcut_panels = {
             "File Browser": "browse",
@@ -486,19 +498,10 @@ class MainWindow(QMainWindow):
             self.nav_list.setCurrentRow(nav_row)
 
     def _load_settings(self) -> dict:
-        """Load settings (unified via app.load_settings)"""
+        """Load settings (delegates to app.load_settings)"""
         from filepilot.app import load_settings as _load
 
-        settings = _load()
-        # Add MainWindow default values
-        settings.setdefault("recent_dirs", [])
-        return settings
-
-    def _save_settings(self):
-        """Save settings — API key stored encrypted, rest in JSON"""
-        from filepilot.core import config
-
-        config.save(self.settings)
+        return _load()
 
     @Slot()
     def _on_nav_changed(self, index: int):
@@ -535,14 +538,10 @@ class MainWindow(QMainWindow):
         self.btn_scan.setEnabled(True)
         self.btn_index.setEnabled(True)
 
-        # Save to recent directories
-        recent = self.settings.get("recent_dirs", [])
-        if dir_path in recent:
-            recent.remove(dir_path)
-        recent.insert(0, dir_path)
-        self.settings["recent_dirs"] = recent[:10]
-        self._save_settings()
-        self._refresh_recent_menu()
+        # Save to recent directories via AppState
+        self.state.add_recent_dir(dir_path)
+        self.state.save()
+        self.state.current_dir = dir_path
 
         # Start watching for auto-index
         if self._watcher:
@@ -555,7 +554,7 @@ class MainWindow(QMainWindow):
         self.favorites_panel.set_current_dir(dir_path)
 
         # Update dashboard with recent folders
-        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
+        self.dashboard_panel.update_recent_folders(self.state.recent_dirs)
 
         # Update dashboard stats from browse panel
         if hasattr(self.browse_panel, "files"):
@@ -732,12 +731,18 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_settings(self):
         """Open settings dialog"""
-        dialog = SettingsDialog(self.settings, self)
+        dialog = SettingsDialog(self.state.raw, self)
         if dialog.exec():
-            self.settings = dialog.get_settings()
-            self._save_settings()
+            self.state.update(dialog.get_settings())
+            self.state.save()
             self._recreate_services()
             self.status_label.setText("Settings saved — AI engine updated")
+
+    def _on_settings_applied(self, settings: dict):
+        """Handle settings applied via event bus."""
+        self.state.update(settings)
+        self.state.save()
+        self._recreate_services()
 
     @Slot()
     def _on_about(self):
@@ -759,8 +764,16 @@ class MainWindow(QMainWindow):
         theme = "dark" if checked else "light"
         self._theme_mgr.apply_theme(theme)
         self.btn_theme.setText("🌙" if checked else "☀️")
-        self.settings["theme"] = theme
-        self._save_settings()
+        self.state.theme = theme
+        self.state.save()
+
+    @Slot()
+    def _on_theme_changed(self, theme: str):
+        """React to theme change from AppState."""
+        is_dark = theme == "dark"
+        self._theme_mgr.apply_theme(theme)
+        self.btn_theme.setChecked(is_dark)
+        self.btn_theme.setText("🌙" if is_dark else "☀️")
 
     def _show_progress(self, visible: bool, value: int = 0, maximum: int = 100):
         """Show/hide progress bar"""
@@ -780,14 +793,14 @@ class MainWindow(QMainWindow):
 
     def _recreate_services(self):
         """Update service instances after settings change (no panel recreation needed)"""
-        from filepilot.app import create_services
+        from filepilot.app import create_service_container
 
-        new_services = create_services(self.settings)
-        self.services = new_services
+        svc = create_service_container(self.state.raw)
+        self.services = svc
 
         # Update watcher reference and reconnect signals
         old_watcher = self._watcher
-        self._watcher = new_services.get("watcher")
+        self._watcher = svc.watcher
         if old_watcher:
             with contextlib.suppress(RuntimeError, TypeError):
                 old_watcher.file_created.disconnect(self._on_file_changed)
@@ -802,31 +815,19 @@ class MainWindow(QMainWindow):
             self._watcher.file_deleted.connect(self._on_file_deleted, Qt.QueuedConnection)
             if self.current_dir:
                 self._watcher.watch(self.current_dir)
-        self.browse_panel.update_services(scanner=new_services.get("scanner"))
-        self.search_panel.update_services(
-            scanner=new_services.get("scanner"),
-            indexer=new_services.get("indexer"),
-        )
-        self.organize_panel.update_services(
-            scanner=new_services.get("scanner"),
-            organizer=new_services.get("organizer"),
-        )
-        self.duplicates_panel.update_services(
-            scanner=new_services.get("scanner"),
-            finder=new_services.get("duplicate_finder"),
-        )
+        self.browse_panel.update_services(scanner=svc.scanner)
+        self.search_panel.update_services(scanner=svc.scanner, indexer=svc.indexer)
+        self.organize_panel.update_services(scanner=svc.scanner, organizer=svc.organizer)
+        self.duplicates_panel.update_services(scanner=svc.scanner, finder=svc.duplicate_finder)
         self.summary_panel.update_services(
-            summarizer=new_services.get("summarizer"),
-            local_ai=new_services.get("local_ai"),
-            cloud_ai=new_services.get("cloud_ai"),
+            summarizer=svc.summarizer,
+            local_ai=svc.local_ai,
+            cloud_ai=svc.cloud_ai,
         )
-        self.index_panel.update_services(
-            scanner=new_services.get("scanner"),
-            indexer=new_services.get("indexer"),
-        )
+        self.index_panel.update_services(scanner=svc.scanner, indexer=svc.indexer)
 
         # Refresh dashboard with recent data
-        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
-        self.dashboard_panel.update_recent_files(self.settings.get("recent_files", []))
+        self.dashboard_panel.update_recent_folders(self.state.recent_dirs)
+        self.dashboard_panel.update_recent_files(self.state.recent_files)
 
     # ===== Placeholder panels =====

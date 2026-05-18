@@ -21,16 +21,21 @@ def main():
 
     load_language_from_settings()
 
-    from filepilot.app import create_app, create_services, create_tray, load_settings
+    from filepilot.app import (
+        create_app,
+        create_service_container,
+        create_tray_from_container,
+        load_settings,
+    )
     from filepilot.ui.main_window import MainWindow
 
     app = create_app()
     settings = load_settings()
-    services = create_services(settings)
-    window = MainWindow(services=services)
+    svc = create_service_container(settings)
+    window = MainWindow(services=svc)
 
     # Setup system tray (must be created after MainWindow)
-    tray = create_tray(window, services)
+    tray = create_tray_from_container(window, svc, window._notify)
     window.tray_manager = tray
     tray.show()
 

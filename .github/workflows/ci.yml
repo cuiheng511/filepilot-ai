@@ -122,6 +122,7 @@ jobs:
 
       - name: Upload coverage report as artifact
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}-${{ github.sha }}
           path: coverage.xml
@@ -182,6 +183,7 @@ jobs:
 
       - name: Upload PyInstaller artifact
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: FilePilot-Windows-${{ github.sha }}
           path: dist\FilePilot\
@@ -232,6 +234,7 @@ jobs:
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: FilePilot-AI-Setup-${{ github.sha }}
           path: |
@@ -348,6 +351,7 @@ jobs:
 
       - name: Upload PyInstaller artifact
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: FilePilot-Linux-${{ github.sha }}
           path: dist/FilePilot/
@@ -372,6 +376,7 @@ jobs:
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: FilePilot-AppImage-${{ github.sha }}
           path: |

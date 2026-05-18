@@ -6,13 +6,18 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
 )
 
@@ -79,6 +84,9 @@ class TagsPanel(BasePanel):
         toolbar.addWidget(self.btn_add_tag)
         toolbar.addWidget(self.btn_remove_tag)
         toolbar.addStretch()
+        self.btn_tag_rules = QPushButton("\U0001f3af Tag Rules...")
+        self.btn_tag_rules.clicked.connect(self._on_tag_rules)
+        toolbar.addWidget(self.btn_tag_rules)
         layout.addLayout(toolbar)
 
         self.stats_label = QLabel("0 tagged files")
@@ -232,3 +240,186 @@ class TagsPanel(BasePanel):
 
     def get_file_tags(self, file_path: str | Path) -> list[str]:
         return list(self.tag_manager.get_tags(file_path))
+
+    # ── Tag Automation Rules Dialog ───────────────────────────────────────
+
+    @Slot()
+    def _on_tag_rules(self):
+        from filepilot.core.tag_rules import get_rules
+
+        rules = get_rules()
+        dialog = QDialog(self)
+        dialog.setWindowTitle("\U0001f3af Tag Automation Rules")
+        dialog.setMinimumSize(500, 350)
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(
+            QLabel("Rules determine which files get auto-tagged based on file properties.")
+        )
+
+        rule_list = QListWidget()
+        for r in rules:
+            cond = r.get("conditions", {})
+            parts = []
+            exts = cond.get("extensions", [])
+            if exts:
+                parts.append(", ".join(exts))
+            cats = cond.get("categories", [])
+            if cats:
+                parts.append(f"cat: {', '.join(cats)}")
+            ms = cond.get("min_size_mb", 0)
+            xs = cond.get("max_size_mb", 0)
+            if ms or xs:
+                parts.append(f"size: {ms}-{xs} MB")
+            age = cond.get("max_age_days", 0)
+            if age:
+                parts.append(f"age: <{age}d")
+            summary = ", ".join(parts) if parts else "all files"
+            tags = ", ".join(r.get("tags", []))
+            rule_list.addItem(f"{r['name']}  \u2192  [{tags}]  ({summary})")
+        layout.addWidget(rule_list, 1)
+
+        btn_layout = QHBoxLayout()
+        add_btn = QPushButton("➕ Add Rule")
+        edit_btn = QPushButton("✏ Edit Rule")
+        del_btn = QPushButton("🗑 Delete")
+        del_btn.setEnabled(False)
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(edit_btn)
+        btn_layout.addWidget(del_btn)
+        btn_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+        rule_list.itemSelectionChanged.connect(
+            lambda: del_btn.setEnabled(len(rule_list.selectedItems()) > 0)
+        )
+
+        def on_add():
+            dialog.accept()
+            self._edit_rule_dialog(None)
+
+        def on_edit():
+            idx = rule_list.currentRow()
+            if idx >= 0:
+                dialog.accept()
+                self._edit_rule_dialog(idx)
+
+        def on_delete():
+            idx = rule_list.currentRow()
+            if idx >= 0:
+                from filepilot.core.tag_rules import delete_rule
+
+                delete_rule(idx)
+                self._on_tag_rules()
+
+        add_btn.clicked.connect(on_add)
+        edit_btn.clicked.connect(on_edit)
+        del_btn.clicked.connect(on_delete)
+        dialog.exec()
+
+    def _edit_rule_dialog(self, rule_index: int | None):
+        """Show rule editor dialog. If rule_index is None, create new rule."""
+        from filepilot.core.tag_rules import add_rule, get_rules, update_rule
+
+        rule = None
+        if rule_index is not None:
+            rules = get_rules()
+            if 0 <= rule_index < len(rules):
+                rule = rules[rule_index]
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Rule" if rule else "New Rule")
+        dialog.setMinimumSize(400, 300)
+
+        layout = QVBoxLayout(dialog)
+        form = QFormLayout()
+
+        name_input = QLineEdit()
+        name_input.setPlaceholderText("e.g. Large PDFs")
+        if rule:
+            name_input.setText(rule["name"])
+        form.addRow("Name:", name_input)
+
+        ext_input = QLineEdit()
+        ext_input.setPlaceholderText(".pdf, .docx, .jpg (comma separated)")
+        if rule:
+            ext_input.setText(", ".join(rule.get("conditions", {}).get("extensions", [])))
+        form.addRow("Extensions:", ext_input)
+
+        cat_input = QLineEdit()
+        cat_input.setPlaceholderText("PDF, Code, Image, Office (comma separated)")
+        if rule:
+            cat_input.setText(", ".join(rule.get("conditions", {}).get("categories", [])))
+        form.addRow("Categories:", cat_input)
+
+        min_size_input = QSpinBox()
+        min_size_input.setRange(0, 99999)
+        min_size_input.setSuffix(" MB")
+        if rule:
+            min_size_input.setValue(rule.get("conditions", {}).get("min_size_mb", 0))
+        form.addRow("Min size:", min_size_input)
+
+        max_size_input = QSpinBox()
+        max_size_input.setRange(0, 99999)
+        max_size_input.setSuffix(" MB")
+        if rule:
+            max_size_input.setValue(rule.get("conditions", {}).get("max_size_mb", 0))
+        form.addRow("Max size:", max_size_input)
+
+        age_input = QSpinBox()
+        age_input.setRange(0, 9999)
+        age_input.setSuffix(" days")
+        age_input.setSpecialValueText("any")
+        if rule:
+            age_input.setValue(rule.get("conditions", {}).get("max_age_days", 0))
+        form.addRow("Max age:", age_input)
+
+        tag_input = QLineEdit()
+        tag_input.setPlaceholderText("important, archive, review (comma separated)")
+        if rule:
+            tag_input.setText(", ".join(rule.get("tags", [])))
+        form.addRow("Tags to apply:", tag_input)
+
+        layout.addLayout(form)
+        layout.addStretch()
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        name = name_input.text().strip()
+        if not name:
+            return
+
+        conditions: dict[str, list[str] | int] = {}
+        exts = [e.strip() for e in ext_input.text().split(",") if e.strip()]
+        if exts:
+            conditions["extensions"] = exts
+        cats = [c.strip() for c in cat_input.text().split(",") if c.strip()]
+        if cats:
+            conditions["categories"] = cats
+        if min_size_input.value() > 0:
+            conditions["min_size_mb"] = min_size_input.value()
+        if max_size_input.value() > 0:
+            conditions["max_size_mb"] = max_size_input.value()
+        if age_input.value() > 0:
+            conditions["max_age_days"] = age_input.value()
+
+        tags = [t.strip() for t in tag_input.text().split(",") if t.strip()]
+        if not tags:
+            return
+
+        if rule_index is None:
+            add_rule(name, conditions, tags)
+        else:
+            update_rule(rule_index, name, conditions, tags)
+
+        self._refresh_tags()
+        self.status_message.emit(f"Rule saved: {name}")

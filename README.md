@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.5.0
+Version 0.6.0
 
 </div>
 
@@ -95,7 +95,15 @@ Your files stay on your machine unless you explicitly choose a cloud AI provider
 
 ### Desktop workflow
 
-- Native PySide6 desktop interface with **7 navigable panels**
+- Native PySide6 desktop interface with **10 navigable panels**
+- **Dashboard** with quick stats, recent folders/files, and shortcuts reference
+- **File tags** with color markers, cross-directory search, and automation rules
+- **Custom columns** in file browser — show/hide name, size, type, modified, created, path, extension, tags
+- **Batch file operations** — Copy, Move, Delete (to Recycle Bin) with confirmation
+- **File comparison** — Side-by-side diff dialog with added/removed line stats
+- **Saved searches** — Persist queries with filters and tag constraints
+- **Plugin system** — Extensible extractor pipeline with plugin manager UI
+- **Archive browsing** — Preview zip/tar/tar.gz/tar.bz2/tar.xz contents inline
 - **Favorites** for quick directory access
 - **Recent files & folders** tracking
 - **Customizable keyboard shortcuts**
@@ -202,11 +210,11 @@ Cloud providers only receive the content you choose to summarize. Local scanning
 filepilot-ai/
 |-- filepilot/
 |   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher, task scheduler
+|   |-- core/                # Scanner, indexer, organizer, duplicates, watcher, task scheduler, tag rules
 |   |-- extractors/          # PDF, Markdown, code, image, DOCX, XLSX, PPTX, OCR
 |   |-- resources/           # Application icons
 |   |-- styles/              # Theme manager and QSS themes
-|   |-- ui/                  # PySide6 panels, tray, settings, shortcut editor
+|   |-- ui/                  # PySide6 panels (dashboard, browser, search, tags, etc.), tray, settings, shortcut editor
 |   |-- app.py               # Application bootstrap
 |   |-- cli.py               # Command-line interface
 |   |-- i18n.py              # Translation catalog
@@ -305,8 +313,6 @@ See [docs/README.md](docs/README.md) for the full documentation index.
 ## Roadmap
 
 - Application screenshots and demo GIFs
-- File tags with cross-directory search
-- Plugin system for custom extractors
 - Cloud sync integration
 - More end-to-end packaging tests
 

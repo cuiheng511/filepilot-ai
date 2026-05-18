@@ -30,6 +30,7 @@ from filepilot import __version__
 from filepilot.core.file_watcher import FileWatcher
 from filepilot.i18n import t
 from filepilot.styles.manager import ThemeManager
+from filepilot.ui.dashboard_panel import DashboardPanel
 from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.favorites_panel import FavoritesPanel
 from filepilot.ui.file_browser import FileBrowserPanel
@@ -99,18 +100,41 @@ class MainWindow(QMainWindow):
         font.setPointSize(11)
         self.nav_list.setFont(font)
 
-        # Nav items
-        self._nav_items = {
-            "browse": self._add_nav_item(t("nav_browse"), t("browse_desc")),
-            "search": self._add_nav_item(t("nav_search"), t("search_desc")),
-            "organize": self._add_nav_item(t("nav_organize"), t("organize_desc")),
-            "duplicates": self._add_nav_item(t("nav_duplicates"), t("duplicates_desc")),
-            "summary": self._add_nav_item(t("nav_summary"), t("summary_desc")),
-            "index": self._add_nav_item(t("nav_index"), t("index_desc")),
-            "favorites": self._add_nav_item("⭐ Favorites", "Quick access to saved directories"),
-            "tags": self._add_nav_item("\U0001f3f7\ufe0f Tags", "File tags and color markers"),
-            "plugins": self._add_nav_item("\U0001f50c Plugins", "Extractor plugin manager"),
-        }
+        # Nav items with category grouping
+        self._nav_items = {}
+        self._nav_item_indices = {}
+
+        # ── Dashboard ──
+        self._add_nav_item("🏠 Dashboard", "Overview and quick actions")
+
+        # ── Browse group ──
+        self._add_nav_separator("📂 Browse")
+        self._nav_items["browse"] = self._add_nav_item(t("nav_browse"), t("browse_desc"))
+        self._nav_items["favorites"] = self._add_nav_item(
+            "⭐ Favorites", "Quick access to saved directories"
+        )
+
+        # ── Search group ──
+        self._add_nav_separator("🔍 Search")
+        self._nav_items["search"] = self._add_nav_item(t("nav_search"), t("search_desc"))
+        self._nav_items["tags"] = self._add_nav_item(
+            "\U0001f3f7\ufe0f Tags", "File tags and color markers"
+        )
+
+        # ── Tools group ──
+        self._add_nav_separator("🛠 Tools")
+        self._nav_items["organize"] = self._add_nav_item(t("nav_organize"), t("organize_desc"))
+        self._nav_items["duplicates"] = self._add_nav_item(
+            t("nav_duplicates"), t("duplicates_desc")
+        )
+        self._nav_items["summary"] = self._add_nav_item(t("nav_summary"), t("summary_desc"))
+        self._nav_items["index"] = self._add_nav_item(t("nav_index"), t("index_desc"))
+
+        # ── Settings group ──
+        self._add_nav_separator("⚙️ Settings")
+        self._nav_items["plugins"] = self._add_nav_item(
+            "\U0001f50c Plugins", "Extractor plugin manager"
+        )
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -123,6 +147,7 @@ class MainWindow(QMainWindow):
         organizer = self.services.get("organizer")
         finder = self.services.get("duplicate_finder")
 
+        self.dashboard_panel = DashboardPanel()
         self.browse_panel = FileBrowserPanel(scanner=scanner)
         self.search_panel = SearchPanel(indexer=indexer, scanner=scanner)
         self.organize_panel = OrganizePanel(organizer=organizer, scanner=scanner)
@@ -137,15 +162,16 @@ class MainWindow(QMainWindow):
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
 
-        self.content_stack.addWidget(self.browse_panel)  # 0
-        self.content_stack.addWidget(self.search_panel)  # 1
-        self.content_stack.addWidget(self.organize_panel)  # 2
-        self.content_stack.addWidget(self.duplicates_panel)  # 3
-        self.content_stack.addWidget(self.summary_panel)  # 4
-        self.content_stack.addWidget(self.index_panel)  # 5
-        self.content_stack.addWidget(self.favorites_panel)  # 6
-        self.content_stack.addWidget(self.tags_panel)  # 7
-        self.content_stack.addWidget(self.plugin_manager_panel)  # 8
+        self.content_stack.addWidget(self.dashboard_panel)  # 0 - Dashboard
+        self.content_stack.addWidget(self.browse_panel)  # 1 - Browse
+        self.content_stack.addWidget(self.favorites_panel)  # 2 - Favorites
+        self.content_stack.addWidget(self.search_panel)  # 3 - Search
+        self.content_stack.addWidget(self.tags_panel)  # 4 - Tags
+        self.content_stack.addWidget(self.organize_panel)  # 5 - Organize
+        self.content_stack.addWidget(self.duplicates_panel)  # 6 - Duplicates
+        self.content_stack.addWidget(self.summary_panel)  # 7 - Summary
+        self.content_stack.addWidget(self.index_panel)  # 8 - Index
+        self.content_stack.addWidget(self.plugin_manager_panel)  # 9 - Plugins
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -190,6 +216,20 @@ class MainWindow(QMainWindow):
         # Favorites panel — navigate to directory
         self.favorites_panel.navigate_to_directory.connect(lambda path: self._open_directory(path))
 
+        # Dashboard panel — quick actions
+        self.dashboard_panel.open_folder.connect(lambda path: self._open_directory(path))
+        self.dashboard_panel.open_file.connect(self._on_open_file)
+        self.dashboard_panel.btn_open_folder.clicked.connect(self._on_open_folder)
+        self.dashboard_panel.btn_scan.clicked.connect(self._on_scan)
+        self.dashboard_panel.btn_index.clicked.connect(self._on_index)
+        self.dashboard_panel.btn_find_duplicates.clicked.connect(
+            lambda: self._switch_to_panel(self._nav_item_indices.get("duplicates", 6))
+        )
+
+        # Initialize dashboard with recent data
+        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
+        self.dashboard_panel.update_recent_files(self.settings.get("recent_files", []))
+
     def resizeEvent(self, event: QResizeEvent):
         """Keep drop overlay geometry in sync with central widget"""
         super().resizeEvent(event)
@@ -202,7 +242,19 @@ class MainWindow(QMainWindow):
         item.setToolTip(tooltip)
         item.setSizeHint(QSize(0, 45))
         self.nav_list.addItem(item)
+        self._nav_item_indices[text] = self.nav_list.count() - 1
         return item
+
+    def _add_nav_separator(self, text: str):
+        """Add a category separator in navigation"""
+        item = QListWidgetItem(text)
+        item.setSizeHint(QSize(0, 30))
+        item.setFlags(Qt.NoItemFlags)
+        font = QFont()
+        font.setPointSize(9)
+        font.setBold(True)
+        item.setFont(font)
+        self.nav_list.addItem(item)
 
     def _setup_menu(self):
         """Setup menu bar"""
@@ -330,18 +382,18 @@ class MainWindow(QMainWindow):
         toolbar.setIconSize(QSize(20, 20))
         self.addToolBar(toolbar)
 
-        self.btn_open = QPushButton(t("browse_scan"))
+        self.btn_open = QPushButton("📂 Open Folder")
         self.btn_open.clicked.connect(self._on_open_folder)
         toolbar.addWidget(self.btn_open)
 
         toolbar.addSeparator()
 
-        self.btn_scan = QPushButton(t("browse_scan"))
+        self.btn_scan = QPushButton("🔄 Scan")
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         toolbar.addWidget(self.btn_scan)
 
-        self.btn_index = QPushButton(t("index_build"))
+        self.btn_index = QPushButton("📇 Index")
         self.btn_index.clicked.connect(self._on_index)
         self.btn_index.setEnabled(False)
         toolbar.addWidget(self.btn_index)
@@ -380,6 +432,27 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda checked, i=index: self._switch_to_panel(i))
             self.addAction(action)
 
+        # Global search shortcut (Ctrl+Shift+F)
+        search_action = QAction("Global Search", self)
+        search_action.setShortcut("Ctrl+Shift+F")
+        search_action.triggered.connect(self._on_global_search)
+        self.addAction(search_action)
+
+        # Theme toggle shortcut (Ctrl+L)
+        theme_action = QAction("Toggle Theme", self)
+        theme_action.setShortcut("Ctrl+L")
+        theme_action.triggered.connect(
+            lambda: self._on_toggle_theme(not self.btn_theme.isChecked())
+        )
+        self.addAction(theme_action)
+
+    def _on_global_search(self):
+        """Switch to search panel and focus search input"""
+        search_index = self._nav_item_indices.get("\U0001f50d Search", 3)
+        self._switch_to_panel(search_index)
+        if hasattr(self.search_panel, "search_input"):
+            self.search_panel.search_input.setFocus()
+
     def _switch_to_panel(self, index: int):
         """Switch to specified panel"""
         self.content_stack.setCurrentIndex(index)
@@ -403,16 +476,22 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_nav_changed(self, index: int):
         """Navigation changed"""
+        # Skip separator items (non-selectable)
+        item = self.nav_list.item(index)
+        if item and not (item.flags() & Qt.ItemIsEnabled):
+            return
+
         self.content_stack.setCurrentIndex(index)
         names = [
+            "Dashboard",
             "Browse",
+            "Favorites",
             "Search",
+            "Tags",
             "Organize",
             "Duplicates",
             "Summary",
             "Index",
-            "Favorites",
-            "Tags",
             "Plugins",
         ]
         if 0 <= index < len(names) and hasattr(self, "status_label"):
@@ -443,7 +522,19 @@ class MainWindow(QMainWindow):
 
         # Update favorites panel with current directory
         self.favorites_panel.set_current_dir(dir_path)
-        self.file_stats_panel.set_current_dir(dir_path)
+
+        # Update dashboard with recent folders
+        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
+
+        # Update dashboard stats from browse panel
+        if hasattr(self.browse_panel, "files"):
+            total = len(self.browse_panel.files)
+            self.dashboard_panel.update_stats(
+                total_files=total,
+                total_size="—",
+                categories=len(getattr(self.browse_panel, "categories", {})),
+                tags=self.tags_panel.tag_manager.get_tag_count(),
+            )
 
     @Slot()
     def _on_open_folder(self):
@@ -456,6 +547,29 @@ class MainWindow(QMainWindow):
         if dir_path:
             self._open_directory(dir_path)
             self.status_label.setText(f"Opened: {dir_path}")
+
+    @Slot()
+    def _on_open_file(self, file_path: str):
+        """Open a file from dashboard"""
+        p = Path(file_path)
+        if not p.exists():
+            self.status_label.setText("File no longer exists: " + p.name)
+            return
+        try:
+            fp = str(p)
+            if sys.platform == "win32":
+                os.startfile(fp)
+            elif sys.platform == "darwin":
+                import subprocess
+
+                subprocess.Popen(["open", fp])
+            else:
+                import subprocess
+
+                subprocess.Popen(["xdg-open", fp])
+            self.status_label.setText("Opened: " + p.name)
+        except Exception:
+            self.status_label.setText("Failed to open: " + p.name)
 
     def _on_file_changed(self, file_path: str):
         """Handle file created/modified — incremental index update"""
@@ -679,5 +793,9 @@ class MainWindow(QMainWindow):
             scanner=new_services.get("scanner"),
             indexer=new_services.get("indexer"),
         )
+
+        # Refresh dashboard with recent data
+        self.dashboard_panel.update_recent_folders(self.settings.get("recent_dirs", []))
+        self.dashboard_panel.update_recent_files(self.settings.get("recent_files", []))
 
     # ===== Placeholder panels =====

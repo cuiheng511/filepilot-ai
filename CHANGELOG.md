@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+### Fixed
+
+### Changed
+
+## [0.6.0] - 2026-05-18
+
+### Added
+- **Dashboard panel** — New landing page with quick stats, recent folders/files, quick actions, and keyboard shortcuts reference
+- **Global search shortcut** — `Ctrl+Shift+F` switches to Search panel and focuses input
+- **Theme toggle shortcut** — `Ctrl+L` toggles dark/light theme
+
+### Changed
+- **Navigation sidebar** — Reorganized into categories: 📂 Browse, 🔍 Search, 🛠 Tools, ⚙️ Settings with visual separators
+- **File Browser toolbar** — Batch operations (Copy/Move/Delete) grouped into "⚡ Actions" dropdown; removed standalone Stats button
+- **Main toolbar** — Fixed duplicate "Scan" labels; buttons now clearly labeled "📂 Open Folder", "🔄 Scan", "📇 Index", "🌙 Theme"
+- **Panel navigation** — Ctrl+1..9 updated to reflect new dashboard-first panel order
+- **Version bump** — `0.5.0` → `0.6.0`
+
+### Fixed
+- **CI hidden imports** — Added `filepilot.ui.dashboard_panel` to `FilePilot.spec`, Linux/macOS PyInstaller flags, and `build_appimage.sh` spec template
+
 ## [0.5.0] - 2026-05-15
 
 ### Added

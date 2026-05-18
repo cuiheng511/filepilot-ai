@@ -189,11 +189,11 @@ jobs:
 
       - name: Download Inno Setup
         run: |
-          $innoUrl = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe"
+          $innoUrl = "https://jrsoftware.org/download.php/innosetup.exe"
           $innoInstaller = "$env:TEMP\innosetup.exe"
           $innoDir = "$env:TEMP\InnoSetup"
-          Write-Host "Downloading latest Inno Setup from $innoUrl ..."
-          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing
+          Write-Host "Downloading latest Inno Setup..."
+          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing -MaximumRedirection 10
           if (-not (Test-Path $innoInstaller)) { throw "Inno Setup download failed" }
           Write-Host "Installing Inno Setup..."
           Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /DIR=$innoDir /NORESTART /SUPPRESSMSGBOXES" -Wait
@@ -292,14 +292,21 @@ jobs:
             --hidden-import filepilot.core.indexer \
             --hidden-import filepilot.core.file_watcher \
             --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
+            --hidden-import filepilot.core.task_scheduler \
+            --hidden-import filepilot.core.tag_manager \
+            --hidden-import filepilot.core.plugin_system \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
             --hidden-import filepilot.extractors.image_extractor \
+            --hidden-import filepilot.extractors.ocr_extractor \
             --hidden-import filepilot.extractors.docx_extractor \
             --hidden-import filepilot.extractors.xlsx_extractor \
             --hidden-import filepilot.extractors.pptx_extractor \
             --hidden-import filepilot.utils.file_utils --hidden-import filepilot.ui.tray \
+            --hidden-import filepilot.ui.tags_panel \
+            --hidden-import filepilot.ui.plugin_manager_panel \
+            --hidden-import filepilot.ui.dashboard_panel \
             --hidden-import filepilot.styles.manager \
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \
@@ -425,14 +432,21 @@ jobs:
             --hidden-import filepilot.core.indexer \
             --hidden-import filepilot.core.file_watcher \
             --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
+            --hidden-import filepilot.core.task_scheduler \
+            --hidden-import filepilot.core.tag_manager \
+            --hidden-import filepilot.core.plugin_system \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
             --hidden-import filepilot.extractors.image_extractor \
+            --hidden-import filepilot.extractors.ocr_extractor \
             --hidden-import filepilot.extractors.docx_extractor \
             --hidden-import filepilot.extractors.xlsx_extractor \
             --hidden-import filepilot.extractors.pptx_extractor \
             --hidden-import filepilot.utils.file_utils --hidden-import filepilot.ui.tray \
+            --hidden-import filepilot.ui.tags_panel \
+            --hidden-import filepilot.ui.plugin_manager_panel \
+            --hidden-import filepilot.ui.dashboard_panel \
             --hidden-import filepilot.styles.manager \
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \

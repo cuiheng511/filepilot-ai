@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Thread
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -18,11 +18,14 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QInputDialog,
     QLabel,
+    QListWidget,
     QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSplitter,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -117,29 +120,15 @@ class FileBrowserPanel(BasePanel):
         self.btn_export.setEnabled(False)
         toolbar_layout.addWidget(self.btn_export)
 
-        self.btn_stats = QPushButton("📊 Stats")
-        self.btn_stats.clicked.connect(self._on_show_stats)
-        self.btn_stats.setEnabled(False)
-        toolbar_layout.addWidget(self.btn_stats)
-
-        # Batch operations
-        self.btn_copy = QPushButton("📋 Copy")
-        self.btn_copy.clicked.connect(self._batch_copy)
-        self.btn_copy.setEnabled(False)
-        self.btn_copy.setToolTip("Copy selected files to another folder")
-        toolbar_layout.addWidget(self.btn_copy)
-
-        self.btn_move = QPushButton("✂ Move")
-        self.btn_move.clicked.connect(self._batch_move)
-        self.btn_move.setEnabled(False)
-        self.btn_move.setToolTip("Move selected files to another folder")
-        toolbar_layout.addWidget(self.btn_move)
-
-        self.btn_delete = QPushButton("🗑 Delete")
-        self.btn_delete.clicked.connect(self._batch_delete)
-        self.btn_delete.setEnabled(False)
-        self.btn_delete.setToolTip("Delete selected files (to Recycle Bin)")
-        toolbar_layout.addWidget(self.btn_delete)
+        # Batch operations dropdown
+        self.btn_actions = QPushButton("⚡ Actions")
+        self.btn_actions.setEnabled(False)
+        self.actions_menu = QMenu(self)
+        self.actions_menu.addAction("📋 Copy", self._batch_copy)
+        self.actions_menu.addAction("✂ Move", self._batch_move)
+        self.actions_menu.addAction("🗑 Delete", self._batch_delete)
+        self.btn_actions.setMenu(self.actions_menu)
+        toolbar_layout.addWidget(self.btn_actions)
 
         toolbar_layout.addStretch()
 
@@ -202,16 +191,30 @@ class FileBrowserPanel(BasePanel):
         self.file_table.cellDoubleClicked.connect(self._on_file_double_click)
         file_layout.addWidget(self.file_table, 1)
 
-        # Right: file preview
+        # Right: file preview (stacked: text | image | archive)
         preview_widget = QWidget()
         preview_layout = QVBoxLayout(preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.addWidget(QLabel("👁 Preview"))
 
+        self.preview_stack = QStackedWidget()
+
         self.preview_area = QTextEdit()
         self.preview_area.setReadOnly(True)
         self.preview_area.setPlaceholderText("Select a file to preview its content or metadata...")
-        preview_layout.addWidget(self.preview_area, 1)
+        self.preview_stack.addWidget(self.preview_area)  # index 0
+
+        self.preview_image_scroll = QScrollArea()
+        self.preview_image_label = QLabel("Loading...")
+        self.preview_image_label.setAlignment(Qt.AlignCenter)
+        self.preview_image_scroll.setWidget(self.preview_image_label)
+        self.preview_image_scroll.setWidgetResizable(True)
+        self.preview_stack.addWidget(self.preview_image_scroll)  # index 1
+
+        self.preview_archive_list = QListWidget()
+        self.preview_stack.addWidget(self.preview_archive_list)  # index 2
+
+        preview_layout.addWidget(self.preview_stack, 1)
 
         main_splitter.addWidget(dir_widget)
         main_splitter.addWidget(file_widget)
@@ -262,7 +265,7 @@ class FileBrowserPanel(BasePanel):
         self._cancelling = False
         self.btn_refresh.setEnabled(False)
         self.btn_export.setEnabled(False)
-        self.btn_stats.setEnabled(False)
+        self.btn_actions.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.btn_cancel.setVisible(True)
@@ -386,7 +389,7 @@ class FileBrowserPanel(BasePanel):
 
         self.btn_refresh.setEnabled(True)
         self.btn_export.setEnabled(True)
-        self.btn_stats.setEnabled(True)
+        self.btn_actions.setEnabled(True)
 
         total_size = sum(f.size_bytes for f in files)
         size_str = get_file_size_str(total_size)
@@ -432,9 +435,7 @@ class FileBrowserPanel(BasePanel):
         for item in selected:
             selected_rows.add(item.row())
         has_selection = len(selected_rows) > 0
-        self.btn_copy.setEnabled(has_selection)
-        self.btn_move.setEnabled(has_selection)
-        self.btn_delete.setEnabled(has_selection)
+        self.btn_actions.setEnabled(has_selection)
 
         if not selected:
             return
@@ -457,33 +458,268 @@ class FileBrowserPanel(BasePanel):
     def _preview_file(self, path: Path):
         """Preview file content or metadata"""
         cat = get_category_name(path.suffix.lower())
-        stats_html = (
-            f"<p>Size: {path.stat().st_size} bytes</p><p>Modified: {path.stat().st_mtime:.0f}</p>"
-        )
+        ext = path.suffix.lower()
+        size_str = get_file_size_str(path.stat().st_size)
+        modified_str = path.stat().st_mtime
 
+        # Archive preview
+        if self._try_preview_archive(path):
+            return
+
+        # Image preview
         if cat == "Image":
-            self.preview_area.setHtml(
-                f"<p><b>🖼️ Image file:</b> {path.name}</p>"
-                f"<p><i>File preview is not supported in text mode. "
-                f"Open the file in an external viewer.</i></p>{stats_html}",
-            )
-        elif cat == "PDF":
+            self.preview_stack.setCurrentIndex(1)
+            pixmap = QPixmap(str(path))
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    600,
+                    500,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+                self.preview_image_label.setPixmap(scaled)
+                details = (
+                    f"<p style='text-align:center;color:#888;'>"
+                    f"{path.name}  |  {pixmap.width()}×{pixmap.height()}px  |  {size_str}"
+                    f"</p>"
+                )
+                self.preview_image_label.setToolTip(details)
+            else:
+                self.preview_stack.setCurrentIndex(0)
+                self.preview_area.setHtml(
+                    f"<p><b>🖼️ {path.name}</b></p>"
+                    f"<p>Size: {size_str} | Modified: {modified_str:.0f}</p>"
+                    f"<p><i>Cannot load image preview.</i></p>"
+                )
+            return
+
+        # Markdown rendered preview
+        if ext in (".md", ".markdown", ".mdx", ".rst"):
+            self.preview_stack.setCurrentIndex(0)
+            try:
+                import markdown as md_lib
+
+                raw = path.read_text(encoding="utf-8", errors="replace")
+                html = md_lib.markdown(
+                    raw[:10000],
+                    extensions=["extra", "codehilite", "tables", "fenced_code"],
+                )
+                styled = f"""
+                <style>
+                  body {{ font-family: -apple-system, 'Segoe UI', sans-serif; padding: 12px; }}
+                  pre {{ background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 6px; overflow-x: auto; }}
+                  code {{ background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }}
+                  img {{ max-width: 100%; }}
+                  table {{ border-collapse: collapse; width: 100%; }}
+                  th, td {{ border: 1px solid #444; padding: 6px 10px; text-align: left; }}
+                </style>
+                {html}
+                """
+                self.preview_area.setHtml(styled)
+            except Exception:
+                self.preview_area.setPlainText(
+                    path.read_text(encoding="utf-8", errors="replace")[:5000]
+                )
+            return
+
+        # Code / Text with line numbers
+        if cat in ("Code", "Text") or ext in (
+            ".txt",
+            ".log",
+            ".cfg",
+            ".ini",
+            ".conf",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".json",
+            ".xml",
+            ".csv",
+        ):
+            self.preview_stack.setCurrentIndex(0)
+            try:
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+                max_lines = 200
+                shown = lines[:max_lines]
+                num_width = len(str(max_lines))
+                html_lines = []
+                for i, line in enumerate(shown, 1):
+                    escaped = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    html_lines.append(
+                        f"<tr><td style='color:#666;padding:0 8px 0 0;text-align:right;"
+                        f"user-select:none;width:{num_width}ch;'>{i:>{num_width}}</td>"
+                        f"<td style='white-space:pre;padding:0;'>{escaped}</td></tr>"
+                    )
+                table = "".join(html_lines)
+                styled = f"""
+                <style>
+                  body {{ margin:0; padding:8px; font-family:'Cascadia Code','Fira Code','Consolas',monospace; font-size:13px; }}
+                  table {{ border-spacing:0; width:100%; }}
+                  tr:hover td {{ background:#2a2a2a; }}
+                </style>
+                <table>{table}</table>
+                """
+                if len(lines) > max_lines:
+                    styled += (
+                        f"<p style='color:#888;'><i>… {len(lines) - max_lines} more lines</i></p>"
+                    )
+                self.preview_area.setHtml(styled)
+            except Exception:
+                self.preview_area.setPlainText(
+                    path.read_text(encoding="utf-8", errors="replace")[:5000]
+                )
+            return
+
+        # PDF / Office — metadata only
+        self.preview_stack.setCurrentIndex(0)
+        stats_html = f"<p>Size: {size_str}</p><p>Modified: {path.stat().st_mtime:.0f}</p>"
+        if cat == "PDF":
             self.preview_area.setHtml(
                 f"<p><b>📕 PDF file:</b> {path.name}</p>"
                 f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}",
             )
-        elif cat in ("Markdown", "Code", "Text"):
-            try:
-                content = path.read_text(encoding="utf-8", errors="replace")
-                self.preview_area.setPlainText(content[:5000])
-            except Exception:
-                self.preview_area.setPlainText("[Error reading file]")
+        elif cat == "Office":
+            self.preview_area.setHtml(
+                f"<p><b>📄 Office file:</b> {path.name}</p>"
+                f"<p><i>Use the 'AI Summary' panel to extract content.</i></p>{stats_html}",
+            )
         else:
-            # Binary/media/office files — stats only
             self.preview_area.setHtml(
                 f"<p><b>📄 {path.name}</b></p>{stats_html}"
                 f"<p><i>Preview not available for this file type.</i></p>",
             )
+
+    # ── Archive Preview ───────────────────────────────────────────────────
+
+    def _try_preview_archive(self, path: Path) -> bool:
+        """Show archive contents in preview. Returns True if handled."""
+        ext = path.suffix.lower()
+        entries: list[str] = []
+
+        if ext == ".zip":
+            import zipfile
+
+            try:
+                with zipfile.ZipFile(path, "r") as zf:
+                    for info in zf.infolist():
+                        size_str = get_file_size_str(info.file_size)
+                        entries.append(f"📄 {info.filename}  ({size_str})")
+            except Exception:
+                return False
+        elif ext in (".tar", ".tgz", ".tar.gz", ".tar.bz2", ".tar.xz", ".txz"):
+            import tarfile
+
+            try:
+                mode = {
+                    "tgz": "r:gz",
+                    ".tar.gz": "r:gz",
+                    ".tar.bz2": "r:bz2",
+                    ".tar.xz": "r:xz",
+                    ".txz": "r:xz",
+                }.get(ext, "r:")
+                with tarfile.open(path, mode) as tf:  # type: ignore[call-overload]
+                    for info in tf.getmembers():
+                        size_str = get_file_size_str(info.size)
+                        entries.append(f"📄 {info.name}  ({size_str})")
+            except Exception:
+                return False
+        else:
+            return False
+
+        self.preview_stack.setCurrentIndex(2)
+        self.preview_archive_list.clear()
+        self.preview_archive_list.addItem(f"📦 {path.name}  ({len(entries)} files)")
+        self.preview_archive_list.addItem("")
+        for e in entries:
+            self.preview_archive_list.addItem(e)
+        return True
+
+    # ── File Comparison ───────────────────────────────────────────────────
+
+    @Slot()
+    def _compare_files(self):
+        """Open file comparison dialog for two selected files."""
+        paths = self._get_selected_paths()
+        if len(paths) < 2:
+            self.status_message.emit("Select at least 2 files to compare")
+            return
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHBoxLayout,
+            QPushButton,
+            QSplitter,
+            QTextEdit,
+            QVBoxLayout,
+        )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"📊 Compare: {paths[0].name} vs {paths[1].name}")
+        dialog.setMinimumSize(800, 500)
+
+        layout = QVBoxLayout(dialog)
+        splitter = QSplitter(Qt.Horizontal)
+
+        left = QTextEdit()
+        left.setReadOnly(True)
+        right = QTextEdit()
+        right.setReadOnly(True)
+
+        for p, widget in [(paths[0], left), (paths[1], right)]:
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+                widget.setPlainText(text)
+            except Exception:
+                widget.setPlainText(f"[Cannot read {p.name}]")
+
+        splitter.addWidget(left)
+        splitter.addWidget(right)
+
+        import difflib
+
+        try:
+            lines_a = paths[0].read_text(encoding="utf-8", errors="replace").splitlines()
+            lines_b = paths[1].read_text(encoding="utf-8", errors="replace").splitlines()
+        except Exception:
+            lines_a, lines_b = [], []
+
+        diff = list(
+            difflib.unified_diff(
+                lines_a, lines_b, fromfile=paths[0].name, tofile=paths[1].name, lineterm=""
+            )
+        )
+        difflines = [line for line in diff if line.startswith("+") or line.startswith("-")]
+        stats = (
+            f"  Added: {sum(1 for line in difflines if line.startswith('+'))}  "
+            f"Removed: {sum(1 for line in difflines if line.startswith('-'))}  "
+            f"Total diff lines: {len(difflines)}"
+        )
+
+        btn_layout = QHBoxLayout()
+        stats_label = QLabel(stats)
+        btn_layout.addWidget(stats_label)
+        btn_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        btn_layout.addWidget(close_btn)
+
+        layout.addWidget(splitter)
+        layout.addLayout(btn_layout)
+        dialog.exec()
+
+    # ── Tag Automation ────────────────────────────────────────────────────
+
+    @Slot()
+    def _apply_auto_tags(self):
+        """Apply auto-tag rules to selected files."""
+        from filepilot.core.tag_rules import apply_rules_to_files
+
+        paths = self._get_selected_paths()
+        if not paths:
+            self.status_message.emit("No files selected")
+            return
+        count = apply_rules_to_files(paths)
+        self._refresh_tag_column()
+        self.status_message.emit(f"Applied auto-tags to {count} file{'s' if count != 1 else ''}")
 
     @Slot()
     def _on_file_context_menu(self, pos):
@@ -499,19 +735,25 @@ class FileBrowserPanel(BasePanel):
             return
 
         menu = QMenu(self)
-        add_action = menu.addAction("\U0001f3f7\ufe0f Add Tag...")
-        remove_action = menu.addAction("\U0001f5d1\ufe0f Remove Tag...")
-        color_action = menu.addAction("\U0001f3a8 Change Color...")
-        clear_action = menu.addAction("\u274c Remove All Tags")
+        menu.addAction("\U0001f3f7\ufe0f Add Tag...")
+        menu.addAction("\U0001f5d1\ufe0f Remove Tag...")
+        menu.addAction("\U0001f3a8 Change Color...")
+        menu.addAction("\u274c Remove All Tags")
+        menu.addSeparator()
+        menu.addAction("\U0001f3af Apply Auto-Tags")
+        menu.addAction("\U0001f4ca Compare Files...")
         action = menu.exec(self.file_table.viewport().mapToGlobal(pos))
+        if action is None:
+            return
 
-        if action == add_action:
+        text = action.text()
+        if "Add Tag" in text:
             tag, ok = QInputDialog.getText(self, "Add Tag", "Enter tag name:")
             if ok and tag.strip():
                 self.tag_manager.add_tag(file_path, tag.strip())
                 self._refresh_tag_column()
                 self.status_message.emit(f"Added tag '{tag.strip()}' to {Path(file_path).name}")
-        elif action == remove_action:
+        elif "Remove Tag" in text:
             tags = self.tag_manager.get_tags(file_path)
             if tags:
                 tag, ok = QInputDialog.getItem(self, "Remove Tag", "Select tag:", tags)
@@ -519,7 +761,7 @@ class FileBrowserPanel(BasePanel):
                     self.tag_manager.remove_tag(file_path, tag)
                     self._refresh_tag_column()
                     self.status_message.emit(f"Removed tag '{tag}' from {Path(file_path).name}")
-        elif action == color_action:
+        elif "Change Color" in text:
             from PySide6.QtWidgets import QColorDialog
 
             current = self.tag_manager.get_color(file_path) or "#888"
@@ -528,10 +770,14 @@ class FileBrowserPanel(BasePanel):
                 self.tag_manager.set_color(file_path, qcolor.name())
                 self._refresh_tag_column()
                 self.status_message.emit(f"Changed color for {Path(file_path).name}")
-        elif action == clear_action:
+        elif "Remove All Tags" in text:
             self.tag_manager.remove_file(file_path)
             self._refresh_tag_column()
             self.status_message.emit(f"Removed all tags from {Path(file_path).name}")
+        elif "Auto-Tags" in text:
+            self._apply_auto_tags()
+        elif "Compare" in text:
+            self._compare_files()
 
     def _get_selected_paths(self) -> list[Path]:
         """Get list of Path objects for selected rows."""

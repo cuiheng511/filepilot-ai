@@ -146,6 +146,9 @@ class SearchPanel(BasePanel):
         # Load search history from settings
         self._load_search_history()
 
+        # Load saved searches
+        self._refresh_saved_searches()
+
         # Search options
         options_layout = QHBoxLayout()
         self.fuzzy_cb = QCheckBox("Fuzzy search")
@@ -162,6 +165,19 @@ class SearchPanel(BasePanel):
         self.tag_filter.setMinimumWidth(120)
         self._refresh_tag_filter()
         options_layout.addWidget(self.tag_filter)
+
+        options_layout.addWidget(QLabel("Saved:"))
+        self.saved_combo = QComboBox()
+        self.saved_combo.setMinimumWidth(140)
+        self.saved_combo.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.saved_combo.customContextMenuRequested.connect(self._on_saved_context_menu)
+        self.saved_combo.activated.connect(self._on_load_saved_search)
+        options_layout.addWidget(self.saved_combo)
+
+        self.btn_save_search = QPushButton("💾 Save")
+        self.btn_save_search.clicked.connect(self._on_save_search)
+        self.btn_save_search.setEnabled(False)
+        options_layout.addWidget(self.btn_save_search)
 
         options_layout.addStretch()
 
@@ -278,6 +294,119 @@ class SearchPanel(BasePanel):
         self.search_input.clear()
         self.status_message.emit("Search history cleared.")
 
+    # ── Saved Searches ──────────────────────────────────────────────────────
+
+    def _refresh_saved_searches(self):
+        from filepilot.core import config
+
+        saved = config.load().get("saved_searches", [])
+        current = self.saved_combo.currentText()
+        self.saved_combo.blockSignals(True)
+        self.saved_combo.clear()
+        self.saved_combo.addItem("(saved searches)")
+        for s in saved:
+            self.saved_combo.addItem(s.get("name", "?"))
+        self.saved_combo.blockSignals(False)
+        idx = self.saved_combo.findText(current)
+        if idx >= 0:
+            self.saved_combo.setCurrentIndex(idx)
+
+    @Slot()
+    def _on_save_search(self):
+        from PySide6.QtWidgets import QInputDialog
+
+        query = self.search_input.currentText().strip()
+        if not query:
+            return
+        name, ok = QInputDialog.getText(self, "Save Search", "Search name:", text=query)
+        if not ok or not name.strip():
+            return
+        from filepilot.core import config
+
+        settings = config.load()
+        saved: list = settings.get("saved_searches", [])
+        entry = {
+            "name": name.strip(),
+            "query": query,
+            "fuzzy": self.fuzzy_cb.isChecked(),
+            "content_search": self.content_cb.isChecked(),
+            "tag_filter": self.tag_filter.currentText()
+            if self.tag_filter.currentText() != "All"
+            else "",
+        }
+        for s in saved:
+            if s["name"] == entry["name"]:
+                s.update(entry)
+                break
+        else:
+            saved.append(entry)
+        settings["saved_searches"] = saved
+        config.save(settings)
+        self._refresh_saved_searches()
+        self.status_message.emit(f"Saved search: {name.strip()}")
+
+    @Slot()
+    def _on_load_saved_search(self, index: int):
+        if index <= 0:
+            return
+        from filepilot.core import config
+
+        saved = config.load().get("saved_searches", [])
+        if index - 1 >= len(saved):
+            return
+        entry = saved[index - 1]
+        self.search_input.setEditText(entry.get("query", ""))
+        self.fuzzy_cb.setChecked(entry.get("fuzzy", True))
+        self.content_cb.setChecked(entry.get("content_search", True))
+        tag = entry.get("tag_filter", "")
+        if tag:
+            idx = self.tag_filter.findText(tag)
+            if idx >= 0:
+                self.tag_filter.setCurrentIndex(idx)
+            else:
+                self.tag_filter.setCurrentIndex(0)
+        else:
+            self.tag_filter.setCurrentIndex(0)
+        self._on_search()
+
+    @Slot()
+    def _on_saved_context_menu(self, pos):
+        index = self.saved_combo.currentIndex()
+        if index <= 0:
+            return
+        from filepilot.core import config
+
+        saved = config.load().get("saved_searches", [])
+        if index - 1 >= len(saved):
+            return
+        entry = saved[index - 1]
+
+        from PySide6.QtWidgets import QInputDialog, QMenu
+
+        menu = QMenu(self)
+        rename_action = menu.addAction("✏ Rename")
+        delete_action = menu.addAction("🗑 Delete")
+        action = menu.exec(self.saved_combo.viewport().mapToGlobal(pos))
+        if action is None:
+            return
+
+        if action == rename_action:
+            new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=entry["name"])
+            if ok and new_name.strip():
+                entry["name"] = new_name.strip()
+                settings = config.load()
+                settings["saved_searches"] = saved
+                config.save(settings)
+                self._refresh_saved_searches()
+                self.status_message.emit(f"Renamed to: {new_name.strip()}")
+        elif action == delete_action:
+            saved.pop(index - 1)
+            settings = config.load()
+            settings["saved_searches"] = saved
+            config.save(settings)
+            self._refresh_saved_searches()
+            self.status_message.emit(f"Deleted: {entry['name']}")
+
     @Slot()
     def _on_search(self):
         """Execute search"""
@@ -344,6 +473,7 @@ class SearchPanel(BasePanel):
         """Display search results"""
         self.result_list.clear()
         self.search_btn.setEnabled(True)
+        self.btn_save_search.setEnabled(bool(results))
 
         selected_tag = self.tag_filter.currentText().strip()
         if selected_tag and selected_tag != "All":

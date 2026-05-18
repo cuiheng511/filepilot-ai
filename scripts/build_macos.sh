@@ -120,6 +120,9 @@ if ! $SKIP_PYINSTALLER; then
     --hidden-import "filepilot.core.file_watcher" \
     --hidden-import "filepilot.core.task_queue" \
     --hidden-import "filepilot.core.config" \
+    --hidden-import "filepilot.core.task_scheduler" \
+    --hidden-import "filepilot.core.tag_manager" \
+    --hidden-import "filepilot.core.plugin_system" \
     --hidden-import "filepilot.extractors.pdf_extractor" \
     --hidden-import "filepilot.extractors.markdown_extractor" \
     --hidden-import "filepilot.extractors.code_extractor" \
@@ -127,8 +130,12 @@ if ! $SKIP_PYINSTALLER; then
     --hidden-import "filepilot.extractors.docx_extractor" \
     --hidden-import "filepilot.extractors.xlsx_extractor" \
     --hidden-import "filepilot.extractors.pptx_extractor" \
+    --hidden-import "filepilot.extractors.ocr_extractor" \
     --hidden-import "filepilot.utils.file_utils" \
     --hidden-import "filepilot.ui.tray" \
+    --hidden-import "filepilot.ui.tags_panel" \
+    --hidden-import "filepilot.ui.plugin_manager_panel" \
+    --hidden-import "filepilot.ui.dashboard_panel" \
     --hidden-import "filepilot.styles.manager" \
     --hidden-import "whoosh" \
     --hidden-import "whoosh.fields" \

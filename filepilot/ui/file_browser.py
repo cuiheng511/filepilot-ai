@@ -170,7 +170,18 @@ class FileBrowserPanel(BasePanel):
         filter_layout.setSpacing(8)
         self.filter_type = QComboBox()
         self.filter_type.addItems(
-            ["All Types", "PDF", "Markdown", "Code", "Image", "Video", "Audio", "Office", "Text", "Other"]
+            [
+                "All Types",
+                "PDF",
+                "Markdown",
+                "Code",
+                "Image",
+                "Video",
+                "Audio",
+                "Office",
+                "Text",
+                "Other",
+            ]
         )
         self.filter_type.currentIndexChanged.connect(self._apply_filter)
         filter_layout.addWidget(QLabel("Type:"))

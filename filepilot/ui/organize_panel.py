@@ -760,7 +760,9 @@ class OrganizePanel(BasePanel):
                         )
                         error_count += 1
 
-                self.progress_updated.emit(int((i + 1) / len(self.files) * 100) if self.files else 0)
+                self.progress_updated.emit(
+                    int((i + 1) / len(self.files) * 100) if self.files else 0
+                )
 
             self._regex_undo = undo_ops
             self.regex_execute_ready.emit(operations, success_count, error_count)

@@ -438,7 +438,9 @@ class SummaryPanel(BasePanel):
 
         w = Worker(worker)
         w.signals.finished.connect(lambda _: None)
-        w.signals.error.connect(lambda msg: (self.status_message.emit(f"Summary error: {msg}"), self._on_summary_done()))
+        w.signals.error.connect(
+            lambda msg: (self.status_message.emit(f"Summary error: {msg}"), self._on_summary_done())
+        )
         QThreadPool.globalInstance().start(w)
 
     @Slot()

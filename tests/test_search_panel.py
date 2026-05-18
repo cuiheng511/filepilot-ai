@@ -146,9 +146,19 @@ class TestDisplayResults:
         assert "…" in html
 
     def test_display_results_updates_stats_label(self):
-        results = [{"path": "/tmp/a.py", "filename": "a.py", "extension": ".py",
-                     "category": "Code", "size": 1, "size_str": "1 B",
-                     "modified": "", "score": 1.0, "highlights": ""}]
+        results = [
+            {
+                "path": "/tmp/a.py",
+                "filename": "a.py",
+                "extension": ".py",
+                "category": "Code",
+                "size": 1,
+                "size_str": "1 B",
+                "modified": "",
+                "score": 1.0,
+                "highlights": "",
+            }
+        ]
         self.panel._display_results(results, "my query")
         assert "1 results" in self.panel.stats_label.text()
         assert "my query" in self.panel.stats_label.text()
@@ -172,8 +182,9 @@ class TestDisplayResults:
         self.panel._display_results(results, "q")
         from filepilot.ui.search_panel import QFileDialog
 
-        with patch.object(QFileDialog, "getSaveFileName",
-                          return_value=(str(export_path), "JSON (*.json)")):
+        with patch.object(
+            QFileDialog, "getSaveFileName", return_value=(str(export_path), "JSON (*.json)")
+        ):
             self.panel._on_export()
         data = eval(export_path.read_text(encoding="utf-8"))
         assert data[0]["name"] == "report.pdf"

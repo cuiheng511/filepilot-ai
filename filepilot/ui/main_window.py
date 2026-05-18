@@ -7,7 +7,15 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, Slot
-from PySide6.QtGui import QAction, QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QResizeEvent
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QDragEnterEvent,
+    QDragLeaveEvent,
+    QDropEvent,
+    QFont,
+    QResizeEvent,
+)
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -147,18 +155,36 @@ class MainWindow(QMainWindow):
         # Panels (inject service instances from ServiceContainer)
         svc = self.services
 
-        self.dashboard_panel = DashboardPanel()
-        self.browse_panel = FileBrowserPanel(scanner=svc.scanner)
-        self.search_panel = SearchPanel(indexer=svc.indexer, scanner=svc.scanner)
-        self.organize_panel = OrganizePanel(organizer=svc.organizer, scanner=svc.scanner)
-        self.duplicates_panel = DuplicatesPanel(finder=svc.duplicate_finder, scanner=svc.scanner)
+        self.dashboard_panel = DashboardPanel(app_state=self.state, event_bus=self.event_bus)
+        self.browse_panel = FileBrowserPanel(
+            scanner=svc.scanner, app_state=self.state, event_bus=self.event_bus
+        )
+        self.search_panel = SearchPanel(
+            indexer=svc.indexer, scanner=svc.scanner, app_state=self.state, event_bus=self.event_bus
+        )
+        self.organize_panel = OrganizePanel(
+            organizer=svc.organizer,
+            scanner=svc.scanner,
+            app_state=self.state,
+            event_bus=self.event_bus,
+        )
+        self.duplicates_panel = DuplicatesPanel(
+            finder=svc.duplicate_finder,
+            scanner=svc.scanner,
+            app_state=self.state,
+            event_bus=self.event_bus,
+        )
         self.summary_panel = SummaryPanel(
             summarizer=svc.summarizer,
             local_ai=svc.local_ai,
             cloud_ai=svc.cloud_ai,
+            app_state=self.state,
+            event_bus=self.event_bus,
         )
-        self.index_panel = IndexPanel(indexer=svc.indexer, scanner=svc.scanner)
-        self.favorites_panel = FavoritesPanel()
+        self.index_panel = IndexPanel(
+            indexer=svc.indexer, scanner=svc.scanner, app_state=self.state, event_bus=self.event_bus
+        )
+        self.favorites_panel = FavoritesPanel(app_state=self.state, event_bus=self.event_bus)
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
 
@@ -241,6 +267,12 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, "drop_overlay"):
             self.drop_overlay.setGeometry(self.centralWidget().rect())
+
+    def closeEvent(self, event: QCloseEvent):
+        """Cancel background operations on close."""
+        if hasattr(self, "browse_panel"):
+            self.browse_panel._cancelled = True
+        event.accept()
 
     def _connect_event_bus(self):
         """Wire event bus signals to handlers."""
@@ -389,8 +421,8 @@ class MainWindow(QMainWindow):
 
                 subprocess.Popen(["xdg-open", fp])
             self.status_label.setText("Opened: " + p.name)
-        except Exception:
-            self.status_label.setText("Failed to open: " + p.name)
+        except Exception as e:
+            self.status_label.setText(f"Failed to open: {e}")
 
     @Slot()
     def _on_file_opened(self, file_path: str):
@@ -598,8 +630,8 @@ class MainWindow(QMainWindow):
 
                 subprocess.Popen(["xdg-open", fp])
             self.status_label.setText("Opened: " + p.name)
-        except Exception:
-            self.status_label.setText("Failed to open: " + p.name)
+        except Exception as e:
+            self.status_label.setText(f"Failed to open: {e}")
 
     def _on_file_changed(self, file_path: str):
         """Handle file created/modified — incremental index update"""
@@ -731,7 +763,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_settings(self):
         """Open settings dialog"""
-        dialog = SettingsDialog(self.state.raw, self)
+        dialog = SettingsDialog(app_state=self.state, event_bus=self.event_bus, parent=self)
         if dialog.exec():
             self.state.update(dialog.get_settings())
             self.state.save()

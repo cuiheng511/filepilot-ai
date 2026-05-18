@@ -1,9 +1,8 @@
 """Index Management Panel — Build, update, and view index"""
 
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -18,8 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileScanner
 from filepilot.core.indexer import FileIndexer
+from filepilot.core.worker import Worker
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -30,12 +32,20 @@ class IndexPanel(BasePanel):
     indexing_error = Signal(str)
 
     def __init__(
-        self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None
+        self,
+        indexer: FileIndexer | None = None,
+        scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
     ):
         super().__init__(parent)
         self.source_dir: Path | None = None
         self.indexer = indexer or FileIndexer()
         self.scanner = scanner or FileScanner()
+        self.state = app_state
+        self.event_bus = event_bus
+        self._pool = QThreadPool.globalInstance()
         self._indexing = False
 
         self._setup_ui()
@@ -43,24 +53,39 @@ class IndexPanel(BasePanel):
         self._refresh_stats()
 
     def update_services(
-        self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None
+        self,
+        scanner: FileScanner | None = None,
+        indexer: FileIndexer | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
     ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
         if indexer is not None:
             self.indexer = indexer
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── Title ──
+        self._create_title_section(layout)
+        self._create_stat_cards(layout)
+        self._create_directory_selection(layout)
+        self._create_action_buttons(layout)
+        self._create_progress_section(layout)
+        self._create_splitter_with_table(layout)
+        self._create_status_label(layout)
+
+    def _create_title_section(self, layout):
         title = QLabel("\U0001f5c2\ufe0f Index Management")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-
         desc = QLabel(
             "Manage Whoosh full-text search index. Build the index to enable fast "
             "full-text search and natural language retrieval.\n"
@@ -70,19 +95,18 @@ class IndexPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── Stat Cards ──
+    def _create_stat_cards(self, layout):
         stats_layout = QHBoxLayout()
         self.stat_indexed = self._make_stat_card("\U0001f4c4 Indexed Files", "\u2014")
         self.stat_size = self._make_stat_card("\U0001f4be Index Size", "\u2014")
         self.stat_location = self._make_stat_card("\U0001f4c1 Index Location", "\u2014")
-
         stats_layout.addWidget(self.stat_indexed)
         stats_layout.addWidget(self.stat_size)
         stats_layout.addWidget(self.stat_location)
         stats_layout.addStretch()
         layout.addLayout(stats_layout)
 
-        # ── Directory Selection ──
+    def _create_directory_selection(self, layout):
         dir_layout = QHBoxLayout()
         dir_layout.addWidget(QLabel("\U0001f4c2 Folder to Index:"))
         self.dir_label = QLabel("Not selected")
@@ -94,26 +118,21 @@ class IndexPanel(BasePanel):
         dir_layout.addWidget(self.btn_browse)
         layout.addLayout(dir_layout)
 
-        # ── Action Buttons ──
+    def _create_action_buttons(self, layout):
         action_layout = QHBoxLayout()
-
         self.btn_build = QPushButton("\U0001f528 Build Index")
         self.btn_build.setObjectName("btnPrimary")
         self.btn_build.clicked.connect(self._on_build)
         self.btn_build.setEnabled(False)
-
         self.btn_update = QPushButton("\U0001f504 Incremental Update")
         self.btn_update.clicked.connect(self._on_update)
         self.btn_update.setEnabled(False)
-
         self.btn_clear = QPushButton("\U0001f5d1\ufe0f Clear Index")
         self.btn_clear.setObjectName("btnDanger")
         self.btn_clear.clicked.connect(self._on_clear)
         self.btn_clear.setEnabled(False)
-
         self.btn_refresh = QPushButton("\U0001f504 Refresh Stats")
         self.btn_refresh.clicked.connect(self._refresh_stats)
-
         action_layout.addWidget(self.btn_build)
         action_layout.addWidget(self.btn_update)
         action_layout.addWidget(self.btn_clear)
@@ -121,29 +140,24 @@ class IndexPanel(BasePanel):
         action_layout.addStretch()
         layout.addLayout(action_layout)
 
-        # Progress bar + progress text + cancel button
+    def _create_progress_section(self, layout):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-
         self.progress_label = QLabel("")
         self.progress_label.setObjectName("progressLabel")
         self.progress_label.setVisible(False)
         progress_layout.addWidget(self.progress_label)
-
         self.btn_cancel = QPushButton("\u2715 Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel_indexing)
         self.btn_cancel.setVisible(False)
         progress_layout.addWidget(self.btn_cancel)
-
         layout.addLayout(progress_layout)
 
-        # ── Splitter: tips above + indexed file table below ──
+    def _create_splitter_with_table(self, layout):
         splitter = QSplitter(Qt.Vertical)
-
-        # Info area
         info_widget = QWidget()
         info_layout = QVBoxLayout(info_widget)
         info_layout.setContentsMargins(0, 0, 0, 0)
@@ -157,8 +171,6 @@ class IndexPanel(BasePanel):
         info_layout.addWidget(info_label)
         info_layout.addStretch()
         splitter.addWidget(info_widget)
-
-        # Indexed file table
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(5)
         self.file_table.setHorizontalHeaderLabels(
@@ -173,12 +185,11 @@ class IndexPanel(BasePanel):
         self.file_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.file_table.customContextMenuRequested.connect(self._on_table_context_menu)
         splitter.addWidget(self.file_table)
-
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
 
-        # ── Bottom status ──
+    def _create_status_label(self, layout):
         self.stats_label = QLabel("Ready \u2014 Select a folder and build index")
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
@@ -306,48 +317,23 @@ class IndexPanel(BasePanel):
         self.progress_bar.setValue(0)
         self.status_message.emit(status_text)
 
-        source = self.source_dir
+        _dir = self.source_dir
 
         def worker():
             try:
-                # Scan files
-                self.progress_text.emit("Scanning files...")
-                files = []
-                for f in self.scanner.scan(
-                    str(source),
-                    progress_callback=lambda i, p: self.progress_updated.emit(i % 100),
-                ):
-                    if self._cancelled:
-                        return
-                    files.append(f)
-
-                if self._cancelled:
-                    return
-
                 if rebuild:
-                    self.indexer.clear_index()
-
-                self.progress_updated.emit(0)
-                self.progress_text.emit(f"Indexing {len(files)} files...")
-
-                # Index files in batches for better performance
-                batch_size = 100
-                for batch_start in range(0, len(files), batch_size):
-                    if self._cancelled:
-                        return
-                    batch = files[batch_start : batch_start + batch_size]
-                    self.indexer.index_files(batch)
-                    pct = int((batch_start + len(batch)) / len(files) * 90) + 10
-                    self.progress_updated.emit(pct)
-                    if batch:
-                        self.progress_text.emit(f"Index: {batch[-1].name}")
+                    self._build_index(_dir)
+                else:
+                    self._update_index()
 
                 if not self._cancelled:
                     self.indexing_finished.emit()
             except Exception as e:
                 self.indexing_error.emit(str(e))
 
-        Thread(target=worker, daemon=True).start()
+        w = Worker(worker)
+        w.signals.finished.connect(lambda _: None)
+        self._pool.start(w)
 
     @Slot()
     def _on_indexing_finished(self):

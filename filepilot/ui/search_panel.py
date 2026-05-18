@@ -2,9 +2,8 @@
 
 import json
 from pathlib import Path
-from threading import Thread
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -18,10 +17,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.core.plugin_system import get_plugin_manager
 from filepilot.core.tag_manager import TagManager
+from filepilot.core.worker import Worker
 from filepilot.extractors import (
     CodeExtractor,
     DocxExtractor,
@@ -82,11 +84,19 @@ class SearchPanel(BasePanel):
     cancel_acknowledged = Signal()
 
     def __init__(
-        self, indexer: FileIndexer | None = None, scanner: FileScanner | None = None, parent=None
+        self,
+        indexer: FileIndexer | None = None,
+        scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
     ):
         super().__init__(parent)
         self.indexer = indexer or FileIndexer()
         self.scanner = scanner or FileScanner()
+        self.state = app_state
+        self.event_bus = event_bus
+        self._pool = QThreadPool.globalInstance()
         self.current_dir: Path | None = None
         self._cancelled = False
         self._cancelling = False
@@ -96,13 +106,21 @@ class SearchPanel(BasePanel):
         self._connect_signals()
 
     def update_services(
-        self, scanner: FileScanner | None = None, indexer: FileIndexer | None = None
+        self,
+        scanner: FileScanner | None = None,
+        indexer: FileIndexer | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
     ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
         if indexer is not None:
             self.indexer = indexer
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
 
     def _setup_ui(self):
         """Build the UI"""
@@ -110,11 +128,17 @@ class SearchPanel(BasePanel):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        # Title
+        self._create_title(layout)
+        self._create_search_bar(layout)
+        self._create_search_options(layout)
+        self._create_progress_bar(layout)
+        self._create_results_list(layout)
+        self._create_status(layout)
+
+    def _create_title(self, layout):
         title = QLabel("🔍 File Search")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-
         desc = QLabel(
             "Natural language search for local files. Supports search by file name, content, type, and date.\n"
             'Example: "PDF files modified last week" or "find documents about machine learning"',
@@ -123,7 +147,7 @@ class SearchPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # Search bar — QComboBox with history dropdown
+    def _create_search_bar(self, layout):
         search_layout = QHBoxLayout()
         self.search_input = QComboBox()
         self.search_input.setObjectName("searchInput")
@@ -134,35 +158,28 @@ class SearchPanel(BasePanel):
         )
         self.search_input.lineEdit().returnPressed.connect(self._on_search)
         self.search_input.activated.connect(self._on_search)
-
         self.search_btn = QPushButton("🔍 Search")
         self.search_btn.setObjectName("btnSearch")
         self.search_btn.clicked.connect(self._on_search)
-
         search_layout.addWidget(self.search_input, 1)
         search_layout.addWidget(self.search_btn)
         layout.addLayout(search_layout)
-
-        # Load search history from settings
         self._load_search_history()
 
-        # Search options
+    def _create_search_options(self, layout):
         options_layout = QHBoxLayout()
         self.fuzzy_cb = QCheckBox("Fuzzy search")
         self.fuzzy_cb.setChecked(True)
         options_layout.addWidget(self.fuzzy_cb)
-
         self.content_cb = QCheckBox("Search content")
         self.content_cb.setChecked(True)
         options_layout.addWidget(self.content_cb)
-
         options_layout.addWidget(QLabel("Tag:"))
         self.tag_filter = QComboBox()
         self.tag_filter.addItem("All")
         self.tag_filter.setMinimumWidth(120)
         self._refresh_tag_filter()
         options_layout.addWidget(self.tag_filter)
-
         options_layout.addWidget(QLabel("Saved:"))
         self.saved_combo = QComboBox()
         self.saved_combo.setMinimumWidth(140)
@@ -170,43 +187,33 @@ class SearchPanel(BasePanel):
         self.saved_combo.customContextMenuRequested.connect(self._on_saved_context_menu)
         self.saved_combo.activated.connect(self._on_load_saved_search)
         options_layout.addWidget(self.saved_combo)
-
-        # Load saved searches after the combo box exists.
         self._refresh_saved_searches()
-
         self.btn_save_search = QPushButton("💾 Save")
         self.btn_save_search.clicked.connect(self._on_save_search)
         self.btn_save_search.setEnabled(False)
         options_layout.addWidget(self.btn_save_search)
-
         options_layout.addStretch()
-
         self.index_btn = QPushButton("🗂️ Build Index")
         self.index_btn.clicked.connect(self._on_index)
         options_layout.addWidget(self.index_btn)
-
         self.export_btn = QPushButton("📤 Export Results")
         self.export_btn.clicked.connect(self._on_export)
         self.export_btn.setEnabled(False)
         options_layout.addWidget(self.export_btn)
-
         self.clear_btn = QPushButton("Clear Results")
         self.clear_btn.clicked.connect(self._clear_results)
         options_layout.addWidget(self.clear_btn)
-
         self.clear_history_btn = QPushButton("🗑 Clear History")
         self.clear_history_btn.setToolTip("Clear search history")
         self.clear_history_btn.clicked.connect(self._clear_search_history)
         options_layout.addWidget(self.clear_history_btn)
-
         layout.addLayout(options_layout)
 
-        # Progress bar + cancel button
+    def _create_progress_bar(self, layout):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-
         self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
@@ -214,12 +221,12 @@ class SearchPanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # Search results
+    def _create_results_list(self, layout):
         self.result_list = QListWidget()
         self.result_list.setAlternatingRowColors(True)
         layout.addWidget(self.result_list, 1)
 
-        # Status
+    def _create_status(self, layout):
         self.stats_label = QLabel("Please open a folder and build the index first")
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
@@ -252,29 +259,33 @@ class SearchPanel(BasePanel):
 
     def _load_search_history(self):
         """Load search history from settings and populate dropdown."""
-        from filepilot.core import config
+        history: list[str] = []
+        if self.state:
+            history = self.state.search_history
+        else:
+            from filepilot.core import config
 
-        settings = config.load()
-        history = list(settings.get("search_history", []))
+            history = list(config.load().get("search_history", []))
         self.search_input.clear()
         for q in history:
             self.search_input.addItem(q)
 
     def _save_search_history(self, query: str):
         """Append query to search history in settings (max 20)."""
-        from filepilot.core import config
+        if self.state:
+            self.state.add_search_history(query, 20)
+            history = self.state.search_history
+        else:
+            from filepilot.core import config
 
-        max_history = 20
-        settings = config.load()
-        history = list(settings.get("search_history", []))
-        # Remove duplicate if exists
-        if query in history:
-            history.remove(query)
-        # Add to front
-        history.insert(0, query)
-        # Trim
-        settings["search_history"] = history[:max_history]
-        config.save(settings)
+            max_history = 20
+            settings = config.load()
+            history = list(settings.get("search_history", []))
+            if query in history:
+                history.remove(query)
+            history.insert(0, query)
+            settings["search_history"] = history[:max_history]
+            config.save(settings)
 
         # Refresh dropdown items without clearing current text
         current_text = self.search_input.currentText()
@@ -286,20 +297,27 @@ class SearchPanel(BasePanel):
     @Slot()
     def _clear_search_history(self):
         """Clear all search history."""
-        from filepilot.core import config
+        if self.state:
+            self.state.set("search_history", [])
+        else:
+            from filepilot.core import config
 
-        settings = config.load()
-        settings["search_history"] = []
-        config.save(settings)
+            settings = config.load()
+            settings["search_history"] = []
+            config.save(settings)
         self.search_input.clear()
         self.status_message.emit("Search history cleared.")
 
     # ── Saved Searches ──────────────────────────────────────────────────────
 
     def _refresh_saved_searches(self):
-        from filepilot.core import config
+        saved: list[dict] = []
+        if self.state:
+            saved = self.state.saved_searches
+        else:
+            from filepilot.core import config
 
-        saved = config.load().get("saved_searches", [])
+            saved = config.load().get("saved_searches", [])
         current = self.saved_combo.currentText()
         self.saved_combo.blockSignals(True)
         self.saved_combo.clear()
@@ -321,10 +339,14 @@ class SearchPanel(BasePanel):
         name, ok = QInputDialog.getText(self, "Save Search", "Search name:", text=query)
         if not ok or not name.strip():
             return
-        from filepilot.core import config
 
-        settings = config.load()
-        saved: list = settings.get("saved_searches", [])
+        saved: list[dict] = []
+        if self.state:
+            saved = self.state.saved_searches
+        else:
+            from filepilot.core import config
+
+            saved = config.load().get("saved_searches", [])
         entry = {
             "name": name.strip(),
             "query": query,
@@ -340,8 +362,15 @@ class SearchPanel(BasePanel):
                 break
         else:
             saved.append(entry)
-        settings["saved_searches"] = saved
-        config.save(settings)
+
+        if self.state:
+            self.state.set_saved_searches(saved)
+        else:
+            from filepilot.core import config
+
+            settings = config.load()
+            settings["saved_searches"] = saved
+            config.save(settings)
         self._refresh_saved_searches()
         self.status_message.emit(f"Saved search: {name.strip()}")
 
@@ -349,9 +378,13 @@ class SearchPanel(BasePanel):
     def _on_load_saved_search(self, index: int):
         if index <= 0:
             return
-        from filepilot.core import config
+        saved: list[dict] = []
+        if self.state:
+            saved = self.state.saved_searches
+        else:
+            from filepilot.core import config
 
-        saved = config.load().get("saved_searches", [])
+            saved = config.load().get("saved_searches", [])
         if index - 1 >= len(saved):
             return
         entry = saved[index - 1]
@@ -374,9 +407,13 @@ class SearchPanel(BasePanel):
         index = self.saved_combo.currentIndex()
         if index <= 0:
             return
-        from filepilot.core import config
+        saved: list[dict] = []
+        if self.state:
+            saved = self.state.saved_searches
+        else:
+            from filepilot.core import config
 
-        saved = config.load().get("saved_searches", [])
+            saved = config.load().get("saved_searches", [])
         if index - 1 >= len(saved):
             return
         entry = saved[index - 1]
@@ -394,16 +431,24 @@ class SearchPanel(BasePanel):
             new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=entry["name"])
             if ok and new_name.strip():
                 entry["name"] = new_name.strip()
-                settings = config.load()
-                settings["saved_searches"] = saved
-                config.save(settings)
+                if self.state:
+                    self.state.set_saved_searches(saved)
+                else:
+                    from filepilot.core import config
+
+                    config.save({"saved_searches": saved})
                 self._refresh_saved_searches()
                 self.status_message.emit(f"Renamed to: {new_name.strip()}")
         elif action == delete_action:
             saved.pop(index - 1)
-            settings = config.load()
-            settings["saved_searches"] = saved
-            config.save(settings)
+            if self.state:
+                self.state.set_saved_searches(saved)
+            else:
+                from filepilot.core import config
+
+                settings = config.load()
+                settings["saved_searches"] = saved
+                config.save(settings)
             self._refresh_saved_searches()
             self.status_message.emit(f"Deleted: {entry['name']}")
 
@@ -453,10 +498,11 @@ class SearchPanel(BasePanel):
                 return
 
             cache_results(query, results)
-            # Signal results to main thread
             self.search_results_ready.emit(results, query)
 
-        Thread(target=search_worker, daemon=True).start()
+        worker = Worker(search_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     def _refresh_tag_filter(self):
         current = self.tag_filter.currentText()
@@ -553,8 +599,8 @@ class SearchPanel(BasePanel):
                 text = plugin_ext.extract_text(file_info.path)
                 if text:
                     return text
-            except Exception:
-                pass
+            except Exception as e:
+                self.status_message.emit(f"⚠️ Plugin extractor error ({file_info.path.name}): {e}")
         # Fallback: try reading as text for small text files
         text_exts = {
             ".txt",
@@ -661,7 +707,9 @@ class SearchPanel(BasePanel):
             if not self._cancelled:
                 self.indexing_finished.emit(indexed, str(dir_path))
 
-        Thread(target=index_worker, daemon=True).start()
+        worker = Worker(index_worker)
+        worker.signals.finished.connect(lambda _: None)
+        self._pool.start(worker)
 
     @Slot()
     def _on_cancel_done(self):
@@ -690,6 +738,9 @@ class SearchPanel(BasePanel):
         self.stats_label.setText(
             f"📊 Index stats: {stats['indexed_files']} files, index size: {stats['index_size']}",
         )
+
+        if self.event_bus:
+            self.event_bus.index_completed.emit(dir_path)
 
     def _clear_results(self):
         """Clear search results"""

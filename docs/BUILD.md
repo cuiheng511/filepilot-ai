@@ -28,7 +28,7 @@ The unified entry point `scripts/build.sh` auto-detects your OS and dispatches t
 
 ### Windows
 
-- **Inno Setup 6** — [Download](https://jrsoftware.org/isdl.php)
+- **Inno Setup 6** — [Download](https://github.com/jrsoftware/issrc/releases) (use GitHub Releases — `jrsoftware.org/isdl.php` returns 404 as of 2026)
   - Ensure `ISCC.exe` is in your PATH, or set `ISCC_DIR` environment variable
 - Optional: **Authenticode certificate** for code signing
 
@@ -204,7 +204,9 @@ If the built application crashes with missing module errors, add hidden imports 
 |----------|---------------------------|
 | Windows | `FilePilot.spec` — `hiddenimports` list in the `Analysis` section |
 | Linux | `scripts/build_appimage.sh` — the inline spec generated in the `cat > FilePilot-linux.spec << 'EOF'` block |
-| macOS | `FilePilot-macos.spec` — `hiddenimports` list in the `Analysis` section |
+| macOS | `scripts/build_macos.sh` — the `--hidden-import` flags in the PyInstaller command |
+
+> **Important**: hidden imports must be kept in sync across **4 files**: `FilePilot.spec`, `scripts/build_appimage.sh` (inline spec), `scripts/build_macos.sh` (CLI flags), and `.github/workflows/ci.yml` (Linux + macOS CLI flags in the `build-linux` and `build-macos` jobs). Missing imports cause runtime crashes after packaging.
 
 Common hidden imports used across platforms:
 

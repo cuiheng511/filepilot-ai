@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_organizer import (
     CategoryRule,
     DateRule,
@@ -47,6 +49,8 @@ class OrganizePanel(BasePanel):
         self,
         organizer: FileOrganizer | None = None,
         scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -55,29 +59,48 @@ class OrganizePanel(BasePanel):
         self.files: list[FileInfo] = []
         self.organizer = organizer or FileOrganizer()
         self.scanner = scanner or FileScanner()
+        self.state = app_state
+        self.event_bus = event_bus
 
         self._setup_ui()
         self._connect_signals()
 
     def update_services(
-        self, scanner: FileScanner | None = None, organizer: FileOrganizer | None = None
+        self,
+        scanner: FileScanner | None = None,
+        organizer: FileOrganizer | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
     ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
         if organizer is not None:
             self.organizer = organizer
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── Title ──
+        self._create_title_section(layout)
+        self._create_folder_selection(layout)
+        self._create_organize_rules(layout)
+        self._create_rename_settings(layout)
+        self._create_regex_rename(layout)
+        self._create_action_buttons(layout)
+        self._create_progress_bar(layout)
+        self._create_results_table(layout)
+        self._create_status_bar(layout)
+
+    def _create_title_section(self, layout):
         title = QLabel("\U0001f4cb File Organizer")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-
         desc = QLabel(
             "Select source and target folders, configure rules, and organize files.\n"
             "Supports auto-classification by type, date, extension, size, and smart renaming.",
@@ -86,12 +109,10 @@ class OrganizePanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── Directory Selection ──
+    def _create_folder_selection(self, layout):
         dir_group = QGroupBox("Folders")
         dir_layout = QVBoxLayout()
         dir_layout.setSpacing(8)
-
-        # Source folder
         src_layout = QHBoxLayout()
         src_layout.addWidget(QLabel("\U0001f4c2 Source Folder:"))
         self.src_path_label = QLabel("Not selected")
@@ -102,8 +123,6 @@ class OrganizePanel(BasePanel):
         src_layout.addWidget(self.src_path_label, 1)
         src_layout.addWidget(self.btn_src)
         dir_layout.addLayout(src_layout)
-
-        # Target folder
         dst_layout = QHBoxLayout()
         dst_layout.addWidget(QLabel("\U0001f3af Target Folder:"))
         self.dst_path_label = QLabel("Not selected (default: source_folder/_organized)")
@@ -114,21 +133,18 @@ class OrganizePanel(BasePanel):
         dst_layout.addWidget(self.dst_path_label, 1)
         dst_layout.addWidget(self.btn_dst)
         dir_layout.addLayout(dst_layout)
-
         dir_group.setLayout(dir_layout)
         layout.addWidget(dir_group)
 
-        # ── Organize Rules ──
+    def _create_organize_rules(self, layout):
         rule_group = QGroupBox("Organize Rules")
         rule_layout = QHBoxLayout()
         rule_layout.setSpacing(16)
-
         self.cb_category = QCheckBox("\U0001f4c2 By File Type")
         self.cb_category.setChecked(True)
         self.cb_date = QCheckBox("\U0001f4c5 By Date (Year/Month)")
         self.cb_extension = QCheckBox("\U0001f4ce By Extension")
         self.cb_size = QCheckBox("\U0001f4cf By File Size")
-
         rule_layout.addWidget(self.cb_category)
         rule_layout.addWidget(self.cb_date)
         rule_layout.addWidget(self.cb_extension)
@@ -137,7 +153,7 @@ class OrganizePanel(BasePanel):
         rule_group.setLayout(rule_layout)
         layout.addWidget(rule_group)
 
-        # ── Rename Settings ──
+    def _create_rename_settings(self, layout):
         rename_layout = QHBoxLayout()
         rename_layout.addWidget(QLabel("\u270f\ufe0f Rename Template:"))
         self.rename_input = QLineEdit()
@@ -145,7 +161,6 @@ class OrganizePanel(BasePanel):
             "Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}"
         )
         rename_layout.addWidget(self.rename_input, 1)
-
         self.template_btn = QPushButton("Template Help")
         self.template_btn.setToolTip(
             "Available variables:\n"
@@ -157,28 +172,24 @@ class OrganizePanel(BasePanel):
         )
         self.template_btn.clicked.connect(self._on_template_help)
         rename_layout.addWidget(self.template_btn)
-
         layout.addLayout(rename_layout)
 
-        # ── Batch Regex Rename ──
+    def _create_regex_rename(self, layout):
         regex_group = QGroupBox("\U0001f504 Batch Regex Rename")
         regex_layout = QVBoxLayout()
         regex_layout.setSpacing(8)
-
         regex_pattern_layout = QHBoxLayout()
         regex_pattern_layout.addWidget(QLabel("Pattern:"))
         self.regex_pattern_input = QLineEdit()
         self.regex_pattern_input.setPlaceholderText(r"e.g., ^(\d{4})-(\d{2})-(\d{2})_")
         regex_pattern_layout.addWidget(self.regex_pattern_input, 1)
         regex_layout.addLayout(regex_pattern_layout)
-
         regex_replacement_layout = QHBoxLayout()
         regex_replacement_layout.addWidget(QLabel("Replace:"))
         self.regex_replacement_input = QLineEdit()
         self.regex_replacement_input.setPlaceholderText(r"e.g., \2/\3/\1_")
         regex_replacement_layout.addWidget(self.regex_replacement_input, 1)
         regex_layout.addLayout(regex_replacement_layout)
-
         regex_options_layout = QHBoxLayout()
         self.regex_case_cb = QCheckBox("Case insensitive")
         self.regex_preview_btn = QPushButton("Preview")
@@ -192,29 +203,24 @@ class OrganizePanel(BasePanel):
         regex_options_layout.addWidget(self.regex_preview_btn)
         regex_options_layout.addWidget(self.regex_execute_btn)
         regex_layout.addLayout(regex_options_layout)
-
         regex_group.setLayout(regex_layout)
         layout.addWidget(regex_group)
 
-        # ── Action Buttons ──
+    def _create_action_buttons(self, layout):
         action_layout = QHBoxLayout()
         self.btn_preview = QPushButton(t("organize_preview"))
         self.btn_preview.clicked.connect(self._on_preview)
         self.btn_preview.setEnabled(False)
-
         self.btn_execute = QPushButton(t("organize_execute"))
         self.btn_execute.setObjectName("btnSuccess")
         self.btn_execute.clicked.connect(self._on_execute)
         self.btn_execute.setEnabled(False)
-
         self.btn_clear = QPushButton("Clear Results")
         self.btn_clear.clicked.connect(self._clear_results)
-
         self.btn_undo = QPushButton(t("organize_undo"))
         self.btn_undo.setObjectName("btnWarning")
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_undo.setEnabled(False)
-
         action_layout.addWidget(self.btn_preview)
         action_layout.addWidget(self.btn_execute)
         action_layout.addWidget(self.btn_undo)
@@ -222,12 +228,11 @@ class OrganizePanel(BasePanel):
         action_layout.addStretch()
         layout.addLayout(action_layout)
 
-        # Progress bar + cancel button
+    def _create_progress_bar(self, layout):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-
         self.btn_cancel = QPushButton("\u2715 Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
@@ -235,7 +240,7 @@ class OrganizePanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # ── Results Table ──
+    def _create_results_table(self, layout):
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(5)
         self.result_table.setHorizontalHeaderLabels(
@@ -249,7 +254,7 @@ class OrganizePanel(BasePanel):
         self.result_table.verticalHeader().setVisible(False)
         layout.addWidget(self.result_table, 1)
 
-        # ── Status Bar ──
+    def _create_status_bar(self, layout):
         self.stats_label = QLabel("Select a source folder to start preview")
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)

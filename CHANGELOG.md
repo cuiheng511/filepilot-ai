@@ -3,10 +3,30 @@
 ## [Unreleased]
 
 ### Added
-
-### Fixed
+- **ServiceContainer/AppState/EventBus** — Centralized service wiring, typed state accessors with QObject signals, and decoupled cross-panel event bus
+- **DirectoryTreeWidget** — Standalone directory tree extracted from file_browser.py (`filepilot/ui/directory_tree.py`)
+- **Worker helper** — `QRunnable`-based Worker for QThreadPool operations (`filepilot/core/worker.py`)
+- **Error handling utility** — `try_safe` decorator for graceful degradation (`filepilot/core/errors.py`)
 
 ### Changed
+- **Panel architecture** — All 10 panels accept optional `app_state`/`event_bus` params; column config, search history, saved searches, and favorites migrated to AppState
+- **File browser performance** — Incremental batch scan loading (every 100 files); text preview loaded asynchronously via background thread
+- **Search/Index threading** — Migrated from bare `Thread` to QThreadPool (`Worker` + `WorkerSignals`)
+- **PreviewPanel extracted** — Standalone preview widget in `filepilot/ui/preview_panel.py` with async text/code/markdown rendering and stale-result guard
+- **`_setup_ui` split** — Organize (186→9 methods), File Browser (132→6), Index (132→7), Summary (127→6), Duplicates (127→7), Search (120→6) panels refactored into named sub-methods
+- **Error reporting** — Silent `except Exception: pass` blocks in search plugin extraction and main_window file opening now surface error messages
+- **Build configs** — All 4 build files updated with 9 missing hidden imports (`service_container`, `app_state`, `event_bus`, `worker`, `errors`, `notification`, `preview_panel`, `directory_tree`, `tag_rules`)
+
+### Fixed
+- **`Q_ARG(list, files)` RuntimeError** — Replaced with `batch_files_ready` signal + `scan_completed` signal; removed `QMetaObject.invokeMethod` (incompatible with PySide6)
+- **Scan worker thread crash on close** — Added `closeEvent` to MainWindow and `try/except RuntimeError` guards in scan_worker
+- **Index panel undefined closure** — `action`/`_dir` → `rebuild`/`_dir` in `_start_indexing`
+- **`_add_nav_separator` items** — Now use `Qt.NoItemFlags` (were missing flags set)
+
+### Added (tests)
+- `test_dashboard_panel.py` — 17 tests covering stats, recent folders/files, signals, EventBus
+- `test_main_window_navigation.py` — 8 new tests: separator skipping, invalid index, keyboard mapping, global search
+- `test_integration.py` — 5 end-to-end tests: startup, navigation, open directory, toolbar state, global search
 
 ## [0.6.0] - 2026-05-18
 

@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.ui.base_panel import BasePanel
 from filepilot.utils.file_utils import CAT_CODE, CAT_MARKDOWN, CAT_OFFICE, CAT_PDF, CAT_TEXT
 
@@ -33,11 +35,21 @@ class SummaryPanel(BasePanel):
     keyword_ready = Signal(str)
     _add_file_requested = Signal(str, str, str)  # name, suffix, path_str
 
-    def __init__(self, summarizer=None, local_ai=None, cloud_ai=None, parent=None):
+    def __init__(
+        self,
+        summarizer=None,
+        local_ai=None,
+        cloud_ai=None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self._summarizer = summarizer
         self._local_ai = local_ai
         self._cloud_ai = cloud_ai
+        self.state = app_state
+        self.event_bus = event_bus
         self._lazy_init_done = False
 
         self.selected_files: list[Path] = []
@@ -47,7 +59,14 @@ class SummaryPanel(BasePanel):
         self._connect_signals()
         self._add_file_requested.connect(self._add_file_item)
 
-    def update_services(self, summarizer=None, local_ai=None, cloud_ai=None):
+    def update_services(
+        self,
+        summarizer=None,
+        local_ai=None,
+        cloud_ai=None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+    ):
         """Update service references without recreating the panel"""
         if summarizer is not None:
             self._summarizer = summarizer
@@ -55,6 +74,10 @@ class SummaryPanel(BasePanel):
             self._local_ai = local_ai
         if cloud_ai is not None:
             self._cloud_ai = cloud_ai
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
         self._lazy_init_done = False
 
     def _ensure_ai_init(self):
@@ -83,11 +106,16 @@ class SummaryPanel(BasePanel):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── Title ──
+        self._create_title_section(layout)
+        self._create_file_selection_area(layout)
+        self._create_progress_bar(layout)
+        self._create_results_splitter(layout)
+        self._create_status_bar(layout)
+
+    def _create_title_section(self, layout):
         title = QLabel("📝 AI Summary Generation")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-
         desc = QLabel(
             "Extract summaries and keywords from PDF, Markdown, and code files. "
             "Supports both local (Ollama) and cloud (OpenAI) AI engines.",
@@ -96,20 +124,15 @@ class SummaryPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── File selection area ──
+    def _create_file_selection_area(self, layout):
         file_sel_layout = QHBoxLayout()
-
-        # Left: file list
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
-
         left_layout.addWidget(QLabel("📂 Selected Files:"))
-
         self.file_list = QListWidget()
         self.file_list.setAlternatingRowColors(True)
         left_layout.addWidget(self.file_list, 1)
-
         btn_layout = QHBoxLayout()
         self.btn_add_files = QPushButton("➕ Add Files")
         self.btn_add_files.clicked.connect(self._on_add_files)
@@ -121,60 +144,47 @@ class SummaryPanel(BasePanel):
         btn_layout.addWidget(self.btn_add_folder)
         btn_layout.addWidget(self.btn_clear_files)
         left_layout.addLayout(btn_layout)
-
-        # Right: AI settings & actions
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
-
         right_layout.addWidget(QLabel("🤖 AI Settings:"))
-
         self.ai_status_label = QLabel("AI status: checking...")
         self.ai_status_label.setObjectName("aiStatusLabel")
         self.ai_status_label.setWordWrap(True)
         right_layout.addWidget(self.ai_status_label)
-
         self.cb_local_first = QCheckBox("Prefer local AI (Ollama)")
         self.cb_local_first.setChecked(True)
         right_layout.addWidget(self.cb_local_first)
-
         self.cb_include_code = QCheckBox("Include code snippets in summary")
         self.cb_include_code.setChecked(True)
         right_layout.addWidget(self.cb_include_code)
-
         self.cb_ocr_images = QCheckBox("Extract text from images (OCR)")
         self.cb_ocr_images.setChecked(True)
         self.cb_ocr_images.setToolTip("Use Tesseract OCR to extract text from image files")
         right_layout.addWidget(self.cb_ocr_images)
-
         right_layout.addStretch()
-
         self.btn_generate = QPushButton("🚀 Generate Summary")
         self.btn_generate.setObjectName("btnSuccess")
         self.btn_generate.clicked.connect(self._on_generate)
         self.btn_generate.setEnabled(False)
         right_layout.addWidget(self.btn_generate)
-
         self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         right_layout.addWidget(self.btn_cancel)
-
         file_sel_layout.addWidget(left_panel, 3)
         file_sel_layout.addWidget(right_panel, 2)
         layout.addLayout(file_sel_layout, 1)
 
-        # ── Progress bar ──
+    def _create_progress_bar(self, layout):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
         layout.addLayout(progress_layout)
 
-        # ── Results splitter ──
+    def _create_results_splitter(self, layout):
         result_splitter = QSplitter(Qt.Vertical)
-
-        # Summary area
         summary_widget = QWidget()
         summary_layout = QVBoxLayout(summary_widget)
         summary_layout.setContentsMargins(0, 8, 0, 0)
@@ -184,8 +194,6 @@ class SummaryPanel(BasePanel):
         self.summary_output.setPlaceholderText('Click "Generate Summary" to start...')
         summary_layout.addWidget(self.summary_output, 1)
         result_splitter.addWidget(summary_widget)
-
-        # Keywords area
         keyword_widget = QWidget()
         keyword_layout = QVBoxLayout(keyword_widget)
         keyword_layout.setContentsMargins(0, 8, 0, 0)
@@ -195,12 +203,11 @@ class SummaryPanel(BasePanel):
         self.keyword_output.setPlaceholderText("Keywords will appear here...")
         keyword_layout.addWidget(self.keyword_output, 1)
         result_splitter.addWidget(keyword_widget)
-
         result_splitter.setStretchFactor(0, 3)
         result_splitter.setStretchFactor(1, 1)
         layout.addWidget(result_splitter, 2)
 
-        # ── Status bar ──
+    def _create_status_bar(self, layout):
         self.stats_label = QLabel('Add files and click "Generate Summary"')
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)

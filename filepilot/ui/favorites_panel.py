@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -23,8 +25,12 @@ class FavoritesPanel(BasePanel):
 
     navigate_to_directory = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(
+        self, app_state: AppState | None = None, event_bus: EventBus | None = None, parent=None
+    ):
         super().__init__(parent)
+        self.state = app_state
+        self.event_bus = event_bus
         self.favorites: list[dict] = []
         self._current_dir: str | None = None
         self._load_favorites()
@@ -103,17 +109,23 @@ class FavoritesPanel(BasePanel):
     # ── Data persistence ─────────────────────────────────────────
 
     def _load_favorites(self) -> None:
-        from filepilot.core import config
+        if self.state:
+            self.favorites = list(self.state.get("favorite_dirs", []))
+        else:
+            from filepilot.core import config
 
-        settings = config.load()
-        self.favorites = list(settings.get("favorite_dirs", []))
+            self.favorites = list(config.load().get("favorite_dirs", []))
 
     def _save_favorites(self) -> None:
-        from filepilot.core import config
+        if self.state:
+            self.state.set("favorite_dirs", self.favorites)
+            self.state.save()
+        else:
+            from filepilot.core import config
 
-        settings = config.load()
-        settings["favorite_dirs"] = self.favorites
-        config.save(settings)
+            settings = config.load()
+            settings["favorite_dirs"] = self.favorites
+            config.save(settings)
 
     # ── UI helpers ───────────────────────────────────────────────
 
@@ -200,6 +212,8 @@ class FavoritesPanel(BasePanel):
             return
 
         self.navigate_to_directory.emit(path)
+        if self.event_bus:
+            self.event_bus.open_folder_requested.emit(path)
 
     @Slot()
     def _on_selection_changed(self) -> None:

@@ -20,7 +20,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
 from filepilot.core.duplicate_finder import DuplicateFinder
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.ui.base_panel import BasePanel
 
@@ -29,7 +31,12 @@ class DuplicatesPanel(BasePanel):
     """Duplicate file finder panel"""
 
     def __init__(
-        self, finder: DuplicateFinder | None = None, scanner: FileScanner | None = None, parent=None
+        self,
+        finder: DuplicateFinder | None = None,
+        scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
     ):
         super().__init__(parent)
         self.source_dir: Path | None = None
@@ -37,29 +44,46 @@ class DuplicatesPanel(BasePanel):
         self.duplicate_groups: list[list[FileInfo]] = []
         self.finder = finder or DuplicateFinder()
         self.scanner = scanner or FileScanner()
+        self.state = app_state
+        self.event_bus = event_bus
 
         self._setup_ui()
         self._connect_signals()
 
     def update_services(
-        self, scanner: FileScanner | None = None, finder: DuplicateFinder | None = None
+        self,
+        scanner: FileScanner | None = None,
+        finder: DuplicateFinder | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
     ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
         if finder is not None:
             self.finder = finder
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── Title ──
+        self._create_title_section(layout)
+        self._create_folder_selection(layout)
+        self._create_options_and_actions(layout)
+        self._create_progress_bar(layout)
+        self._create_stat_cards(layout)
+        self._create_result_splitter(layout)
+        self._create_status_bar(layout)
+
+    def _create_title_section(self, layout):
         title = QLabel("🔗 Duplicate File Finder")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-
         desc = QLabel(
             "Find duplicate files based on content hash to free up disk space.\n"
             "Algorithm: group by size -> partial hash filter -> full SHA256 verification.",
@@ -68,7 +92,7 @@ class DuplicatesPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── Folder selection ──
+    def _create_folder_selection(self, layout):
         dir_layout = QHBoxLayout()
         dir_layout.addWidget(QLabel("📂 Scan folder:"))
         self.dir_label = QLabel("Not selected")
@@ -80,36 +104,29 @@ class DuplicatesPanel(BasePanel):
         dir_layout.addWidget(self.btn_browse)
         layout.addLayout(dir_layout)
 
-        # ── Options & actions ──
+    def _create_options_and_actions(self, layout):
         action_layout = QHBoxLayout()
-
         self.cb_hash = QCheckBox("Use hash verification (more accurate)")
         self.cb_hash.setChecked(True)
-
         self.cb_similar_name = QCheckBox("Find similar file names")
-
         action_layout.addWidget(self.cb_hash)
         action_layout.addWidget(self.cb_similar_name)
         action_layout.addStretch()
-
         self.btn_scan = QPushButton("🔍 Start Scan")
         self.btn_scan.setObjectName("btnDanger")
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         action_layout.addWidget(self.btn_scan)
-
         self.btn_clear = QPushButton("Clear")
         self.btn_clear.clicked.connect(self._clear_all)
         action_layout.addWidget(self.btn_clear)
-
         layout.addLayout(action_layout)
 
-        # Progress bar + cancel button
+    def _create_progress_bar(self, layout):
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-
         self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
@@ -117,23 +134,20 @@ class DuplicatesPanel(BasePanel):
         progress_layout.addWidget(self.btn_cancel)
         layout.addLayout(progress_layout)
 
-        # ── Stat cards ──
+    def _create_stat_cards(self, layout):
         stats_layout = QHBoxLayout()
         self.stat_groups = self._make_stat_card("📦 Duplicate Groups", "0")
         self.stat_files = self._make_stat_card("📄 Duplicate Files", "0")
         self.stat_wasted = self._make_stat_card("💾 Wasted Space", "0 B")
         self.stat_scanned = self._make_stat_card("📊 Scanned", "0 files")
-
         stats_layout.addWidget(self.stat_groups)
         stats_layout.addWidget(self.stat_files)
         stats_layout.addWidget(self.stat_wasted)
         stats_layout.addWidget(self.stat_scanned)
         layout.addLayout(stats_layout)
 
-        # ── Result tree + actions ──
+    def _create_result_splitter(self, layout):
         splitter = QSplitter(Qt.Vertical)
-
-        # Top: result tree
         self.result_tree = QTreeWidget()
         self.result_tree.setHeaderLabels(["File Name", "Path", "Size", "Modified Date"])
         self.result_tree.setAlternatingRowColors(True)
@@ -143,36 +157,29 @@ class DuplicatesPanel(BasePanel):
         self.result_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.result_tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
         splitter.addWidget(self.result_tree)
-
-        # Bottom: action buttons
         op_widget = QWidget()
         op_layout = QHBoxLayout(op_widget)
         op_layout.setContentsMargins(0, 4, 0, 0)
-
         self.btn_delete = QPushButton("🗑️ Delete Selected Duplicates")
         self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.clicked.connect(self._on_delete_selected)
         self.btn_delete.setEnabled(False)
-
         self.btn_select_all_dup = QPushButton("Select All Duplicates")
         self.btn_select_all_dup.clicked.connect(self._on_select_all_duplicates)
         self.btn_select_all_dup.setEnabled(False)
-
         self.btn_keep_first = QPushButton("Keep First in Each Group")
         self.btn_keep_first.clicked.connect(self._on_keep_first)
         self.btn_keep_first.setEnabled(False)
-
         op_layout.addWidget(self.btn_delete)
         op_layout.addWidget(self.btn_keep_first)
         op_layout.addWidget(self.btn_select_all_dup)
         op_layout.addStretch()
         splitter.addWidget(op_widget)
-
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 0)
         layout.addWidget(splitter, 1)
 
-        # ── Bottom status ──
+    def _create_status_bar(self, layout):
         self.stats_label = QLabel("Select a folder and start scanning")
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)

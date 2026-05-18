@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Thread
 
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -18,26 +18,25 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QInputDialog,
     QLabel,
-    QListWidget,
     QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QScrollArea,
     QSplitter,
-    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
-    QTreeWidget,
-    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.tag_manager import TagManager
 from filepilot.ui.base_panel import BasePanel
+from filepilot.ui.directory_tree import DirectoryTreeWidget
+from filepilot.ui.preview_panel import PreviewPanel
 from filepilot.utils.file_utils import (
     CATEGORY_ICONS,
     get_category_name,
@@ -62,10 +61,20 @@ class FileBrowserPanel(BasePanel):
     """File browser panel — browse, scan, preview files"""
 
     file_opened = Signal(str)  # Emitted when a file is opened (double-click)
+    batch_files_ready = Signal(list)  # Emitted during scan with batches of FileInfo
+    scan_completed = Signal(str)  # Emitted when a full scan finishes
 
-    def __init__(self, scanner: FileScanner | None = None, parent=None):
+    def __init__(
+        self,
+        scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.scanner = scanner or FileScanner()
+        self.state = app_state
+        self.event_bus = event_bus
         self.current_dir: Path | None = None
         self.files: list[FileInfo] = []
         self.categories: dict[str, list[FileInfo]] = {}
@@ -77,28 +86,42 @@ class FileBrowserPanel(BasePanel):
         self._connect_signals()
         self._load_column_config()
 
-    def update_services(self, scanner: FileScanner | None = None):
+    def update_services(
+        self,
+        scanner: FileScanner | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+    ):
         """Update service references without recreating the panel"""
         if scanner is not None:
             self.scanner = scanner
+        if app_state is not None:
+            self.state = app_state
+        if event_bus is not None:
+            self.event_bus = event_bus
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # ── Header ──
+        self._create_header(layout)
+        self._create_toolbar(layout)
+        self._create_progress_bar(layout)
+        self._create_splitter(layout)
+        self._create_stats_bar(layout)
+        self._create_status_label(layout)
+
+    def _create_header(self, layout):
         header_layout = QHBoxLayout()
         title = QLabel("📂 File Browser")
         title.setObjectName("sectionTitle")
         header_layout.addWidget(title)
         header_layout.addStretch()
-
         self.dir_label = QLabel("No folder opened")
         self.dir_label.setObjectName("statusLabel")
         header_layout.addWidget(self.dir_label)
         layout.addLayout(header_layout)
-
         desc = QLabel(
             "Browse files, preview content, and manage your folders. "
             "Drag and drop folders to open them.",
@@ -107,20 +130,16 @@ class FileBrowserPanel(BasePanel):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ── Toolbar ──
+    def _create_toolbar(self, layout):
         toolbar_layout = QHBoxLayout()
-
         self.btn_refresh = QPushButton("🔄 Refresh")
         self.btn_refresh.clicked.connect(self._on_refresh)
         self.btn_refresh.setEnabled(False)
         toolbar_layout.addWidget(self.btn_refresh)
-
         self.btn_export = QPushButton("📤 Export")
         self.btn_export.clicked.connect(self._on_export)
         self.btn_export.setEnabled(False)
         toolbar_layout.addWidget(self.btn_export)
-
-        # Batch operations dropdown
         self.btn_actions = QPushButton("⚡ Actions")
         self.btn_actions.setEnabled(False)
         self.actions_menu = QMenu(self)
@@ -129,54 +148,33 @@ class FileBrowserPanel(BasePanel):
         self.actions_menu.addAction("🗑 Delete", self._batch_delete)
         self.btn_actions.setMenu(self.actions_menu)
         toolbar_layout.addWidget(self.btn_actions)
-
         toolbar_layout.addStretch()
-
         self.btn_columns = QPushButton("📋 Columns")
         self.btn_columns.clicked.connect(self._on_show_column_menu)
         toolbar_layout.addWidget(self.btn_columns)
-
         self.cb_show_hidden = QCheckBox("Show hidden files")
         self.cb_show_hidden.stateChanged.connect(self._on_refresh)
         toolbar_layout.addWidget(self.cb_show_hidden)
-
         self.btn_cancel = QPushButton("✕ Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
         toolbar_layout.addWidget(self.btn_cancel)
-
         layout.addLayout(toolbar_layout)
 
-        # ── Progress bar ──
+    def _create_progress_bar(self, layout):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
-        # ── Main splitter: directory tree | file list | preview ──
+    def _create_splitter(self, layout):
         main_splitter = QSplitter(Qt.Horizontal)
-
-        # Left: directory tree
-        dir_widget = QWidget()
-        dir_layout = QVBoxLayout(dir_widget)
-        dir_layout.setContentsMargins(0, 0, 0, 0)
-        dir_layout.addWidget(QLabel("🗂 Directories"))
-
-        self.dir_tree = QTreeWidget()
-        self.dir_tree.setHeaderLabels(["Name"])
-        self.dir_tree.setAnimated(True)
-        self.dir_tree.setIndentation(16)
-        self.dir_tree.setRootIsDecorated(True)
-        self.dir_tree.header().setStretchLastSection(True)
-        self.dir_tree.itemClicked.connect(self._on_dir_clicked)
-        dir_layout.addWidget(self.dir_tree, 1)
-
-        # Center: file list table
+        self.dir_tree = DirectoryTreeWidget(show_hidden=self.cb_show_hidden.isChecked())
+        self.dir_tree.directory_selected.connect(self._on_dir_selected)
         file_widget = QWidget()
         file_layout = QVBoxLayout(file_widget)
         file_layout.setContentsMargins(0, 0, 0, 0)
         file_layout.addWidget(QLabel("📄 Files"))
-
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(0)
         self.file_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -190,52 +188,30 @@ class FileBrowserPanel(BasePanel):
         self.file_table.itemSelectionChanged.connect(self._on_file_selected)
         self.file_table.cellDoubleClicked.connect(self._on_file_double_click)
         file_layout.addWidget(self.file_table, 1)
-
-        # Right: file preview (stacked: text | image | archive)
         preview_widget = QWidget()
         preview_layout = QVBoxLayout(preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.addWidget(QLabel("👁 Preview"))
-
-        self.preview_stack = QStackedWidget()
-
-        self.preview_area = QTextEdit()
-        self.preview_area.setReadOnly(True)
-        self.preview_area.setPlaceholderText("Select a file to preview its content or metadata...")
-        self.preview_stack.addWidget(self.preview_area)  # index 0
-
-        self.preview_image_scroll = QScrollArea()
-        self.preview_image_label = QLabel("Loading...")
-        self.preview_image_label.setAlignment(Qt.AlignCenter)
-        self.preview_image_scroll.setWidget(self.preview_image_label)
-        self.preview_image_scroll.setWidgetResizable(True)
-        self.preview_stack.addWidget(self.preview_image_scroll)  # index 1
-
-        self.preview_archive_list = QListWidget()
-        self.preview_stack.addWidget(self.preview_archive_list)  # index 2
-
-        preview_layout.addWidget(self.preview_stack, 1)
-
-        main_splitter.addWidget(dir_widget)
+        self.preview_panel = PreviewPanel()
+        preview_layout.addWidget(self.preview_panel, 1)
+        main_splitter.addWidget(self.dir_tree)
         main_splitter.addWidget(file_widget)
         main_splitter.addWidget(preview_widget)
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 2)
         main_splitter.setStretchFactor(2, 2)
         main_splitter.setSizes([250, 500, 350])
-
         layout.addWidget(main_splitter, 1)
 
-        # ── Category stats bar ──
+    def _create_stats_bar(self, layout):
         stats_layout = QHBoxLayout()
         self.stat_total = self._make_stat_card("📊 Total Files", "0")
         self.stat_categories = {}
-
         stats_layout.addWidget(self.stat_total)
         layout.addLayout(stats_layout)
         self.stats_container = stats_layout
 
-        # ── Status ──
+    def _create_status_label(self, layout):
         self.stats_label = QLabel("Open a folder to start browsing")
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
@@ -243,19 +219,17 @@ class FileBrowserPanel(BasePanel):
     def _connect_signals(self):
         self.progress_updated.connect(self.progress_bar.setValue)
         self.status_message.connect(self.stats_label.setText)
+        self.batch_files_ready.connect(self._append_files_batch)
+        self.scan_completed.connect(self._on_scan_completed)
+
+    def _on_scan_completed(self, _dir_path: str):
+        self._finalize_scan(self.files)
 
     def load_directory(self, dir_path: str | Path):
         """Load a directory into the tree"""
         self.current_dir = Path(dir_path)
         self.dir_label.setText(f"📂 {dir_path}")
-        self.dir_tree.clear()
-
-        root = QTreeWidgetItem(self.dir_tree)
-        root.setText(0, self.current_dir.name)
-        root.setData(0, Qt.UserRole, str(self.current_dir))
-        root.setExpanded(True)
-
-        self._populate_dir_tree(self.current_dir, root)
+        self.dir_tree.load_directory(self.current_dir)
         self.btn_refresh.setEnabled(True)
         self.scan_directory(self.current_dir)
 
@@ -271,9 +245,14 @@ class FileBrowserPanel(BasePanel):
         self.btn_cancel.setVisible(True)
         self.status_message.emit("Scanning files...")
         self.file_table.setRowCount(0)
+        self.files = []
+        self.categories = {}
+
+        batch_size = 100
 
         def scan_worker():
             files = []
+            batch = []
 
             for f in self.scanner.scan(
                 str(dir_path),
@@ -282,60 +261,52 @@ class FileBrowserPanel(BasePanel):
                 if self._cancelled:
                     return
                 files.append(f)
+                batch.append(f)
+                if len(batch) >= batch_size:
+                    try:
+                        self.batch_files_ready.emit(batch)
+                    except RuntimeError:
+                        return
+                    batch = []
 
             if self._cancelled:
                 return
 
-            self.files = files
+            if batch:
+                try:
+                    self.batch_files_ready.emit(batch)
+                except RuntimeError:
+                    return
 
-            # Categorize
-            self.categories = self._categorize_files(files)
+            try:
+                self.files = files
+                self.categories = self._categorize_files(files)
+            except RuntimeError:
+                return
 
             if not self._cancelled:
-                from PySide6.QtCore import Q_ARG, QMetaObject, Qt
-
-                QMetaObject.invokeMethod(
-                    self,
-                    "_display_files",
-                    Qt.QueuedConnection,
-                    Q_ARG(list, files),
-                )
+                try:
+                    self.scan_completed.emit(str(dir_path))
+                except RuntimeError:
+                    return
 
         Thread(target=scan_worker, daemon=True).start()
 
-    def _populate_dir_tree(self, dir_path: Path, parent_item: QTreeWidgetItem):
-        """Recursively populate directory tree"""
-        try:
-            for entry in sorted(dir_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
-                if entry.name.startswith(".") and not self.cb_show_hidden.isChecked():
-                    continue
-                if entry.is_dir():
-                    child = QTreeWidgetItem(parent_item)
-                    child.setText(0, f"📁 {entry.name}")
-                    child.setData(0, Qt.UserRole, str(entry))
-                    child.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
-        except PermissionError:
-            pass
-
-    def _categorize_files(self, files: list[FileInfo]) -> dict[str, list[FileInfo]]:
-        """Categorize files by type"""
-        categories: dict[str, list[FileInfo]] = {}
-        for f in files:
-            cat = get_category_name(f.path.suffix.lower())
-            categories.setdefault(cat, []).append(f)
-        return categories
-
-    @Slot()
-    def _display_files(self, files: list[FileInfo]):
-        """Display file list in table"""
-        self.file_table.setRowCount(0)
-        self.file_table.setSortingEnabled(False)
-
+    def _append_files_batch(self, batch: list[FileInfo]):
+        """Append a batch of files to the table (incremental)."""
+        if not batch:
+            return
         hidden = self.cb_show_hidden.isChecked()
-        filtered = [f for f in files if hidden or not f.name.startswith(".")]
-        self.file_table.setRowCount(len(filtered))
+        filtered = [f for f in batch if hidden or not f.name.startswith(".")]
+        if not filtered:
+            return
 
-        for row, f in enumerate(filtered):
+        self.file_table.setSortingEnabled(False)
+        start_row = self.file_table.rowCount()
+        self.file_table.setRowCount(start_row + len(filtered))
+
+        for row_offset, f in enumerate(filtered):
+            row = start_row + row_offset
             cat = get_category_name(f.path.suffix.lower())
             icon = CATEGORY_ICONS.get(cat, "📁")
 
@@ -351,10 +322,7 @@ class FileBrowserPanel(BasePanel):
                     item = QTableWidgetItem(f.modified_time.strftime("%Y-%m-%d %H:%M"))
                 elif key == "created":
                     created = getattr(f, "created_time", None)
-                    if created:
-                        item = QTableWidgetItem(created.strftime("%Y-%m-%d %H:%M"))
-                    else:
-                        item = QTableWidgetItem("-")
+                    item = QTableWidgetItem(created.strftime("%Y-%m-%d %H:%M") if created else "-")
                 elif key == "path":
                     item = QTableWidgetItem(str(f.path))
                 elif key == "extension":
@@ -374,18 +342,80 @@ class FileBrowserPanel(BasePanel):
                 self.file_table.setItem(row, col, item)
 
         self.file_table.setSortingEnabled(True)
+        self._update_stat("📊 Total Files", str(self.file_table.rowCount()))
 
-        # Update stats
+    def _redisplay_files(self):
+        """Rebuild the table from self.files (for column toggle, refresh, etc.)."""
+        if not self.files:
+            return
+        self.file_table.setRowCount(0)
+        self.file_table.setSortingEnabled(False)
+
+        hidden = self.cb_show_hidden.isChecked()
+        filtered = [f for f in self.files if hidden or not f.name.startswith(".")]
+        self.file_table.setRowCount(len(filtered))
+
+        for row, f in enumerate(filtered):
+            cat = get_category_name(f.path.suffix.lower())
+            icon = CATEGORY_ICONS.get(cat, "📁")
+
+            for col, key in enumerate(self._column_keys):
+                if key == "name":
+                    item = QTableWidgetItem(f"{icon}  {f.name}")
+                    item.setData(Qt.UserRole, str(f.path))
+                elif key == "size":
+                    item = QTableWidgetItem(f.size_str)
+                elif key == "type":
+                    item = QTableWidgetItem(cat)
+                elif key == "modified":
+                    item = QTableWidgetItem(f.modified_time.strftime("%Y-%m-%d %H:%M"))
+                elif key == "created":
+                    created = getattr(f, "created_time", None)
+                    item = QTableWidgetItem(created.strftime("%Y-%m-%d %H:%M") if created else "-")
+                elif key == "path":
+                    item = QTableWidgetItem(str(f.path))
+                elif key == "extension":
+                    item = QTableWidgetItem(f.extension.lower())
+                elif key == "tags":
+                    tags = self.tag_manager.get_tags(f.path)
+                    tag_display = ", ".join(tags[:3]) if tags else ""
+                    item = QTableWidgetItem(tag_display)
+                    item.setToolTip("Tags: " + ", ".join(tags) if tags else "No tags")
+                    if tags:
+                        color = self.tag_manager.get_color(f.path)
+                        if color:
+                            item.setForeground(QColor(color))
+                else:
+                    item = QTableWidgetItem("")
+
+                self.file_table.setItem(row, col, item)
+
+        self.file_table.setSortingEnabled(True)
         self._update_stat("📊 Total Files", str(len(filtered)))
+
+    def _categorize_files(self, files: list[FileInfo]) -> dict[str, list[FileInfo]]:
+        """Categorize files by type"""
+        categories: dict[str, list[FileInfo]] = {}
+        for f in files:
+            cat = get_category_name(f.path.suffix.lower())
+            categories.setdefault(cat, []).append(f)
+        return categories
+
+    @Slot()
+    def _finalize_scan(self, files: list[FileInfo]):
+        """Finalize scan — update stats, re-enable buttons."""
+        self.file_table.setSortingEnabled(False)
+        self.file_table.setSortingEnabled(True)
 
         # Category stats
         for cat in self.categories:
             cat_count = len(self.categories[cat])
             cat_size = sum(f.size_bytes for f in self.categories[cat])
-            if cat not in self.stat_cards:
-                card = self._make_stat_card(f"📁 {cat}", f"{cat_count} files")
+            card_key = f"📁 {cat}"
+            if card_key not in self.stat_cards:
+                card = self._make_stat_card(card_key, f"{cat_count} files")
                 self.stats_container.addWidget(card)
-            self._update_stat(f"📁 {cat}", f"{cat_count} files ({get_file_size_str(cat_size)})")
+            self._update_stat(card_key, f"{cat_count} files ({get_file_size_str(cat_size)})")
 
         self.btn_refresh.setEnabled(True)
         self.btn_export.setEnabled(True)
@@ -393,21 +423,18 @@ class FileBrowserPanel(BasePanel):
 
         total_size = sum(f.size_bytes for f in files)
         size_str = get_file_size_str(total_size)
-        self.status_message.emit(f"✅ Scanned {len(filtered)} files ({size_str})")
+        self.status_message.emit(f"✅ Scanned {len(files)} files ({size_str})")
 
         self.progress_bar.setVisible(False)
         self.btn_cancel.setVisible(False)
 
-    @Slot()
-    def _on_dir_clicked(self, item: QTreeWidgetItem, column: int):
-        """Handle directory tree click"""
-        dir_path = item.data(0, Qt.UserRole)
-        if dir_path and Path(dir_path).is_dir():
-            if item.childCount() == 0 and item.data(0, Qt.UserRole):
-                self._populate_dir_tree(Path(dir_path), item)
-            self.current_dir = Path(dir_path)
+    def _on_dir_selected(self, dir_path: str):
+        """Handle directory selection from DirectoryTreeWidget"""
+        path = Path(dir_path)
+        if path.is_dir():
+            self.current_dir = path
             self.dir_label.setText(f"📂 {dir_path}")
-            self.scan_directory(dir_path)
+            self.scan_directory(path)
 
     @Slot()
     def _on_refresh(self):
@@ -453,196 +480,7 @@ class FileBrowserPanel(BasePanel):
         if not path.exists() or not path.is_file():
             return
 
-        self._preview_file(path)
-
-    def _preview_file(self, path: Path):
-        """Preview file content or metadata"""
-        cat = get_category_name(path.suffix.lower())
-        ext = path.suffix.lower()
-        size_str = get_file_size_str(path.stat().st_size)
-        modified_str = path.stat().st_mtime
-
-        # Archive preview
-        if self._try_preview_archive(path):
-            return
-
-        # Image preview
-        if cat == "Image":
-            self.preview_stack.setCurrentIndex(1)
-            pixmap = QPixmap(str(path))
-            if not pixmap.isNull():
-                scaled = pixmap.scaled(
-                    600,
-                    500,
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
-                )
-                self.preview_image_label.setPixmap(scaled)
-                details = (
-                    f"<p style='text-align:center;color:#888;'>"
-                    f"{path.name}  |  {pixmap.width()}×{pixmap.height()}px  |  {size_str}"
-                    f"</p>"
-                )
-                self.preview_image_label.setToolTip(details)
-            else:
-                self.preview_stack.setCurrentIndex(0)
-                self.preview_area.setHtml(
-                    f"<p><b>🖼️ {path.name}</b></p>"
-                    f"<p>Size: {size_str} | Modified: {modified_str:.0f}</p>"
-                    f"<p><i>Cannot load image preview.</i></p>"
-                )
-            return
-
-        # Markdown rendered preview
-        if ext in (".md", ".markdown", ".mdx", ".rst"):
-            self.preview_stack.setCurrentIndex(0)
-            try:
-                import markdown as md_lib
-
-                raw = path.read_text(encoding="utf-8", errors="replace")
-                html = md_lib.markdown(
-                    raw[:10000],
-                    extensions=["extra", "codehilite", "tables", "fenced_code"],
-                )
-                styled = f"""
-                <style>
-                  body {{ font-family: -apple-system, 'Segoe UI', sans-serif; padding: 12px; }}
-                  pre {{ background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 6px; overflow-x: auto; }}
-                  code {{ background: #2d2d2d; padding: 2px 5px; border-radius: 3px; }}
-                  img {{ max-width: 100%; }}
-                  table {{ border-collapse: collapse; width: 100%; }}
-                  th, td {{ border: 1px solid #444; padding: 6px 10px; text-align: left; }}
-                </style>
-                {html}
-                """
-                self.preview_area.setHtml(styled)
-            except Exception:
-                self.preview_area.setPlainText(
-                    path.read_text(encoding="utf-8", errors="replace")[:5000]
-                )
-            return
-
-        # Code / Text with line numbers
-        if cat in ("Code", "Text") or ext in (
-            ".txt",
-            ".log",
-            ".cfg",
-            ".ini",
-            ".conf",
-            ".yaml",
-            ".yml",
-            ".toml",
-            ".json",
-            ".xml",
-            ".csv",
-        ):
-            self.preview_stack.setCurrentIndex(0)
-            try:
-                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-                max_lines = 200
-                shown = lines[:max_lines]
-                num_width = len(str(max_lines))
-                html_lines = []
-                for i, line in enumerate(shown, 1):
-                    escaped = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                    html_lines.append(
-                        f"<tr><td style='color:#666;padding:0 8px 0 0;text-align:right;"
-                        f"user-select:none;width:{num_width}ch;'>{i:>{num_width}}</td>"
-                        f"<td style='white-space:pre;padding:0;'>{escaped}</td></tr>"
-                    )
-                table = "".join(html_lines)
-                styled = f"""
-                <style>
-                  body {{ margin:0; padding:8px; font-family:'Cascadia Code','Fira Code','Consolas',monospace; font-size:13px; }}
-                  table {{ border-spacing:0; width:100%; }}
-                  tr:hover td {{ background:#2a2a2a; }}
-                </style>
-                <table>{table}</table>
-                """
-                if len(lines) > max_lines:
-                    styled += (
-                        f"<p style='color:#888;'><i>… {len(lines) - max_lines} more lines</i></p>"
-                    )
-                self.preview_area.setHtml(styled)
-            except Exception:
-                self.preview_area.setPlainText(
-                    path.read_text(encoding="utf-8", errors="replace")[:5000]
-                )
-            return
-
-        # PDF / Office — metadata only
-        self.preview_stack.setCurrentIndex(0)
-        stats_html = f"<p>Size: {size_str}</p><p>Modified: {path.stat().st_mtime:.0f}</p>"
-        if cat == "PDF":
-            self.preview_area.setHtml(
-                f"<p><b>📕 PDF file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel to extract content from this PDF.</i></p>{stats_html}",
-            )
-        elif cat == "Office":
-            self.preview_area.setHtml(
-                f"<p><b>📄 Office file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel to extract content.</i></p>{stats_html}",
-            )
-        else:
-            self.preview_area.setHtml(
-                f"<p><b>📄 {path.name}</b></p>{stats_html}"
-                f"<p><i>Preview not available for this file type.</i></p>",
-            )
-
-    # ── Archive Preview ───────────────────────────────────────────────────
-
-    def _try_preview_archive(self, path: Path) -> bool:
-        """Show archive contents in preview. Returns True if handled."""
-        ext = path.suffix.lower()
-        # For compound extensions like .tar.gz, check the full name
-        name_lower = path.name.lower()
-        entries: list[str] = []
-
-        if ext == ".zip":
-            import zipfile
-
-            try:
-                with zipfile.ZipFile(path, "r") as zf:
-                    for info in zf.infolist():
-                        size_str = get_file_size_str(info.file_size)
-                        entries.append(f"📄 {info.filename}  ({size_str})")
-            except Exception:
-                return False
-        elif ext in (".tar", ".tgz", ".gz", ".bz2", ".xz", ".txz"):
-            import tarfile
-
-            try:
-                mode = {
-                    ".tgz": "r:gz",
-                    ".gz": "r:gz",
-                    ".bz2": "r:bz2",
-                    ".xz": "r:xz",
-                    ".txz": "r:xz",
-                    ".tar": "r:",
-                }.get(ext, "r:")
-                # Refine mode for compound extensions
-                if name_lower.endswith(".tar.gz"):
-                    mode = "r:gz"
-                elif name_lower.endswith(".tar.bz2"):
-                    mode = "r:bz2"
-                elif name_lower.endswith(".tar.xz"):
-                    mode = "r:xz"
-                with tarfile.open(path, mode) as tf:  # type: ignore[call-overload]
-                    for info in tf.getmembers():
-                        size_str = get_file_size_str(info.size)
-                        entries.append(f"📄 {info.name}  ({size_str})")
-            except Exception:
-                return False
-        else:
-            return False
-
-        self.preview_stack.setCurrentIndex(2)
-        self.preview_archive_list.clear()
-        self.preview_archive_list.addItem(f"📦 {path.name}  ({len(entries)} files)")
-        self.preview_archive_list.addItem("")
-        for e in entries:
-            self.preview_archive_list.addItem(e)
-        return True
+        self.preview_panel.show_preview(path)
 
     # ── File Comparison ───────────────────────────────────────────────────
 
@@ -658,7 +496,6 @@ class FileBrowserPanel(BasePanel):
             QHBoxLayout,
             QPushButton,
             QSplitter,
-            QTextEdit,
             QVBoxLayout,
         )
 
@@ -902,11 +739,13 @@ class FileBrowserPanel(BasePanel):
                             tag_item.setForeground(QColor("#888"))
 
     def _load_column_config(self):
-        from filepilot.core import config
+        if self.state:
+            keys = self.state.file_browser_columns
+        else:
+            from filepilot.core import config as _cfg
 
-        settings = config.load()
-        keys = settings.get("file_browser_columns", DEFAULT_COLUMNS)
-        self._column_keys = [k for k in keys if k in COLUMN_DEFS]
+            keys = _cfg.load().get("file_browser_columns", DEFAULT_COLUMNS)
+        self._column_keys = [k for k in keys if k in COLUMN_DEFS] or list(DEFAULT_COLUMNS)
         if "name" not in self._column_keys:
             self._column_keys.insert(0, "name")
         self._rebuild_column_headers()
@@ -920,11 +759,14 @@ class FileBrowserPanel(BasePanel):
             self.file_table.horizontalHeader().setSectionResizeMode(i, COLUMN_DEFS[k][1])
 
     def _save_column_config(self):
-        from filepilot.core import config
+        if self.state:
+            self.state.set_file_browser_columns(list(self._column_keys))
+        else:
+            from filepilot.core import config as _cfg
 
-        settings = config.load()
-        settings["file_browser_columns"] = list(self._column_keys)
-        config.save(settings)
+            s = _cfg.load()
+            s["file_browser_columns"] = list(self._column_keys)
+            _cfg.save(s)
 
     @Slot()
     def _on_show_column_menu(self):
@@ -960,7 +802,7 @@ class FileBrowserPanel(BasePanel):
         self._save_column_config()
 
         if self.current_dir:
-            self._display_files(self.files)
+            self._redisplay_files()
 
     @Slot(int, int)
     def _on_file_double_click(self, row: int, column: int):
@@ -982,6 +824,8 @@ class FileBrowserPanel(BasePanel):
                     else:
                         subprocess.Popen(["xdg-open", fp])
                     self.file_opened.emit(str(file_path))
+                    if self.event_bus:
+                        self.event_bus.open_file_requested.emit(str(file_path))
                 except Exception as e:
                     logger.warning("Failed to open file %s: %s", file_path, e)
                     self.status_message.emit(f"Failed to open file: {file_path.name}")

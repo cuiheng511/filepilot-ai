@@ -1,6 +1,7 @@
 """Settings dialog — AI engine and application configuration"""
 
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -19,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.i18n import SUPPORTED_LANGUAGES, set_language, t
 from filepilot.ui.shortcut_editor import ShortcutEditor
 
@@ -26,13 +29,21 @@ from filepilot.ui.shortcut_editor import ShortcutEditor
 class SettingsDialog(QDialog):
     """Settings dialog"""
 
-    def __init__(self, settings: dict, parent=None):
+    def __init__(
+        self,
+        settings: dict | None = None,
+        app_state: AppState | None = None,
+        event_bus: EventBus | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("⚙️ Settings — FilePilot AI")
         self.setMinimumSize(600, 450)
         self.resize(650, 500)
 
-        self._settings = settings.copy()
+        self.state = app_state
+        self.event_bus = event_bus
+        self._settings: dict[str, Any] = dict(settings or (app_state.raw if app_state else {}))
         from filepilot.i18n import _current_lang
 
         self._current_lang = _current_lang
@@ -391,5 +402,14 @@ class SettingsDialog(QDialog):
 
         # Store new settings from controls
         self._settings = self.get_settings()
+
+        # Persist via AppState
+        if self.state:
+            self.state.update(self._settings)
+            self.state.save()
+
+        # Notify via EventBus
+        if self.event_bus:
+            self.event_bus.settings_applied.emit(self._settings)
 
         super().accept()

@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.core.app_state import AppState
+from filepilot.core.event_bus import EventBus
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -27,8 +29,12 @@ class DashboardPanel(BasePanel):
     open_folder = Signal(str)
     open_file = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(
+        self, app_state: AppState | None = None, event_bus: EventBus | None = None, parent=None
+    ):
         super().__init__(parent)
+        self.state = app_state
+        self.event_bus = event_bus
         self._setup_ui()
 
     def _setup_ui(self):
@@ -188,12 +194,16 @@ class DashboardPanel(BasePanel):
         folder = item.data(Qt.UserRole)
         if folder:
             self.open_folder.emit(folder)
+            if self.event_bus:
+                self.event_bus.open_folder_requested.emit(folder)
 
     def _on_file_double_click(self, item: QListWidgetItem):
         """Open double-clicked file"""
         file_path = item.data(Qt.UserRole)
         if file_path:
             self.open_file.emit(file_path)
+            if self.event_bus:
+                self.event_bus.open_file_requested.emit(file_path)
 
     def set_current_dir(self, dir_path: str):
         """Set current directory for context"""

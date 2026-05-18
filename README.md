@@ -34,10 +34,16 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 
 ## What's New in 0.6
 
-- Dashboard landing page with quick stats, recent folders, recent files, quick actions, and shortcut reference.
-- Reworked sidebar navigation with grouped sections for Browse, Search, Tools, and Settings.
-- Faster desktop workflow with global search (`Ctrl+Shift+F`) and theme toggle (`Ctrl+L`).
-- Matured 0.5 feature set: tags, saved searches, custom file-browser columns, batch actions, plugin manager, OCR, regex rename, scheduled tasks, and cross-platform packaging.
+| Feature | Description |
+|---------|-------------|
+| **Dashboard & Navigation** | New landing page with stats, recent files/folders, quick actions, and shortcut reference. Sidebar reorganized into Browse, Search, Tools, Settings groups. Global search (`Ctrl+Shift+F`) and theme toggle (`Ctrl+L`). |
+| **Architecture** | ServiceContainer, AppState, and EventBus for centralized service wiring and decoupled cross-panel communication. All 10 panels migrated with backward-compatible signatures. |
+| **Performance** | Incremental batch scan loading (100 files/batch). Asynchronous text preview with stale-result guard. QThreadPool for search and index operations. |
+| **Code Quality** | PreviewPanel and DirectoryTreeWidget extracted to standalone files. `_setup_ui` split into named sub-methods across 6 panels. Unified `try_safe` error handling decorator. |
+| **Bug Fixes** | `Q_ARG(list)` RuntimeError replaced with typed signals. Scan worker thread crash on close guarded with `try/except RuntimeError`. Index panel closure variable fix. |
+| **Testing** | 30 new tests — dashboard panel (17), navigation (8), integration (5). Total: 478 passing tests. |
+| **Build & CI** | Hidden imports synced across all 4 build configs. Fallback versions fixed (`0.4.0` → `0.6.0`). Inno Setup URL migrated to GitHub Releases. |
+| **Matured 0.5 features** | Tags, saved searches, custom columns, batch actions, plugin manager, OCR, regex rename, scheduled tasks, cross-platform packaging. |
 
 ## Screenshots
 

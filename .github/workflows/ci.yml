@@ -299,7 +299,13 @@ jobs:
             --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
             --hidden-import filepilot.core.task_scheduler \
             --hidden-import filepilot.core.tag_manager \
+            --hidden-import filepilot.core.tag_rules \
             --hidden-import filepilot.core.plugin_system \
+            --hidden-import filepilot.core.service_container \
+            --hidden-import filepilot.core.app_state \
+            --hidden-import filepilot.core.event_bus \
+            --hidden-import filepilot.core.worker \
+            --hidden-import filepilot.core.errors \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
@@ -312,6 +318,9 @@ jobs:
             --hidden-import filepilot.ui.tags_panel \
             --hidden-import filepilot.ui.plugin_manager_panel \
             --hidden-import filepilot.ui.dashboard_panel \
+            --hidden-import filepilot.ui.notification \
+            --hidden-import filepilot.ui.preview_panel \
+            --hidden-import filepilot.ui.directory_tree \
             --hidden-import filepilot.styles.manager \
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \
@@ -439,7 +448,13 @@ jobs:
             --hidden-import filepilot.core.task_queue --hidden-import filepilot.core.config \
             --hidden-import filepilot.core.task_scheduler \
             --hidden-import filepilot.core.tag_manager \
+            --hidden-import filepilot.core.tag_rules \
             --hidden-import filepilot.core.plugin_system \
+            --hidden-import filepilot.core.service_container \
+            --hidden-import filepilot.core.app_state \
+            --hidden-import filepilot.core.event_bus \
+            --hidden-import filepilot.core.worker \
+            --hidden-import filepilot.core.errors \
             --hidden-import filepilot.extractors.pdf_extractor \
             --hidden-import filepilot.extractors.markdown_extractor \
             --hidden-import filepilot.extractors.code_extractor \
@@ -452,6 +467,9 @@ jobs:
             --hidden-import filepilot.ui.tags_panel \
             --hidden-import filepilot.ui.plugin_manager_panel \
             --hidden-import filepilot.ui.dashboard_panel \
+            --hidden-import filepilot.ui.notification \
+            --hidden-import filepilot.ui.preview_panel \
+            --hidden-import filepilot.ui.directory_tree \
             --hidden-import filepilot.styles.manager \
             --hidden-import whoosh --hidden-import whoosh.fields \
             --hidden-import whoosh.index --hidden-import whoosh.qparser \

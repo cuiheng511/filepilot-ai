@@ -55,6 +55,8 @@ def _make_dialog(settings_dict=None):
     obj = SettingsDialog.__new__(SettingsDialog)
     obj._settings = settings_dict.copy()
     obj._current_lang = settings_dict.get("language", "en")
+    obj.state = None
+    obj.event_bus = None
 
     # Provider combo
     provider_map = {"ollama": 0, "llamacpp": 1, "openai": 2, "anthropic": 3, "custom": 4}

@@ -141,8 +141,15 @@ def test_shortcut_mapping_covers_all_panels(tmp_path, monkeypatch):
     window = _make_window(tmp_path, monkeypatch)
     try:
         for panel_key in (
-            "browse", "search", "organize", "duplicates",
-            "summary", "index", "favorites", "tags", "plugins",
+            "browse",
+            "search",
+            "organize",
+            "duplicates",
+            "summary",
+            "index",
+            "favorites",
+            "tags",
+            "plugins",
         ):
             assert panel_key in window._nav_key_to_row, f"Missing nav key: {panel_key}"
             assert panel_key in window._panel_indices, f"Missing panel index: {panel_key}"

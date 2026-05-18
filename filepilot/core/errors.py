@@ -20,6 +20,7 @@ def try_safe(
         def divide(a, b):
             return a / b
     """
+
     def decorator(fn: Callable[..., T]) -> Callable[..., T]:
         def wrapper(*args, **kwargs):
             try:
@@ -28,5 +29,7 @@ def try_safe(
                 if on_error:
                     on_error(e)
                 return fallback
+
         return wrapper
+
     return decorator

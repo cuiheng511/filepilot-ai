@@ -26,7 +26,7 @@ class PreviewPanel(QWidget):
 
     preview_ready = Signal(str, str)  # html_content, file_path
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._current_preview_path: str | None = None
         self._setup_ui()

@@ -59,6 +59,45 @@ checker = UpdateChecker()
 thread = checker.check_async(callback=on_result)
 ```
 
+#### `download(url, dest_path, progress_callback=None)`
+
+Download a release asset to a local file with progress reporting.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | `str` | Download URL from `ReleaseInfo.download_url` |
+| `dest_path` | `str` or `Path` | Where to save the downloaded file |
+| `progress_callback` | `Callable[[int], None]` | (Optional) Called with percentage (0–100) as bytes arrive |
+
+**Returns:** `Path` — the downloaded file path.
+
+**Raises:** `requests.RequestException` on HTTP or network failure.
+
+**Example:**
+```python
+checker = UpdateChecker()
+path = checker.download(release.download_url, "~/Downloads/FilePilot.exe")
+```
+
+#### `install(downloaded_path)`
+
+Launch the platform-specific installer for a downloaded file.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `downloaded_path` | `str` or `Path` | Path to the downloaded installer file |
+
+Platform behavior:
+- **Windows** (`.exe`): launches with `/S` (silent) flag
+- **macOS** (`.dmg`): opens with `open` command (user mounts manually)
+- **Linux** (`.AppImage`): sets executable bit and launches
+
+**Example:**
+```python
+checker = UpdateChecker()
+checker.install("/tmp/FilePilot-AI-Setup-0.6.1.exe")
+```
+
 #### `open_download_page()`
 
 Open the latest release page in the default web browser. Equivalent to navigating to the GitHub Releases page.

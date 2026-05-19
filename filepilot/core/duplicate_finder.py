@@ -14,7 +14,7 @@ logger = logging.getLogger("filepilot.duplicates")
 class DuplicateFinder:
     """Duplicate file finder"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._potential_duplicates: list[list[FileInfo]] = []
         self._exact_duplicates: list[list[FileInfo]] = []
 

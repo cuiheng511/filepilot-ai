@@ -111,8 +111,8 @@ class PluginManagerPanel(BasePanel):
     def _on_open_dir(self):
         """Open the plugins directory in file explorer."""
         plugins_dir = self.plugin_manager.plugins_dir
-        plugins_dir.mkdir(parents=True, exist_ok=True)
         try:
+            plugins_dir.mkdir(parents=True, exist_ok=True)
             import subprocess
             import sys
 

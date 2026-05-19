@@ -192,3 +192,80 @@ class TestFileSizeParsing:
     def test_invalid_returns_default(self):
         d = _make_dialog()
         assert d._parse_file_size("abc") == 500
+
+
+# ── Update tab ───────────────────────────────────────────────────────
+
+
+class TestUpdateTab:
+    def test_check_updates_disables_button(self):
+        """_on_check_updates should disable the check button and show status."""
+        d = _make_dialog()
+        d.check_update_btn = MagicMock()
+        d.download_update_btn = MagicMock()
+        d.update_status_label = MagicMock()
+        d.update_version_label = MagicMock()
+        d._update_checker = MagicMock()
+        d._on_check_updates()
+        d.check_update_btn.setEnabled.assert_called_with(False)
+        d.update_status_label.setText.assert_called_with("Checking for updates...")
+
+    def test_update_result_has_update_shows_download(self):
+        from filepilot.updater import ReleaseInfo, UpdateCheckResult
+
+        d = _make_dialog()
+        d.check_update_btn = MagicMock()
+        d.download_update_btn = MagicMock()
+        d.update_status_label = MagicMock()
+        d.update_version_label = MagicMock()
+
+        release = ReleaseInfo(
+            version="2.0.0",
+            title="v2.0.0",
+            body="Major update",
+            published_at="2026-05-01",
+            html_url="https://example.com",
+            download_url="https://example.com/pkg.exe",
+            download_size=5000000,
+        )
+        result = UpdateCheckResult(
+            has_update=True,
+            current_version="1.0.0",
+            release=release,
+        )
+        d._on_update_result(result)
+        d.download_update_btn.setVisible.assert_called_with(True)
+        d.download_update_btn.setEnabled.assert_called_with(True)
+
+    def test_update_result_up_to_date_hides_download(self):
+        from filepilot.updater import UpdateCheckResult
+
+        d = _make_dialog()
+        d.check_update_btn = MagicMock()
+        d.download_update_btn = MagicMock()
+        d.update_status_label = MagicMock()
+        d.update_version_label = MagicMock()
+
+        result = UpdateCheckResult(
+            has_update=False,
+            current_version="1.0.0",
+        )
+        d._on_update_result(result)
+        d.download_update_btn.setVisible.assert_called_with(False)
+
+    def test_update_result_error_shows_warning(self):
+        from filepilot.updater import UpdateCheckResult
+
+        d = _make_dialog()
+        d.check_update_btn = MagicMock()
+        d.download_update_btn = MagicMock()
+        d.update_status_label = MagicMock()
+        d.update_version_label = MagicMock()
+
+        result = UpdateCheckResult(
+            has_update=False,
+            current_version="1.0.0",
+            error="Network error",
+        )
+        d._on_update_result(result)
+        d.update_status_label.setText.assert_called_with("⚠ Check failed: Network error")

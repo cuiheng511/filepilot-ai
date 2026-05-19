@@ -59,7 +59,7 @@ class ScheduledTask:
 class TaskScheduler:
     """Manages scheduled tasks for FilePilot operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tasks: list[ScheduledTask] = []
         self._load()
 

@@ -22,7 +22,7 @@ class FileWatcher(QObject):
     file_moved = Signal(str, str)
     error_occurred = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._watched_dirs: dict[str, _ObserverLike] = {}
 

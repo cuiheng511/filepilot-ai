@@ -324,7 +324,7 @@ class FileStatsPanel(BasePanel):
         self.progress_bar.setValue(0)
         self.status_message.emit("Scanning directory...")
 
-        def worker():
+        def worker() -> None:
             files: list[FileInfo] = []
             for i, f in enumerate(self.scanner.scan(str(dir_path))):
                 files.append(f)

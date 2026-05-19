@@ -25,7 +25,7 @@ DEFAULT_COLORS = [
 class TagManager:
     """Manages file tags with persistent storage and cross-directory search."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tags: dict[str, dict] = {}
         self._load()
 

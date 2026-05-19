@@ -1,24 +1,30 @@
 """Search panel — natural language file search"""
 
 import json
+import shutil
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QSize, Qt, QThreadPool, Signal, Slot
-from PySide6.QtGui import QTextDocument
+from PySide6.QtCore import QPoint, QSize, Qt, QThreadPool, QUrl, Signal, Slot
+from PySide6.QtGui import QDesktopServices, QTextDocument
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
+    QMessageBox,
     QProgressBar,
     QPushButton,
     QStyle,
     QStyledItemDelegate,
     QVBoxLayout,
 )
+from send2trash import send2trash
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
@@ -135,6 +141,7 @@ class SearchPanel(BasePanel):
         self._cancelled = False
         self._cancelling = False
         self.tag_manager = TagManager()
+        self._batch_undo_log: list[dict] = []
 
         self._setup_ui()
         self._connect_signals()
@@ -259,6 +266,9 @@ class SearchPanel(BasePanel):
     def _create_results_list(self, layout):
         self.result_list = QListWidget()
         self.result_list.setAlternatingRowColors(True)
+        self.result_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.result_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.result_list.customContextMenuRequested.connect(self._on_result_context_menu)
         self.result_list.setItemDelegate(SearchHighlightDelegate(self.result_list))
         layout.addWidget(self.result_list, 1)
 
@@ -293,7 +303,7 @@ class SearchPanel(BasePanel):
         self.index_btn.setEnabled(True)
         self.status_message.emit("⏹️ Operation cancelled")
 
-    def _load_search_history(self):
+    def _load_search_history(self) -> None:
         """Load search history from settings and populate dropdown."""
         history: list[str] = []
         if self.state:
@@ -346,7 +356,7 @@ class SearchPanel(BasePanel):
 
     # ── Saved Searches ──────────────────────────────────────────────────────
 
-    def _refresh_saved_searches(self):
+    def _refresh_saved_searches(self) -> None:
         saved: list[dict] = []
         if self.state:
             saved = self.state.saved_searches
@@ -366,7 +376,7 @@ class SearchPanel(BasePanel):
             self.saved_combo.setCurrentIndex(idx)
 
     @Slot()
-    def _on_save_search(self):
+    def _on_save_search(self) -> None:
         from PySide6.QtWidgets import QInputDialog
 
         query = self.search_input.currentText().strip()
@@ -439,7 +449,7 @@ class SearchPanel(BasePanel):
         self._on_search()
 
     @Slot()
-    def _on_saved_context_menu(self, pos):
+    def _on_saved_context_menu(self, pos: QPoint) -> None:
         index = self.saved_combo.currentIndex()
         if index <= 0:
             return
@@ -461,7 +471,7 @@ class SearchPanel(BasePanel):
         delete_action = menu.addAction("🗑 Delete")
         action = menu.exec(self.saved_combo.viewport().mapToGlobal(pos))
         if action is None:
-            return
+            return  # type: ignore[unreachable]
 
         if action == rename_action:
             new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=entry["name"])
@@ -670,7 +680,164 @@ class SearchPanel(BasePanel):
                 return ""
         return ""
 
-    def _on_export(self):
+    def _get_selected_paths(self) -> list[str]:
+        paths: list[str] = []
+        for item in self.result_list.selectedItems():
+            fp = item.data(Qt.UserRole)
+            if fp:
+                paths.append(fp)
+        return paths
+
+    def _on_result_context_menu(self, pos: QPoint):
+        item = self.result_list.itemAt(pos)
+        if not item or not item.data(Qt.UserRole):
+            return
+        menu = self._create_result_context_menu()
+        menu.exec(self.result_list.mapToGlobal(pos))
+
+    def _create_result_context_menu(self) -> QMenu:
+        menu = QMenu(self)
+        menu.addAction("🗑 Send to Trash", self._batch_delete_results)
+        menu.addAction("✂ Move to...", self._batch_move_results)
+        menu.addAction("📋 Copy to...", self._batch_copy_results)
+        menu.addSeparator()
+        menu.addAction("🏷 Add Tag...", self._batch_tag_results)
+        menu.addSeparator()
+        undoing = menu.addAction("↩ Undo Move", self._batch_undo_move)
+        undoing.setEnabled(bool(self._batch_undo_log))
+        menu.addSeparator()
+        menu.addAction("📂 Open File Location", self._open_file_location)
+        return menu
+
+    def _batch_delete_results(self):
+        paths = self._get_selected_paths()
+        if not paths:
+            return
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Send {len(paths)} file(s) to trash?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        errors = 0
+        for p in paths:
+            try:
+                send2trash(p)
+            except Exception:
+                errors += 1
+        if errors:
+            self.status_message.emit(f"Deleted {len(paths) - errors} file(s), {errors} error(s)")
+        else:
+            self.status_message.emit(f"Sent {len(paths)} file(s) to trash")
+        self._remove_paths_from_results(paths)
+
+    def _batch_move_results(self):
+        paths = self._get_selected_paths()
+        if not paths:
+            return
+        dest = QFileDialog.getExistingDirectory(self, "Select destination folder")
+        if not dest:
+            return
+        dest_path = Path(dest)
+        errors = 0
+        undo_ops: list[dict] = []
+        for p in paths:
+            try:
+                src = Path(p)
+                dst = str(dest_path / src.name)
+                shutil.move(str(p), dst)
+                undo_ops.append({"from": dst, "to": str(src)})
+            except Exception:
+                errors += 1
+        if undo_ops:
+            self._batch_undo_log.extend(undo_ops)
+        if errors:
+            self.status_message.emit(f"Moved {len(paths) - errors} file(s), {errors} error(s)")
+        else:
+            self.status_message.emit(f"Moved {len(paths)} file(s)")
+        self._remove_paths_from_results(paths)
+
+    def _batch_copy_results(self):
+        paths = self._get_selected_paths()
+        if not paths:
+            return
+        dest = QFileDialog.getExistingDirectory(self, "Select destination folder")
+        if not dest:
+            return
+        dest_path = Path(dest)
+        errors = 0
+        for p in paths:
+            try:
+                shutil.copy2(p, str(dest_path / Path(p).name))
+            except Exception:
+                errors += 1
+        if errors:
+            self.status_message.emit(f"Copied {len(paths) - errors} file(s), {errors} error(s)")
+        else:
+            self.status_message.emit(f"Copied {len(paths)} file(s)")
+
+    def _batch_tag_results(self):
+        paths = self._get_selected_paths()
+        if not paths:
+            return
+        tag, ok = QInputDialog.getText(self, "Add Tag", "Tag name:")
+        if not ok or not tag or not tag.strip():
+            return
+        tag = tag.strip()
+        errors = 0
+        for p in paths:
+            try:
+                self.tag_manager.add_tag(p, tag)
+            except Exception:
+                errors += 1
+        if errors:
+            self.status_message.emit(f"Tagged {len(paths) - errors} file(s), {errors} error(s)")
+        else:
+            self.status_message.emit(f"Tagged {len(paths)} file(s) with '{tag}'")
+
+    def _open_file_location(self):
+        paths = self._get_selected_paths()
+        if not paths:
+            return
+        target = Path(paths[0])
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.parent)))
+
+    def _remove_paths_from_results(self, paths: list[str]):
+        to_remove: list[QListWidgetItem] = []
+        for i in range(self.result_list.count()):
+            item = self.result_list.item(i)
+            if item.data(Qt.UserRole) in paths:
+                to_remove.append(item)
+        for item in to_remove:
+            row = self.result_list.row(item)
+            self.result_list.takeItem(row)
+        remaining = self.result_list.count()
+        self.stats_label.setText(f"Found {remaining} results" if remaining else "No results")
+
+    def _batch_undo_move(self):
+        if not self._batch_undo_log:
+            return
+        ops = list(self._batch_undo_log)
+        errors = 0
+        for op in reversed(ops):
+            try:
+                src = op["from"]
+                dst = op["to"]
+                if Path(src).exists():
+                    shutil.move(src, dst)
+            except Exception:
+                errors += 1
+        self._batch_undo_log.clear()
+        n = len(ops)
+        if errors:
+            self.status_message.emit(f"Undid {n - errors} move(s), {errors} error(s)")
+        else:
+            self.status_message.emit(f"↩ Undid {n} move(s)")
+
+    def _on_export(self) -> None:
         """Export search results as JSON or CSV"""
         results: list[dict] = []
         for i in range(self.result_list.count()):

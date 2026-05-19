@@ -1,19 +1,23 @@
 """Settings dialog — AI engine and application configuration"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QProgressBar,
     QPushButton,
     QTabWidget,
     QVBoxLayout,
@@ -75,6 +79,10 @@ class SettingsDialog(QDialog):
         # Scheduled tasks tab
         tasks_tab = self._create_tasks_tab()
         tabs.addTab(tasks_tab, "⏰ Scheduled Tasks")
+
+        # Updates tab
+        updates_tab = self._create_updates_tab()
+        tabs.addTab(updates_tab, "🔄 Updates")
 
         layout.addWidget(tabs)
 
@@ -337,6 +345,151 @@ class SettingsDialog(QDialog):
             if task_id:
                 self.scheduler.remove_task(task_id)
         self._refresh_task_list()
+
+    def _create_updates_tab(self) -> QWidget:
+        """Create update management tab."""
+        from filepilot.updater import UpdateChecker
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(16)
+
+        # Status section
+        status_group = QGroupBox("Update Status")
+        status_layout = QVBoxLayout()
+        self.update_status_label = QLabel("Click 'Check for Updates' to check.")
+        self.update_version_label = QLabel("")
+        self.update_version_label.setWordWrap(True)
+        status_layout.addWidget(self.update_version_label)
+        status_layout.addWidget(self.update_status_label)
+
+        # Progress bar (hidden initially)
+        self.update_progress = QProgressBar()
+        self.update_progress.setVisible(False)
+        status_layout.addWidget(self.update_progress)
+
+        status_group.setLayout(status_layout)
+        layout.addWidget(status_group)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.check_update_btn = QPushButton("🔍 Check for Updates")
+        self.download_update_btn = QPushButton("⬇ Download & Install")
+        self.download_update_btn.setEnabled(False)
+        self.download_update_btn.setVisible(False)
+        btn_layout.addWidget(self.check_update_btn)
+        btn_layout.addWidget(self.download_update_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        layout.addStretch()
+
+        self._update_checker = UpdateChecker()
+        self._update_download_path: Path | None = None
+
+        self.check_update_btn.clicked.connect(self._on_check_updates)
+        self.download_update_btn.clicked.connect(self._on_download_update)
+
+        return widget
+
+    def _on_check_updates(self):
+
+        self.update_status_label.setText("Checking for updates...")
+        self.check_update_btn.setEnabled(False)
+        self.download_update_btn.setVisible(False)
+
+        def _callback(result):
+            QTimer.singleShot(0, lambda: self._on_update_result(result))
+
+        self._update_checker.check_async(callback=_callback)
+
+    def _on_update_result(self, result):
+        from filepilot.updater import __version__ as current_ver
+
+        self.check_update_btn.setEnabled(True)
+        if result.error:
+            self.update_status_label.setText(f"⚠ Check failed: {result.error}")
+            self.download_update_btn.setVisible(False)
+            return
+        if result.has_update and result.release:
+            self.update_status_label.setText(
+                f"✅ Update available: {result.release.version} (current: {current_ver})"
+            )
+            self.update_version_label.setText(
+                f"📝 {result.release.title}\n\n{result.release.body[:500]}"
+            )
+            self._update_download_url = result.release.download_url
+            self.download_update_btn.setVisible(True)
+            self.download_update_btn.setEnabled(True)
+        else:
+            self.update_status_label.setText(f"✅ You're up to date! (v{current_ver})")
+            self.update_version_label.setText("")
+            self.download_update_btn.setVisible(False)
+
+    def _on_download_update(self):
+        if not hasattr(self, "_update_download_url") or not self._update_download_url:
+            return
+        from PySide6.QtWidgets import QFileDialog
+
+        dest, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Installer As",
+            str(Path.home() / "Downloads" / "FilePilot-AI-Installer"),
+            "All Files (*)",
+        )
+        if not dest:
+            return
+
+        self.download_update_btn.setEnabled(False)
+        self.check_update_btn.setEnabled(False)
+        self.update_progress.setVisible(True)
+        self.update_progress.setValue(0)
+        self.update_status_label.setText("Downloading...")
+
+        def _progress(pct: int):
+            QTimer.singleShot(0, lambda: self.update_progress.setValue(pct))
+
+        def _download_thread():
+            try:
+                dl_path = self._update_checker.download(
+                    self._update_download_url,
+                    dest,
+                    progress_callback=_progress,
+                )
+                QTimer.singleShot(0, lambda: self._on_download_finished(dl_path))
+            except Exception as e:
+                QTimer.singleShot(0, lambda err=e: self._on_download_error(str(err)))
+
+        from threading import Thread
+
+        Thread(target=_download_thread, daemon=True).start()
+
+    def _on_download_finished(self, path: Path):
+        self.update_progress.setValue(100)
+        self.update_status_label.setText("✅ Download complete!")
+        self._update_download_path = path
+
+        from PySide6.QtWidgets import QMessageBox
+
+        reply = QMessageBox.question(
+            self,
+            "Install Update",
+            "Download complete. Install now? The application will launch the installer.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply == QMessageBox.Yes:
+            self._update_checker.install(path)
+            self.download_update_btn.setVisible(False)
+            self.update_status_label.setText(
+                "✅ Installer launched. Please close FilePilot to complete."
+            )
+
+    def _on_download_error(self, error: str):
+        self.update_progress.setVisible(False)
+        self.download_update_btn.setEnabled(True)
+        self.check_update_btn.setEnabled(True)
+        self.update_status_label.setText(f"⚠ Download failed: {error}")
 
     def _parse_file_size(self, text: str) -> int:
         """Parse file size input, default to 500 on invalid input"""

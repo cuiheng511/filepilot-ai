@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.0
+Version 0.6.1
 
 </div>
 
@@ -32,23 +32,15 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 
 </div>
 
-## What's New in 0.6
+## What's New in 0.6.1
 
 | Feature | Description |
 |---------|-------------|
-| **Dashboard & Navigation** | New landing page with stats, recent files/folders, quick actions, and shortcut reference. Sidebar reorganized into Browse, Search, Tools, Settings groups. Global search (`Ctrl+Shift+F`) and theme toggle (`Ctrl+L`). |
-| **Architecture** | ServiceContainer, AppState, and EventBus for centralized service wiring. SQLite-backed MetadataDB for 10x faster type/size/date queries; Whoosh retained for full-text search only. |
-| **Performance** | Incremental batch scan loading (100 files/batch). Asynchronous text preview with stale-result guard. QThreadPool for search, index, duplicates, and organize operations. |
-| **Code Quality** | PreviewPanel and DirectoryTreeWidget extracted to standalone files. `_setup_ui` split into named sub-methods across 6 panels. Unified `try_safe` error handling decorator. |
-| **Bug Fixes** | `Q_ARG(list)` RuntimeError replaced with typed signals across 4 panels. Plugin template encoding safety. 36 E501 line-length violations fixed. Scan worker crash on close guarded. |
-| **Testing** | 30 new tests — dashboard panel (17), navigation (8), integration (5). Total: 478 passing tests across 33 test files. |
-| **Build & CI** | Hidden imports synced across all 4 build configs. Linux CI PyInstaller command fixed (blank line was silently breaking continuation). Missing extractors and `markdown` hidden imports added. Fallback versions fixed (`0.4.0` → `0.6.0`). |
-| **Multi-tab File Browser** | TabbedFileBrowser with closable/movable tabs, `Ctrl+T`/`Ctrl+W` shortcuts, `+` corner button. Directory loading targets active tab. |
-| **Inline Filter Bar** | Type (8 categories), Size (5 ranges), Date (5 ranges), Tag (dynamic) filter combos in File Browser toolbar with "(N shown)" counter. |
-| **Search Highlighting** | Whoosh `<b class="match">` tags rendered as styled rich text via `SearchHighlightDelegate(QStyledItemDelegate)`. |
-| **Batch Rename Undo** | Regex rename operations tracked in `_regex_undo` list; ↩ Undo button reverts in reverse order with confirmation dialog. |
-| **Plugin SDK** | `docs/PLUGIN_SDK.md` with BaseFileExtractor API reference, discovery layout (`~/.filepilot/plugins/`), and example plugins (CSV Analyzer, Log File Parser). |
-| **Matured 0.5 features** | Tags, saved searches, custom columns, batch actions, plugin manager, OCR, regex rename, scheduled tasks, cross-platform packaging. |
+| **Type Annotation Cleanup** | 17 `annotation-unchecked` mypy warnings resolved across 8 source files. Remaining 4 are pre-existing PySide6 stub notes (not fixable in application code). |
+| **Testing Expansion** | 7 new test files: event_bus, app_state, tag_rules, notification, directory_tree, tags_panel, plugin_manager_panel. Total: **704 passing tests** across 40+ test files. |
+| **Search Batch Operations** | Right-click context menu on search results with multi-select (ExtendedSelection). Batch delete (send2trash), move (shutil.move), copy (shutil.copy2), tag, and open file location. Undo log for move operations accessible from the same menu. |
+| **Auto-Update Download & Install** | `UpdateChecker.download(url, dest, progress_callback)` for streaming downloads with progress; `UpdateChecker.install(path)` launches the platform-specific installer (Windows `/S`, macOS `open`, Linux chmod+exec). New "🔄 Updates" tab in SettingsDialog shows check/download/install flow. |
+| **UI Stuck Fixes** | Scan exception now properly restores UI state (file_browser, file_stats_panel, summary_panel). Large-file preview uses streaming reads instead of loading entire file into memory. Division-by-zero guard in batch rename progress calculation. Progress bar now reaches 100% instead of cycling 0–99. |
 
 ## Screenshots
 

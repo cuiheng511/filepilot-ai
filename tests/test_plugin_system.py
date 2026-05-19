@@ -3,6 +3,7 @@
 import tempfile
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import MagicMock
 
 from filepilot.core.plugin_system import BaseFileExtractor, PluginManager
 
@@ -100,5 +101,95 @@ class TestPluginManager(TestCase):
                 self.assertTrue(path.exists())
                 result = pm.discover()
                 self.assertGreaterEqual(len(result), 1)
+            finally:
+                ps.PLUGINS_DIR = orig_dir
+
+
+class TestPluginManagerExtended(TestCase):
+    def test_get_extractor_for_returns_matching(self):
+        pm = PluginManager("/nonexistent")
+        dummy = DummyExtractor()
+        pm._extractors = [dummy]
+        pm._loaded = True
+        result = pm.get_extractor_for(".dummy")
+        self.assertIs(result, dummy)
+
+    def test_get_extractor_for_none_matching(self):
+        pm = PluginManager("/nonexistent")
+        pm._extractors = [DummyExtractor()]
+        pm._loaded = True
+        result = pm.get_extractor_for(".txt")
+        self.assertIsNone(result)
+
+    def test_get_extractor_for_auto_discovers(self):
+        pm = PluginManager("/nonexistent")
+        result = pm.get_extractor_for(".dummy")
+        self.assertIsNone(result)
+
+    def test_get_all_extractors_auto_discovers(self):
+        pm = PluginManager("/nonexistent")
+        result = pm.get_all_extractors()
+        self.assertEqual([], result)
+        self.assertTrue(pm._loaded)
+
+    def test_get_all_extractors_returns_copy(self):
+        pm = PluginManager("/nonexistent")
+        dummy = DummyExtractor()
+        pm._extractors = [dummy]
+        pm._loaded = True
+        result = pm.get_all_extractors()
+        self.assertEqual([dummy], result)
+        self.assertIsNot(result, pm._extractors)
+
+    def test_get_supported_extensions(self):
+        pm = PluginManager("/nonexistent")
+        ext = DummyExtractor()
+        ext.extensions = [".dummy"]
+        pm._extractors = [ext]
+        pm._loaded = True
+        exts = pm.get_supported_extensions()
+        self.assertIn(".dummy", exts)
+
+    def test_reload_resets_and_discovers(self):
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            pm._extractors = [DummyExtractor()]
+            pm._loaded = True
+            result = pm.reload()
+            self.assertEqual([], result)
+
+    def test_reload_plugins_module_function(self):
+        import filepilot.core.plugin_system as ps
+
+        pm = MagicMock()
+        pm.reload.return_value = []
+        ps._shared_plugin_manager = pm
+        try:
+            result = ps.reload_plugins()
+            pm.reload.assert_called_once()
+            self.assertEqual([], result)
+        finally:
+            ps._shared_plugin_manager = None
+
+    def test_get_plugin_manager_singleton(self):
+        import filepilot.core.plugin_system as ps
+
+        ps._shared_plugin_manager = None
+        pm1 = ps.get_plugin_manager()
+        pm2 = ps.get_plugin_manager()
+        self.assertIs(pm1, pm2)
+        ps._shared_plugin_manager = None
+
+    def test_install_sample_plugin_creates_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            import filepilot.core.plugin_system as ps
+
+            orig_dir = ps.PLUGINS_DIR
+            ps.PLUGINS_DIR = Path(d)
+            try:
+                path = PluginManager.install_sample_plugin()
+                self.assertTrue(path.exists())
+                content = path.read_text(encoding="utf-8")
+                self.assertIn("SampleMarkdownExtractor", content)
             finally:
                 ps.PLUGINS_DIR = orig_dir

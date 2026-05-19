@@ -59,7 +59,9 @@ from filepilot.ui.tags_panel import TagsPanel
 class MainWindow(QMainWindow):
     """FilePilot AI Main Window"""
 
-    def __init__(self, services: ServiceContainer | None = None, parent=None):
+    def __init__(
+        self, services: ServiceContainer | None = None, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(t("app_name") + " — " + t("app_subtitle"))
         self.setMinimumSize(1200, 800)

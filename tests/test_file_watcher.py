@@ -185,3 +185,37 @@ class TestFileWatcherIntegration:
         assert path_str in watcher._watched_dirs
         watcher.unwatch(path_str)
         assert len(watcher._watched_dirs) == 0
+
+    def test_unwatch_nonexistent_no_crash(self, watcher):
+        """Unwatching a path that was never added should not crash."""
+        watcher.unwatch("/nonexistent/path")
+        assert True
+
+    def test_watch_nonexistent_emits_error(self, watcher, qt_app):
+        collector = _SignalCollector(watcher, qt_app)
+        watcher.watch("/tmp/definitely_does_not_exist_12345")
+        assert any("does not exist" in e for e in collector.errors)
+
+    def test_is_available_false(self, watcher, monkeypatch):
+        monkeypatch.setattr("importlib.util.find_spec", lambda _: None)
+        assert watcher.is_available is False
+
+
+class TestFileWatcherQtHandler:
+    """Unit tests for the watch error paths."""
+
+    def test_watch_emits_error_without_watchdog(self, monkeypatch):
+        monkeypatch.setattr("importlib.util.find_spec", lambda _: None)
+        w = FileWatcher()
+        errors = []
+        w.error_occurred.connect(errors.append)
+        w.watch("/tmp/some_dir")
+        assert any("watchdog not installed" in e for e in errors)
+
+    def test_watch_emits_error_nonexistent_dir(self, monkeypatch):
+        """watch emits error for non-existent directory when watchdog exists."""
+        w = FileWatcher()
+        errors = []
+        w.error_occurred.connect(errors.append)
+        w.watch("/tmp/definitely_does_not_exist_99999999")
+        assert any("does not exist" in e for e in errors)

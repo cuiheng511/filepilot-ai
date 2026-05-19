@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import platform
+import subprocess
 import sys
 import time
 import webbrowser
@@ -128,6 +129,63 @@ class UpdateChecker:
     def open_download_page(self) -> None:
         """Open the latest release page in the default browser."""
         webbrowser.open(DOWNLOAD_BASE)
+
+    def download(
+        self,
+        url: str,
+        dest_path: str | Path,
+        progress_callback: Callable[[int], None] | None = None,
+    ) -> Path:
+        """Download a release asset to a local path with progress reporting.
+
+        Args:
+            url: Download URL.
+            dest_path: Where to save the file.
+            progress_callback: Called with bytes downloaded so far.
+
+        Returns:
+            Path to the downloaded file.
+
+        Raises:
+            requests.RequestException on failure.
+        """
+        dest = Path(dest_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with requests.get(url, stream=True, timeout=30) as resp:
+            resp.raise_for_status()
+            total = int(resp.headers.get("content-length", 0))
+            downloaded = 0
+            with open(dest, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_callback and total:
+                        progress_callback(int(downloaded / total * 100))
+        return dest
+
+    def install(self, downloaded_path: str | Path) -> None:
+        """Launch the installer for the downloaded file.
+
+        Platform-specific behavior:
+          - Windows (.exe): run silently with ``/S``.
+          - macOS (.dmg): open the DMG (user mounts manually).
+          - Linux (.AppImage): ``chmod +x`` and run.
+
+        Args:
+            downloaded_path: Path to the downloaded installer.
+        """
+        path = Path(downloaded_path)
+        name = path.name.lower()
+        current_platform = str(sys.platform)
+
+        if current_platform.startswith("win") and name.endswith(".exe"):
+            subprocess.Popen([str(path), "/S"], shell=False)
+        elif current_platform == "darwin" and name.endswith(".dmg"):
+            subprocess.Popen(["open", str(path)], shell=False)
+        else:
+            # Linux AppImage or unknown — make executable and launch
+            path.chmod(path.stat().st_mode | 0o111)
+            subprocess.Popen([str(path)], shell=False)
 
     def clear_cache(self) -> None:
         """Clear the update check cache (force re-check)."""

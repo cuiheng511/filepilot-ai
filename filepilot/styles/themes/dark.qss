@@ -51,6 +51,13 @@ QGroupBox::title {
     padding: 5px 12px;
     color: #cba6f7;
 }
+QGroupBox#compactGroup {
+    margin-top: 10px;
+    padding: 14px 10px 10px 10px;
+}
+QGroupBox#compactGroup::title {
+    padding: 2px 8px;
+}
 
 /* ── Menu Bar ─────────────────────────────── */
 QMenuBar {

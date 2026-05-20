@@ -11,6 +11,7 @@
 | [BUILD.md](BUILD.md) | Cross-platform packaging guide — Windows Inno Setup (with Chinese localization), Linux AppImage, macOS .app+.dmg, CI pipeline, and troubleshooting |
 | [AI-PROVIDERS.md](AI-PROVIDERS.md) | AI provider setup and configuration — Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, and custom endpoints with per-provider installation guides |
 | [AUTO-UPDATE.md](AUTO-UPDATE.md) | Auto-update system API reference — UpdateChecker class, background check, cache behavior, and troubleshooting |
+| [PLUGIN_SDK.md](PLUGIN_SDK.md) | Extractor plugin SDK — BaseFileExtractor API, discovery, integration, and example plugin |
 
 ## 📁 Assets
 

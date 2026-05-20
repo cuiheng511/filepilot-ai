@@ -5,6 +5,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
+from filepilot.i18n import t
+
 
 class DirectoryTreeWidget(QWidget):
     """Directory tree panel with expand/collapse and click-to-navigate."""
@@ -19,7 +21,7 @@ class DirectoryTreeWidget(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QLabel("🗂 Directories"))
+        layout.addWidget(QLabel(t("disk_dirs")))
 
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["Name"])

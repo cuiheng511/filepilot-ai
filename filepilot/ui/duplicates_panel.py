@@ -24,6 +24,7 @@ from filepilot.core.duplicate_finder import DuplicateFinder
 from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -84,7 +85,7 @@ class DuplicatesPanel(BasePanel):
         self._create_status_bar(layout)
 
     def _create_title_section(self, layout):
-        title = QLabel("🔗 Duplicate File Finder")
+        title = QLabel(t("duplicates_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
@@ -115,7 +116,7 @@ class DuplicatesPanel(BasePanel):
         action_layout.addWidget(self.cb_hash)
         action_layout.addWidget(self.cb_similar_name)
         action_layout.addStretch()
-        self.btn_scan = QPushButton("🔍 Start Scan")
+        self.btn_scan = QPushButton(t("duplicates_scan"))
         self.btn_scan.setObjectName("btnDanger")
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
@@ -139,9 +140,9 @@ class DuplicatesPanel(BasePanel):
 
     def _create_stat_cards(self, layout):
         stats_layout = QHBoxLayout()
-        self.stat_groups = self._make_stat_card("📦 Duplicate Groups", "0")
-        self.stat_files = self._make_stat_card("📄 Duplicate Files", "0")
-        self.stat_wasted = self._make_stat_card("💾 Wasted Space", "0 B")
+        self.stat_groups = self._make_stat_card(t("duplicates_groups"), "0")
+        self.stat_files = self._make_stat_card(t("duplicates_files"), "0")
+        self.stat_wasted = self._make_stat_card(t("duplicates_wasted"), "0 B")
         self.stat_scanned = self._make_stat_card("📊 Scanned", "0 files")
         stats_layout.addWidget(self.stat_groups)
         stats_layout.addWidget(self.stat_files)
@@ -469,7 +470,7 @@ class DuplicatesPanel(BasePanel):
         self.btn_delete.setEnabled(False)
         self.btn_select_all_dup.setEnabled(False)
         self.btn_keep_first.setEnabled(False)
-        self.stats_label.setText("Ready")
+        self.stats_label.setText(t("ready"))
 
     def _format_bytes(self, size: int) -> str:
         """Format byte size to human-readable string"""

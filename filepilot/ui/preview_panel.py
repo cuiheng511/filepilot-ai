@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.utils.file_utils import (
     get_category_name,
     get_file_size_str,
@@ -44,7 +45,7 @@ class PreviewPanel(QWidget):
         self.preview_stack.addWidget(self.text_preview)  # index 0
 
         self.image_scroll = QScrollArea()
-        self.image_label = QLabel("Loading...")
+        self.image_label = QLabel(t("loading"))
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_scroll.setWidget(self.image_label)
         self.image_scroll.setWidgetResizable(True)
@@ -123,7 +124,7 @@ class PreviewPanel(QWidget):
 
         if is_text_like or is_markdown:
             self.preview_stack.setCurrentIndex(0)
-            self.text_preview.setPlainText("Loading...")
+            self.text_preview.setPlainText(t("loading"))
             worker = Worker(self._preview_text_worker, path, is_markdown)
             worker.signals.finished.connect(lambda _: None)
             worker.signals.error.connect(lambda msg: None)  # Errors handled in worker

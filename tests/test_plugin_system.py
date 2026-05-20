@@ -74,8 +74,9 @@ class TestBaseFileExtractor(TestCase):
         self.assertEqual([], result)
 
     def test_plugin_manager_no_dir(self):
-        pm = PluginManager("/nonexistent/plugins")
-        self.assertEqual([], pm.discover())
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(Path(d) / "nonexistent")
+            self.assertEqual([], pm.discover())
 
 
 class TestPluginManager(TestCase):
@@ -107,46 +108,52 @@ class TestPluginManager(TestCase):
 
 class TestPluginManagerExtended(TestCase):
     def test_get_extractor_for_returns_matching(self):
-        pm = PluginManager("/nonexistent")
-        dummy = DummyExtractor()
-        pm._extractors = [dummy]
-        pm._loaded = True
-        result = pm.get_extractor_for(".dummy")
-        self.assertIs(result, dummy)
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            dummy = DummyExtractor()
+            pm._extractors = [dummy]
+            pm._loaded = True
+            result = pm.get_extractor_for(".dummy")
+            self.assertIs(result, dummy)
 
     def test_get_extractor_for_none_matching(self):
-        pm = PluginManager("/nonexistent")
-        pm._extractors = [DummyExtractor()]
-        pm._loaded = True
-        result = pm.get_extractor_for(".txt")
-        self.assertIsNone(result)
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            pm._extractors = [DummyExtractor()]
+            pm._loaded = True
+            result = pm.get_extractor_for(".txt")
+            self.assertIsNone(result)
 
     def test_get_extractor_for_auto_discovers(self):
-        pm = PluginManager("/nonexistent")
-        result = pm.get_extractor_for(".dummy")
-        self.assertIsNone(result)
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            result = pm.get_extractor_for(".dummy")
+            self.assertIsNone(result)
 
     def test_get_all_extractors_auto_discovers(self):
-        pm = PluginManager("/nonexistent")
-        result = pm.get_all_extractors()
-        self.assertEqual([], result)
-        self.assertTrue(pm._loaded)
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            result = pm.get_all_extractors()
+            self.assertEqual([], result)
+            self.assertTrue(pm._loaded)
 
     def test_get_all_extractors_returns_copy(self):
-        pm = PluginManager("/nonexistent")
-        dummy = DummyExtractor()
-        pm._extractors = [dummy]
-        pm._loaded = True
-        result = pm.get_all_extractors()
-        self.assertEqual([dummy], result)
-        self.assertIsNot(result, pm._extractors)
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            dummy = DummyExtractor()
+            pm._extractors = [dummy]
+            pm._loaded = True
+            result = pm.get_all_extractors()
+            self.assertEqual([dummy], result)
+            self.assertIsNot(result, pm._extractors)
 
     def test_get_supported_extensions(self):
-        pm = PluginManager("/nonexistent")
-        ext = DummyExtractor()
-        ext.extensions = [".dummy"]
-        pm._extractors = [ext]
-        pm._loaded = True
+        with tempfile.TemporaryDirectory() as d:
+            pm = PluginManager(d)
+            ext = DummyExtractor()
+            ext.extensions = [".dummy"]
+            pm._extractors = [ext]
+            pm._loaded = True
         exts = pm.get_supported_extensions()
         self.assertIn(".dummy", exts)
 

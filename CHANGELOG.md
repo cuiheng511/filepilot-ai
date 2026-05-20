@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **Semantic Search** — Embedding-based re-ranking of Whoosh full-text results (`filepilot/core/embeddings.py`). Uses the configured AI provider's `embed()` to cache file embeddings during indexing (stored in `~/.filepilot/embeddings.json`). Search queries are embedded and results re-ranked by cosine similarity (pure Python, no numpy). Toggle via "🔬 Semantic" checkbox in the search panel. 18 new tests.
 - **ServiceContainer/AppState/EventBus** — Centralized service wiring, typed state accessors with QObject signals, and decoupled cross-panel event bus
 - **DirectoryTreeWidget** — Standalone directory tree extracted from file_browser.py (`filepilot/ui/directory_tree.py`)
 - **Worker helper** — `QRunnable`-based Worker for QThreadPool operations (`filepilot/core/worker.py`)
@@ -38,11 +39,17 @@
 - **Organize panel async crash** — Replaced 5 `Thread` + `Q_ARG(list, …)` calls with `Worker` + typed signals (`preview_ready`, `execute_ready`, `regex_preview_ready`, `regex_execute_ready`, `cancel_done`); all background ops use `QThreadPool.globalInstance()`
 - **Plugin template encoding** — `plugin_system.py:182` sample `extract_metadata` now uses `encoding="utf-8", errors="replace"` to prevent `UnicodeDecodeError` on non-UTF-8 files
 - **Ruff E501 violations** — Fixed 36 lines exceeding `line-length=100` across 8 files (SQL column lists, i18n translations, CSS strings, AI prompt strings, UI descriptions)
+- **Embedding provider caching** — `get_embedding_provider()` now caches the AI provider instance to avoid re-creating on every file during indexing
+- **Embedding persistence** — `EmbeddingCache.save()` called after `index_files()` completes; previously embeddings were kept only in memory
+- **Search cache semantics** — Semantic search results no longer cached (embedding scores change over time as index grows); cache used only for plain-text Whoosh searches
+- **Anthropic fallback** — `get_embedding_provider()` correctly returns `None` for Anthropic (no `embed()` method); `search_semantic()` falls back to Whoosh score ordering
+- **i18n for semantic search** — Added `search_semantic` / `search_semantic_tip` keys across all 18 languages
 
 ### Added (tests)
 - `test_dashboard_panel.py` — 17 tests covering stats, recent folders/files, signals, EventBus
 - `test_main_window_navigation.py` — 8 new tests: separator skipping, invalid index, keyboard mapping, global search
 - `test_integration.py` — 5 end-to-end tests: startup, navigation, open directory, toolbar state, global search
+- `test_embeddings.py` — 18 tests: cosine similarity (6), EmbeddingCache CRUD+persistence+search (10), embed_text fallback (2)
 
 ## [0.6.0] - 2026-05-18
 

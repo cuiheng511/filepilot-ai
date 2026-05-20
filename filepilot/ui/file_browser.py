@@ -36,6 +36,7 @@ from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.tag_manager import TagManager
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 from filepilot.ui.directory_tree import DirectoryTreeWidget
 from filepilot.ui.preview_panel import PreviewPanel
@@ -121,7 +122,7 @@ class FileBrowserPanel(BasePanel):
         title.setObjectName("sectionTitle")
         header_layout.addWidget(title)
         header_layout.addStretch()
-        self.dir_label = QLabel("No folder opened")
+        self.dir_label = QLabel(t("browse_no_folder"))
         self.dir_label.setObjectName("statusLabel")
         header_layout.addWidget(self.dir_label)
         layout.addLayout(header_layout)
@@ -139,14 +140,14 @@ class FileBrowserPanel(BasePanel):
         self.btn_refresh.clicked.connect(self._on_refresh)
         self.btn_refresh.setEnabled(False)
         toolbar_layout.addWidget(self.btn_refresh)
-        self.btn_export = QPushButton("📤 Export")
+        self.btn_export = QPushButton(t("browse_export"))
         self.btn_export.clicked.connect(self._on_export)
         self.btn_export.setEnabled(False)
         toolbar_layout.addWidget(self.btn_export)
         self.btn_actions = QPushButton("⚡ Actions")
         self.btn_actions.setEnabled(False)
         self.actions_menu = QMenu(self)
-        self.actions_menu.addAction("📋 Copy", self._batch_copy)
+        self.actions_menu.addAction(t("summary_copy"), self._batch_copy)
         self.actions_menu.addAction("✂ Move", self._batch_move)
         self.actions_menu.addAction("🗑 Delete", self._batch_delete)
         self.btn_actions.setMenu(self.actions_menu)
@@ -355,7 +356,7 @@ class FileBrowserPanel(BasePanel):
         self.stats_container = stats_layout
 
     def _create_status_label(self, layout):
-        self.stats_label = QLabel("Open a folder to start browsing")
+        self.stats_label = QLabel(t("browse_stats"))
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 

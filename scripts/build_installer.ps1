@@ -138,12 +138,16 @@ if (-not $isccPath) {
     # Download in CI
     if ($env:CI -or $env:GITHUB_ACTIONS) {
         Write-Host "  → CI detected, downloading Inno Setup..." -ForegroundColor Yellow
-        $innoUrl = "https://jrsoftware.org/download.php/innosetup.exe"
-        $innoInstaller = "$env:TEMP\innosetup.exe"
+        $innoVersion = "6.7.1"
+        $innoUrl = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-$innoVersion.exe"
+        $innoInstaller = "$env:TEMP\innosetup-$innoVersion.exe"
         $innoDir = "$env:TEMP\InnoSetup"
 
         try {
             Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller -UseBasicParsing -MaximumRedirection 10
+            if (-not (Test-Path $innoInstaller)) { throw "Inno Setup download failed: $innoUrl" }
+            $installerSize = (Get-Item $innoInstaller).Length
+            if ($installerSize -lt 1MB) { throw "Inno Setup download looks invalid ($installerSize bytes)" }
             Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /DIR=$innoDir /NORESTART /SUPPRESSMSGBOXES" -Wait
             $isccPath = "$innoDir\ISCC.exe"
             if (-not (Test-Path $isccPath)) { throw "Inno Setup install failed: ISCC.exe not found at $innoDir" }

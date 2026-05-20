@@ -62,8 +62,10 @@ a = Analysis(
     ],
     hiddenimports=[
         'filepilot.ai.base', 'filepilot.ai.local_ai', 'filepilot.ai.cloud_ai',
-        'filepilot.ai.summarizer', 'filepilot.app', 'filepilot.cli', 'filepilot.i18n',
-        'filepilot.log', 'filepilot.core.search_cache', 'filepilot.core.file_scanner',
+        'filepilot.ai.summarizer', 'filepilot.app', 'filepilot.auto_start',
+        'filepilot.cli', 'filepilot.i18n',
+        'filepilot.log', 'filepilot.core.embeddings', 'filepilot.core.search_cache',
+        'filepilot.core.file_scanner',
         'filepilot.core.duplicate_finder', 'filepilot.core.file_organizer',
         'filepilot.core.indexer', 'filepilot.core.file_watcher', 'filepilot.core.task_queue',
         'filepilot.core.config', 'filepilot.core.task_scheduler',

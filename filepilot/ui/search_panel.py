@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -41,6 +42,7 @@ from filepilot.extractors import (
     PptxExtractor,
     XlsxExtractor,
 )
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 # Extractor mapping by extension
@@ -177,7 +179,7 @@ class SearchPanel(BasePanel):
         self._create_status(layout)
 
     def _create_title(self, layout):
-        title = QLabel("🔍 File Search")
+        title = QLabel(t("search_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
@@ -195,12 +197,10 @@ class SearchPanel(BasePanel):
         self.search_input.setObjectName("searchInput")
         self.search_input.setEditable(True)
         self.search_input.setInsertPolicy(QComboBox.NoInsert)
-        self.search_input.setPlaceholderText(
-            "Enter search keywords, e.g.: find PDFs about deep learning..."
-        )
+        self.search_input.setPlaceholderText(t("search_placeholder"))
         self.search_input.lineEdit().returnPressed.connect(self._on_search)
         self.search_input.activated.connect(self._on_search)
-        self.search_btn = QPushButton("🔍 Search")
+        self.search_btn = QPushButton(t("search_btn"))
         self.search_btn.setObjectName("btnSearch")
         self.search_btn.clicked.connect(self._on_search)
         search_layout.addWidget(self.search_input, 1)
@@ -210,45 +210,64 @@ class SearchPanel(BasePanel):
 
     def _create_search_options(self, layout):
         options_layout = QHBoxLayout()
+        options_layout.setSpacing(12)
+
+        search_group = QGroupBox("Search")
+        search_group.setObjectName("compactGroup")
+        search_layout = QHBoxLayout(search_group)
         self.fuzzy_cb = QCheckBox("Fuzzy search")
         self.fuzzy_cb.setChecked(True)
-        options_layout.addWidget(self.fuzzy_cb)
+        search_layout.addWidget(self.fuzzy_cb)
+        self.semantic_cb = QCheckBox(t("search_semantic"))
+        self.semantic_cb.setToolTip(t("search_semantic_tip"))
+        self.semantic_cb.setChecked(False)
+        search_layout.addWidget(self.semantic_cb)
         self.content_cb = QCheckBox("Search content")
         self.content_cb.setChecked(True)
-        options_layout.addWidget(self.content_cb)
-        options_layout.addWidget(QLabel("Tag:"))
+        search_layout.addWidget(self.content_cb)
+        options_layout.addWidget(search_group)
+
+        filters_group = QGroupBox("Filters")
+        filters_group.setObjectName("compactGroup")
+        filters_layout = QHBoxLayout(filters_group)
+        filters_layout.addWidget(QLabel("Tag:"))
         self.tag_filter = QComboBox()
         self.tag_filter.addItem("All")
         self.tag_filter.setMinimumWidth(120)
         self._refresh_tag_filter()
-        options_layout.addWidget(self.tag_filter)
-        options_layout.addWidget(QLabel("Saved:"))
+        filters_layout.addWidget(self.tag_filter)
+        filters_layout.addWidget(QLabel("Saved:"))
         self.saved_combo = QComboBox()
         self.saved_combo.setMinimumWidth(140)
         self.saved_combo.setContextMenuPolicy(Qt.CustomContextMenu)
         self.saved_combo.customContextMenuRequested.connect(self._on_saved_context_menu)
         self.saved_combo.activated.connect(self._on_load_saved_search)
-        options_layout.addWidget(self.saved_combo)
+        filters_layout.addWidget(self.saved_combo)
         self._refresh_saved_searches()
-        self.btn_save_search = QPushButton("💾 Save")
+        self.btn_save_search = QPushButton(t("save"))
         self.btn_save_search.clicked.connect(self._on_save_search)
         self.btn_save_search.setEnabled(False)
-        options_layout.addWidget(self.btn_save_search)
-        options_layout.addStretch()
-        self.index_btn = QPushButton("🗂️ Build Index")
+        filters_layout.addWidget(self.btn_save_search)
+        options_layout.addWidget(filters_group, 1)
+
+        actions_group = QGroupBox("Actions")
+        actions_group.setObjectName("compactGroup")
+        actions_layout = QHBoxLayout(actions_group)
+        self.index_btn = QPushButton(t("search_index_btn"))
         self.index_btn.clicked.connect(self._on_index)
-        options_layout.addWidget(self.index_btn)
-        self.export_btn = QPushButton("📤 Export Results")
+        actions_layout.addWidget(self.index_btn)
+        self.export_btn = QPushButton("Export Results")
         self.export_btn.clicked.connect(self._on_export)
         self.export_btn.setEnabled(False)
-        options_layout.addWidget(self.export_btn)
+        actions_layout.addWidget(self.export_btn)
         self.clear_btn = QPushButton("Clear Results")
         self.clear_btn.clicked.connect(self._clear_results)
-        options_layout.addWidget(self.clear_btn)
-        self.clear_history_btn = QPushButton("🗑 Clear History")
+        actions_layout.addWidget(self.clear_btn)
+        self.clear_history_btn = QPushButton("Clear History")
         self.clear_history_btn.setToolTip("Clear search history")
         self.clear_history_btn.clicked.connect(self._clear_search_history)
-        options_layout.addWidget(self.clear_history_btn)
+        actions_layout.addWidget(self.clear_history_btn)
+        options_layout.addWidget(actions_group)
         layout.addLayout(options_layout)
 
     def _create_progress_bar(self, layout):
@@ -256,7 +275,7 @@ class SearchPanel(BasePanel):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-        self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
@@ -301,7 +320,7 @@ class SearchPanel(BasePanel):
         self.progress_bar.setVisible(False)
         self.search_btn.setEnabled(True)
         self.index_btn.setEnabled(True)
-        self.status_message.emit("⏹️ Operation cancelled")
+        self.status_message.emit("Operation cancelled")
 
     def _load_search_history(self) -> None:
         """Load search history from settings and populate dropdown."""
@@ -397,6 +416,7 @@ class SearchPanel(BasePanel):
             "name": name.strip(),
             "query": query,
             "fuzzy": self.fuzzy_cb.isChecked(),
+            "semantic": self.semantic_cb.isChecked(),
             "content_search": self.content_cb.isChecked(),
             "tag_filter": self.tag_filter.currentText()
             if self.tag_filter.currentText() != "All"
@@ -436,6 +456,7 @@ class SearchPanel(BasePanel):
         entry = saved[index - 1]
         self.search_input.setEditText(entry.get("query", ""))
         self.fuzzy_cb.setChecked(entry.get("fuzzy", True))
+        self.semantic_cb.setChecked(entry.get("semantic", False))
         self.content_cb.setChecked(entry.get("content_search", True))
         tag = entry.get("tag_filter", "")
         if tag:
@@ -526,26 +547,34 @@ class SearchPanel(BasePanel):
             if self._cancelled:
                 return
 
-            # Check cache first
-            from filepilot.core.search_cache import cache_results, get_cached_results
-
-            cached = get_cached_results(query)
-            if cached is not None:
-                if not self._cancelled:
-                    self.search_results_ready.emit(cached, query)
-                return
-
             # Execute search
-            results = self.indexer.search(
-                query,
-                fuzzy=self.fuzzy_cb.isChecked(),
-                limit=100,
-            )
+            use_semantic = self.semantic_cb.isChecked()
+            if use_semantic:
+                results = self.indexer.search_semantic(
+                    query,
+                    fuzzy=self.fuzzy_cb.isChecked(),
+                    limit=100,
+                )
+            else:
+                # Check cache for plain-text search only
+                from filepilot.core.search_cache import cache_results, get_cached_results
+
+                cached = get_cached_results(query)
+                if cached is not None:
+                    if not self._cancelled:
+                        self.search_results_ready.emit(cached, query)
+                    return
+                results = self.indexer.search(
+                    query,
+                    fuzzy=self.fuzzy_cb.isChecked(),
+                    limit=100,
+                )
+                if not self._cancelled:
+                    cache_results(query, results)
 
             if self._cancelled:
                 return
 
-            cache_results(query, results)
             self.search_results_ready.emit(results, query)
 
         worker = Worker(search_worker)
@@ -578,10 +607,10 @@ class SearchPanel(BasePanel):
             ]
 
         if not results:
-            item = QListWidgetItem(f'No results found for "{query}"')
+            item = QListWidgetItem(t("search_no_results").format(query=query))
             item.setForeground(Qt.gray)
             self.result_list.addItem(item)
-            self.stats_label.setText("No matching results")
+            self.stats_label.setText(t("search_no_results"))
             return
 
         for r in results:
@@ -910,10 +939,15 @@ class SearchPanel(BasePanel):
 
             total = len(files)
 
+            embedding_extractor = (
+                self._extract_file_content if self.semantic_cb.isChecked() else None
+            )
+
             # Build index
             indexed = self.indexer.index_files(
                 files,
                 content_extractor=self._extract_file_content,
+                embedding_extractor=embedding_extractor,
                 progress_callback=lambda i, msg: self.progress_updated.emit(
                     int(i / total * 100) if total else 0,
                 ),
@@ -961,7 +995,7 @@ class SearchPanel(BasePanel):
         """Clear search results"""
         self.result_list.clear()
         self.search_input.setEditText("")
-        self.stats_label.setText("Ready")
+        self.stats_label.setText(t("ready"))
 
     @Slot()
     def _on_status_message(self, msg: str):

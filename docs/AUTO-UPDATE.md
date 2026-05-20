@@ -95,7 +95,7 @@ Platform behavior:
 **Example:**
 ```python
 checker = UpdateChecker()
-checker.install("/tmp/FilePilot-AI-Setup-0.6.1.exe")
+checker.install("/tmp/FilePilot-AI-Setup-0.6.2.exe")
 ```
 
 #### `open_download_page()`

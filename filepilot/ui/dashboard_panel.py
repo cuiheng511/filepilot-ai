@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -53,7 +54,7 @@ class DashboardPanel(BasePanel):
         # Quick stats row
         stats_layout = QHBoxLayout()
         self.stat_total_files = self._make_stat_card("📊 Total Files", "—")
-        self.stat_total_size = self._make_stat_card("💾 Total Size", "—")
+        self.stat_total_size = self._make_stat_card(t("disk_total"), "—")
         self.stat_categories = self._make_stat_card("📁 Categories", "—")
         self.stat_tags = self._make_stat_card("🏷️ Tags", "—")
         stats_layout.addWidget(self.stat_total_files)
@@ -75,7 +76,7 @@ class DashboardPanel(BasePanel):
         actions_section = self._create_section("⚡ Quick Actions")
         actions_layout = QHBoxLayout()
         self.btn_open_folder = QPushButton("📂 Open Folder")
-        self.btn_scan = QPushButton("🔄 Scan Files")
+        self.btn_scan = QPushButton(t("browse_scan"))
         self.btn_index = QPushButton("📇 Build Index")
         self.btn_find_duplicates = QPushButton("🔍 Find Duplicates")
         actions_layout.addWidget(self.btn_open_folder)
@@ -151,7 +152,7 @@ class DashboardPanel(BasePanel):
     ):
         """Update dashboard statistics"""
         self._update_stat("📊 Total Files", f"{total_files:,}")
-        self._update_stat("💾 Total Size", total_size)
+        self._update_stat(t("disk_total"), total_size)
         self._update_stat("📁 Categories", str(categories))
         self._update_stat("🏷️ Tags", str(tags))
 

@@ -40,14 +40,18 @@ def main():
     tray.show()
 
     # Center window on screen
-    window.show()
-    screen = QApplication.primaryScreen()
-    if screen:
-        screen_geo = screen.availableGeometry()
-        window.move(
-            screen_geo.x() + (screen_geo.width() - window.width()) // 2,
-            screen_geo.y() + (screen_geo.height() - window.height()) // 2,
-        )
+    if not settings.get("start_minimized", False):
+        window.show()
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_geo = screen.availableGeometry()
+            window.move(
+                screen_geo.x() + (screen_geo.width() - window.width()) // 2,
+                screen_geo.y() + (screen_geo.height() - window.height()) // 2,
+            )
+    else:
+        # Start minimized to tray (window hidden, tray visible)
+        window.hide()
 
     sys.exit(app.exec())
 

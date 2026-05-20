@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
+from filepilot.auto_start import is_auto_start_enabled, set_auto_start
 from filepilot.core.file_watcher import FileWatcher
 from filepilot.core.indexer import FileIndexer
 from filepilot.i18n import t
@@ -73,6 +74,16 @@ class SystemTrayManager(QObject):
         pause_action.setCheckable(True)
         pause_action.toggled.connect(self._on_toggle_watching)
         menu.addAction(pause_action)
+
+        menu.addSeparator()
+
+        self._autostart_action = QAction(t("auto_start"), self)
+        self._autostart_action.setCheckable(True)
+        self._autostart_action.setChecked(is_auto_start_enabled())
+        self._autostart_action.toggled.connect(self._on_toggle_autostart)
+        menu.addAction(self._autostart_action)
+
+        menu.addSeparator()
 
         exit_action = QAction("✕ " + t("close"), self)
         exit_action.triggered.connect(self._on_exit)
@@ -158,6 +169,15 @@ class SystemTrayManager(QObject):
                 self.watch_directory(dir_path)
             self._paused_dirs.clear()
             self._show_toast(t("tray_watching_resumed"), "info", 2000)
+
+    def _on_toggle_autostart(self, enabled: bool):
+        """Toggle auto-start with OS."""
+        set_auto_start(enabled)
+        self._show_toast(
+            t("auto_start_enabled") if enabled else t("auto_start_disabled"),
+            "info",
+            2000,
+        )
 
     def _on_file_event(self, file_path: str):
         """Handle file created/modified event"""

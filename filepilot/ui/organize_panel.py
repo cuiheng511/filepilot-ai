@@ -107,7 +107,7 @@ class OrganizePanel(BasePanel):
         self._create_status_bar(layout)
 
     def _create_title_section(self, layout):
-        title = QLabel("\U0001f4cb File Organizer")
+        title = QLabel(t("organize_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
@@ -123,7 +123,7 @@ class OrganizePanel(BasePanel):
         dir_layout = QVBoxLayout()
         dir_layout.setSpacing(8)
         src_layout = QHBoxLayout()
-        src_layout.addWidget(QLabel("\U0001f4c2 Source Folder:"))
+        src_layout.addWidget(QLabel(t("organize_src")))
         self.src_path_label = QLabel("Not selected")
         self.src_path_label.setObjectName("pathLabel")
         self.src_path_label.setWordWrap(True)
@@ -133,7 +133,7 @@ class OrganizePanel(BasePanel):
         src_layout.addWidget(self.btn_src)
         dir_layout.addLayout(src_layout)
         dst_layout = QHBoxLayout()
-        dst_layout.addWidget(QLabel("\U0001f3af Target Folder:"))
+        dst_layout.addWidget(QLabel(t("organize_dst")))
         self.dst_path_label = QLabel("Not selected (default: source_folder/_organized)")
         self.dst_path_label.setObjectName("pathLabel")
         self.dst_path_label.setWordWrap(True)
@@ -467,7 +467,7 @@ class OrganizePanel(BasePanel):
 
         reply = QMessageBox.question(
             self,
-            "Confirm Organization",
+            t("organize_confirm"),
             f"Organize {len(self.files)} files into\n"
             f"{self.target_dir or self.source_dir / '_organized'}?\n\n"
             "This will move files. Backup recommended.",
@@ -550,7 +550,7 @@ class OrganizePanel(BasePanel):
 
         stats = self.organizer.stats
         self.stats_label.setText(
-            f"\u2705 Organization complete: {stats['organized_count']} files moved"
+            f"\u2705 {t('organize_done')}: {stats['organized_count']} files moved"
             + (f", {stats['errors']} errors" if stats["errors"] else ""),
         )
 
@@ -588,7 +588,7 @@ class OrganizePanel(BasePanel):
         """Clear results"""
         self.result_table.setRowCount(0)
         self.btn_execute.setEnabled(False)
-        self.stats_label.setText("Ready")
+        self.stats_label.setText(t("ready"))
 
     # ── Batch Regex Rename ──
 

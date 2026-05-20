@@ -9,6 +9,7 @@ from whoosh import fields, index
 from whoosh.analysis import StandardAnalyzer
 from whoosh.qparser import FuzzyTermPlugin, MultifieldParser
 
+from filepilot.core.embeddings import EmbeddingCache, embed_text
 from filepilot.core.file_scanner import FileInfo
 from filepilot.core.index_db import MetadataDB
 
@@ -40,6 +41,7 @@ class FileIndexer:
         self.index_dir.mkdir(parents=True, exist_ok=True)
         self._ix = self._open_or_create_index()
         self._meta_db = MetadataDB(self.index_dir.parent / "file_meta.db")
+        self._embed_cache = EmbeddingCache(self.index_dir.parent)
         self._total_indexed = 0
 
     def _open_or_create_index(self) -> index.Index:
@@ -54,6 +56,7 @@ class FileIndexer:
         files: list[FileInfo],
         content_extractor: Callable[[FileInfo], str] | None = None,
         summary_extractor: Callable[[FileInfo], str] | None = None,
+        embedding_extractor: Callable[[FileInfo], str] | None = None,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> int:
         """Add file list to index
@@ -64,6 +67,7 @@ class FileIndexer:
             files: List of files
             content_extractor: Custom content extraction function
             summary_extractor: Custom summary extraction function
+            embedding_extractor: Custom text extraction for embedding (AI semantic search)
             progress_callback: Progress callback
 
         Returns:
@@ -106,6 +110,14 @@ class FileIndexer:
                     content=content,
                     summary=summary,
                 )
+                # Compute and cache embedding for semantic search
+                if embedding_extractor:
+                    embed_text_content = embedding_extractor(file_info) or ""
+                    if embed_text_content:
+                        emb = embed_text(embed_text_content)
+                        if emb:
+                            self._embed_cache.put(str(file_info.path), emb)
+
                 indexed += 1
 
                 if progress_callback:
@@ -115,6 +127,7 @@ class FileIndexer:
                 logger.debug("Skipped indexing %s: %s", file_info.name, e)
                 continue
 
+        self._embed_cache.save()
         writer.commit()
         self._total_indexed += indexed
         return indexed
@@ -263,8 +276,31 @@ class FileIndexer:
     def clear_index(self) -> None:
         """Clear index"""
         self._meta_db.clear()
+        self._embed_cache.clear()
         writer = self._ix.writer()
         writer.commit(mergetype=index.CLEAR)
+
+    def search_semantic(
+        self,
+        query_str: str,
+        limit: int = 50,
+        fuzzy: bool = True,
+    ) -> list[dict]:
+        """Semantic search: Whoosh full-text + embedding re-ranking.
+
+        First runs a Whoosh full-text search, then re-ranks results
+        by cosine similarity using cached embeddings.
+        """
+        results = self.search(query_str, fuzzy=fuzzy, limit=limit * 2)
+        if not results:
+            return results
+
+        query_embedding = embed_text(query_str)
+        if not query_embedding:
+            return results[:limit]
+
+        ranked = self._embed_cache.search(query_embedding, results)
+        return ranked[:limit]
 
     def get_stats(self) -> dict:
         """Get index statistics"""

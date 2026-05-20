@@ -7,6 +7,7 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -41,9 +43,9 @@ class SettingsDialog(QDialog):
         parent=None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("⚙️ Settings — FilePilot AI")
-        self.setMinimumSize(600, 450)
-        self.resize(650, 500)
+        self.setWindowTitle("Settings - FilePilot AI")
+        self.setMinimumSize(680, 520)
+        self.resize(760, 620)
 
         self.state = app_state
         self.event_bus = event_bus
@@ -66,23 +68,19 @@ class SettingsDialog(QDialog):
 
         # AI settings tab
         ai_tab = self._create_ai_tab()
-        tabs.addTab(ai_tab, "🤖 AI Engine")
+        tabs.addTab(ai_tab, t("settings_ai"))
 
         # General settings tab
         general_tab = self._create_general_tab()
-        tabs.addTab(general_tab, "⚙️ General")
+        tabs.addTab(general_tab, t("settings_general"))
 
         # Shortcuts tab
         shortcuts_tab = self._create_shortcuts_tab()
-        tabs.addTab(shortcuts_tab, "⌨️ Shortcuts")
+        tabs.addTab(shortcuts_tab, "Shortcuts")
 
         # Scheduled tasks tab
         tasks_tab = self._create_tasks_tab()
-        tabs.addTab(tasks_tab, "⏰ Scheduled Tasks")
-
-        # Updates tab
-        updates_tab = self._create_updates_tab()
-        tabs.addTab(updates_tab, "🔄 Updates")
+        tabs.addTab(tasks_tab, "Scheduled Tasks")
 
         layout.addWidget(tabs)
 
@@ -140,9 +138,9 @@ class SettingsDialog(QDialog):
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.setPlaceholderText("sk-...")
-        self.api_key_label = QLabel("API Key:")
-        common_layout.addRow("Model:", self.model_input)
-        common_layout.addRow("API Base URL:", self.api_base_input)
+        self.api_key_label = QLabel(t("settings_api_key"))
+        common_layout.addRow(t("settings_model_label"), self.model_input)
+        common_layout.addRow(t("settings_api_base"), self.api_base_input)
         common_layout.addRow(self.api_key_label, self.api_key_input)
         common_group.setLayout(common_layout)
         layout.addWidget(common_group)
@@ -173,39 +171,44 @@ class SettingsDialog(QDialog):
         self.api_key_label.setVisible(need_key)
 
     def _create_general_tab(self) -> QWidget:
-        """Create general settings tab"""
+        """Create a consolidated application and system settings tab."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
         widget = QWidget()
         layout = QVBoxLayout(widget)
+        layout.setContentsMargins(4, 4, 12, 4)
         layout.setSpacing(16)
 
-        # Language settings
-        lang_group = QGroupBox("Language / 语言")
-        lang_layout = QFormLayout()
+        preferences_group = QGroupBox("Preferences")
+        preferences_layout = QFormLayout()
         self.lang_combo = QComboBox()
         self.lang_combo.addItems([f"{v} ({k})" for k, v in SUPPORTED_LANGUAGES.items()])
-        lang_layout.addRow("Language:", self.lang_combo)
-        lang_group.setLayout(lang_layout)
-        layout.addWidget(lang_group)
-
-        # Index settings
-        index_group = QGroupBox("Index Settings")
-        index_layout = QFormLayout()
         self.index_dir = QLineEdit(str(Path.home() / ".filepilot" / "index"))
-        index_layout.addRow("Index storage path:", self.index_dir)
-        index_group.setLayout(index_layout)
-        layout.addWidget(index_group)
-
-        # File scan settings
-        scan_group = QGroupBox("File Scanning")
-        scan_layout = QFormLayout()
         self.max_file_size = QLineEdit("500")
         self.max_file_size.setPlaceholderText("Unit: MB")
-        scan_layout.addRow("Max file size (MB):", self.max_file_size)
-        scan_group.setLayout(scan_layout)
-        layout.addWidget(scan_group)
+        preferences_layout.addRow("Language:", self.lang_combo)
+        preferences_layout.addRow("Index storage path:", self.index_dir)
+        preferences_layout.addRow("Max file size (MB):", self.max_file_size)
+        preferences_group.setLayout(preferences_layout)
+        layout.addWidget(preferences_group)
+
+        system_group = QGroupBox("App & System")
+        system_layout = QVBoxLayout()
+        self.minimize_to_tray_cb = QCheckBox(t("minimize_to_tray"))
+        self.close_to_tray_cb = QCheckBox(t("close_to_tray"))
+        self.auto_start_cb = QCheckBox(t("auto_start"))
+        system_layout.addWidget(self.minimize_to_tray_cb)
+        system_layout.addWidget(self.close_to_tray_cb)
+        system_layout.addWidget(self.auto_start_cb)
+        system_group.setLayout(system_layout)
+        layout.addWidget(system_group)
+
+        layout.addWidget(self._create_updates_group())
 
         layout.addStretch()
-        return widget
+        scroll.setWidget(widget)
+        return scroll
 
     def _create_shortcuts_tab(self) -> QWidget:
         """Create shortcuts customization tab"""
@@ -243,8 +246,8 @@ class SettingsDialog(QDialog):
         toolbar_layout.addWidget(self.task_list, 1)
 
         btn_layout = QVBoxLayout()
-        self.btn_add_task = QPushButton("➕ Add Task")
-        self.btn_remove_task = QPushButton("❌ Remove Selected")
+        self.btn_add_task = QPushButton("Add Task")
+        self.btn_remove_task = QPushButton("Remove Selected")
         self.btn_remove_task.setEnabled(False)
         btn_layout.addWidget(self.btn_add_task)
         btn_layout.addWidget(self.btn_remove_task)
@@ -271,7 +274,7 @@ class SettingsDialog(QDialog):
         for task in tasks:
             from pathlib import Path
 
-            status = "✅" if task.enabled else "⏸️"
+            status = "Enabled" if task.enabled else "Paused"
             item = QListWidgetItem(
                 f"{status} [{task.task_type.upper()}] {Path(task.directory).name} "
                 f"- {task.schedule_type} at {task.schedule_time}"
@@ -346,35 +349,30 @@ class SettingsDialog(QDialog):
                 self.scheduler.remove_task(task_id)
         self._refresh_task_list()
 
-    def _create_updates_tab(self) -> QWidget:
-        """Create update management tab."""
+    def _create_updates_group(self) -> QGroupBox:
+        """Create update management controls for the general tab."""
         from filepilot.updater import UpdateChecker
 
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setSpacing(16)
-
-        # Status section
-        status_group = QGroupBox("Update Status")
-        status_layout = QVBoxLayout()
+        updates_group = QGroupBox("Updates")
+        layout = QVBoxLayout(updates_group)
+        layout.setSpacing(12)
         self.update_status_label = QLabel("Click 'Check for Updates' to check.")
         self.update_version_label = QLabel("")
         self.update_version_label.setWordWrap(True)
-        status_layout.addWidget(self.update_version_label)
-        status_layout.addWidget(self.update_status_label)
+        layout.addWidget(self.update_version_label)
+        layout.addWidget(self.update_status_label)
 
         # Progress bar (hidden initially)
         self.update_progress = QProgressBar()
         self.update_progress.setVisible(False)
-        status_layout.addWidget(self.update_progress)
-
-        status_group.setLayout(status_layout)
-        layout.addWidget(status_group)
+        layout.addWidget(self.update_progress)
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.check_update_btn = QPushButton("🔍 Check for Updates")
-        self.download_update_btn = QPushButton("⬇ Download & Install")
+        self.check_update_btn = QPushButton("Check for Updates")
+        self.check_update_btn.setObjectName("btnPrimary")
+        self.download_update_btn = QPushButton("Download & Install")
+        self.download_update_btn.setObjectName("btnSuccess")
         self.download_update_btn.setEnabled(False)
         self.download_update_btn.setVisible(False)
         btn_layout.addWidget(self.check_update_btn)
@@ -382,15 +380,13 @@ class SettingsDialog(QDialog):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
-        layout.addStretch()
-
         self._update_checker = UpdateChecker()
         self._update_download_path: Path | None = None
 
         self.check_update_btn.clicked.connect(self._on_check_updates)
         self.download_update_btn.clicked.connect(self._on_download_update)
 
-        return widget
+        return updates_group
 
     def _on_check_updates(self):
 
@@ -408,21 +404,21 @@ class SettingsDialog(QDialog):
 
         self.check_update_btn.setEnabled(True)
         if result.error:
-            self.update_status_label.setText(f"⚠ Check failed: {result.error}")
+            self.update_status_label.setText(f"Check failed: {result.error}")
             self.download_update_btn.setVisible(False)
             return
         if result.has_update and result.release:
             self.update_status_label.setText(
-                f"✅ Update available: {result.release.version} (current: {current_ver})"
+                f"Update available: {result.release.version} (current: {current_ver})"
             )
             self.update_version_label.setText(
-                f"📝 {result.release.title}\n\n{result.release.body[:500]}"
+                f"{result.release.title}\n\n{result.release.body[:500]}"
             )
             self._update_download_url = result.release.download_url
             self.download_update_btn.setVisible(True)
             self.download_update_btn.setEnabled(True)
         else:
-            self.update_status_label.setText(f"✅ You're up to date! (v{current_ver})")
+            self.update_status_label.setText(f"You're up to date! (v{current_ver})")
             self.update_version_label.setText("")
             self.download_update_btn.setVisible(False)
 
@@ -466,7 +462,7 @@ class SettingsDialog(QDialog):
 
     def _on_download_finished(self, path: Path):
         self.update_progress.setValue(100)
-        self.update_status_label.setText("✅ Download complete!")
+        self.update_status_label.setText("Download complete!")
         self._update_download_path = path
 
         from PySide6.QtWidgets import QMessageBox
@@ -482,14 +478,14 @@ class SettingsDialog(QDialog):
             self._update_checker.install(path)
             self.download_update_btn.setVisible(False)
             self.update_status_label.setText(
-                "✅ Installer launched. Please close FilePilot to complete."
+                "Installer launched. Please close FilePilot to complete."
             )
 
     def _on_download_error(self, error: str):
         self.update_progress.setVisible(False)
         self.download_update_btn.setEnabled(True)
         self.check_update_btn.setEnabled(True)
-        self.update_status_label.setText(f"⚠ Download failed: {error}")
+        self.update_status_label.setText(f"Download failed: {error}")
 
     def _parse_file_size(self, text: str) -> int:
         """Parse file size input, default to 500 on invalid input"""
@@ -523,6 +519,11 @@ class SettingsDialog(QDialog):
             if idx >= 0:
                 self.lang_combo.setCurrentIndex(idx)
 
+        # Tray / auto-start checkboxes
+        self.minimize_to_tray_cb.setChecked(self._settings.get("minimize_to_tray", True))
+        self.close_to_tray_cb.setChecked(self._settings.get("close_to_tray", True))
+        self.auto_start_cb.setChecked(self._settings.get("auto_start", False))
+
     def get_settings(self) -> dict:
         """Get settings values, preserving keys not exposed in the dialog."""
         provider_names = ["ollama", "llamacpp", "openai", "anthropic", "custom"]
@@ -541,6 +542,9 @@ class SettingsDialog(QDialog):
                 "shortcuts": self.shortcut_editor.get_overrides()
                 if hasattr(self, "shortcut_editor")
                 else self._settings.get("shortcuts", {}),
+                "minimize_to_tray": self.minimize_to_tray_cb.isChecked(),
+                "close_to_tray": self.close_to_tray_cb.isChecked(),
+                "auto_start": self.auto_start_cb.isChecked(),
             }
         )
         return result
@@ -552,6 +556,14 @@ class SettingsDialog(QDialog):
         if new_lang != self._current_lang:
             set_language(new_lang)
             self._current_lang = new_lang
+
+        # Apply auto-start immediately
+        old_auto = self._settings.get("auto_start", False)
+        new_auto = self.auto_start_cb.isChecked()
+        if old_auto != new_auto:
+            from filepilot.auto_start import set_auto_start
+
+            set_auto_start(new_auto)
 
         # Store new settings from controls
         self._settings = self.get_settings()

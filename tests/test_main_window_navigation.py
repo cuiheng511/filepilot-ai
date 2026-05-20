@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from filepilot.core import config
 from filepilot.core.service_container import ServiceContainer
+from filepilot.i18n import t
 from filepilot.ui.dashboard_panel import DashboardPanel
 from filepilot.ui.main_window import MainWindow
 from filepilot.ui.search_panel import SearchPanel
@@ -90,7 +91,7 @@ def test_dashboard_stats_update_existing_stat_cards():
         panel.update_stats(total_files=42, total_size="12 MB", categories=5, tags=3)
 
         assert panel.stat_cards["📊 Total Files"].text() == "42"
-        assert panel.stat_cards["💾 Total Size"].text() == "12 MB"
+        assert panel.stat_cards[t("disk_total")].text() == "12 MB"
         assert panel.stat_cards["📁 Categories"].text() == "5"
         assert panel.stat_cards["🏷️ Tags"].text() == "3"
     finally:

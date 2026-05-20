@@ -311,3 +311,43 @@ class TestTraySetup:
         assert mw.watch.call_count == 2
         assert tray._watched_dirs == ["/project", "/data"]
         assert tray._paused_dirs == []
+
+
+class TestTrayAutoStart:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        with (
+            patch("filepilot.ui.tray.QSystemTrayIcon"),
+            patch("filepilot.ui.tray.QMenu"),
+            patch("filepilot.ui.tray.QAction"),
+            patch("filepilot.ui.tray.QIcon"),
+            patch("filepilot.ui.tray.QApplication"),
+            patch("filepilot.ui.tray.Signal"),
+            patch("filepilot.ui.tray.FileWatcher", return_value=MagicMock()),
+            patch("filepilot.ui.tray.FileIndexer", return_value=MagicMock()),
+            patch("filepilot.ui.tray.NotificationToast", return_value=MagicMock()),
+            patch("filepilot.ui.tray.t", lambda key: key),
+            patch("filepilot.ui.tray.is_auto_start_enabled", return_value=False),
+        ):
+            from filepilot.ui.tray import SystemTrayManager as TrayCls
+
+        self.tray = TrayCls.__new__(TrayCls)
+        self.tray._main_window = None
+        self.tray._services = {}
+        self.tray._watcher = MagicMock()
+        self.tray._indexer = MagicMock()
+        self.tray._toast = MagicMock()
+        self.tray._tray_icon = MagicMock()
+        self.tray._watched_dirs = []
+        self.tray._paused_dirs = []
+        self.tray._autostart_action = MagicMock()
+
+    def test_toggle_autostart_enables(self):
+        with patch("filepilot.ui.tray.set_auto_start") as mock_set:
+            self.tray._on_toggle_autostart(True)
+            mock_set.assert_called_once_with(True)
+
+    def test_toggle_autostart_disables(self):
+        with patch("filepilot.ui.tray.set_auto_start") as mock_set:
+            self.tray._on_toggle_autostart(False)
+            mock_set.assert_called_once_with(False)

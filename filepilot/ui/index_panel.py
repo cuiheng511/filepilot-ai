@@ -22,6 +22,7 @@ from filepilot.core.event_bus import EventBus
 from filepilot.core.file_scanner import FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 
@@ -83,7 +84,7 @@ class IndexPanel(BasePanel):
         self._create_status_label(layout)
 
     def _create_title_section(self, layout):
-        title = QLabel("\U0001f5c2\ufe0f Index Management")
+        title = QLabel(t("index_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
@@ -120,14 +121,14 @@ class IndexPanel(BasePanel):
 
     def _create_action_buttons(self, layout):
         action_layout = QHBoxLayout()
-        self.btn_build = QPushButton("\U0001f528 Build Index")
+        self.btn_build = QPushButton(t("index_build"))
         self.btn_build.setObjectName("btnPrimary")
         self.btn_build.clicked.connect(self._on_build)
         self.btn_build.setEnabled(False)
         self.btn_update = QPushButton("\U0001f504 Incremental Update")
         self.btn_update.clicked.connect(self._on_update)
         self.btn_update.setEnabled(False)
-        self.btn_clear = QPushButton("\U0001f5d1\ufe0f Clear Index")
+        self.btn_clear = QPushButton(t("index_clear"))
         self.btn_clear.setObjectName("btnDanger")
         self.btn_clear.clicked.connect(self._on_clear)
         self.btn_clear.setEnabled(False)
@@ -190,7 +191,7 @@ class IndexPanel(BasePanel):
         layout.addWidget(splitter, 1)
 
     def _create_status_label(self, layout):
-        self.stats_label = QLabel("Ready \u2014 Select a folder and build index")
+        self.stats_label = QLabel(t("ready"))
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 

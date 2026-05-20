@@ -142,6 +142,20 @@ Provider configuration is stored in `~/.filepilot/settings.json`:
 
 API keys are stored in the OS keyring (`keyring`) when available, with encrypted fallback to a local file.
 
+### Embedding API (Semantic Search)
+
+Semantic search uses the configured AI provider's `embed()` method to compute file embeddings during indexing, then re-ranks Whoosh results by cosine similarity.
+
+| Provider | Supports `embed()` | Notes |
+| -------- | ------------------ | ----- |
+| Ollama | Yes | Uses `/api/embeddings` endpoint |
+| llama.cpp / LM Studio | Yes | Uses `/v1/embeddings` endpoint (OpenAI-compatible) |
+| OpenAI | Yes | Uses `/embeddings` endpoint with `text-embedding-3-small` by default |
+| Anthropic | **No** | Falls back to Whoosh score ordering (semantic checkbox has no effect) |
+| Custom endpoint | Varies | Works if the endpoint supports OpenAI-compatible `POST /embeddings` |
+
+Embeddings are cached in `~/.filepilot/embeddings.json` and computed incrementally during index builds. The `embedding_extractor` callback can be configured to determine which text to embed (defaults to file content).
+
 ### Programmatic Usage
 
 ```python

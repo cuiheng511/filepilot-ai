@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="filepilot/resources/app.png" width="132" alt="FilePilot AI logo" />
+<img src="filepilot/resources/app.png" width="128" alt="FilePilot AI logo" />
 
 # FilePilot AI
 
-**A local-first AI file manager for searching, organizing, deduplicating, summarizing, tagging, and indexing your files.**
+**A local-first AI file manager for search, tags, OCR, duplicates, summaries, and safer file organization.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![PySide6](https://img.shields.io/badge/Desktop-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
@@ -12,17 +12,17 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.1
+Version 0.6.2
 
 </div>
 
 ---
 
-## Overview
+## Why FilePilot AI
 
-FilePilot AI is a desktop file manager built for people who need to understand large local folders before they move, delete, rename, or summarize anything.
+FilePilot AI helps you understand a messy local folder before you move, delete, rename, tag, summarize, or archive anything. It combines a desktop file browser, full-text indexing, duplicate detection, OCR, tagging, saved searches, semantic search, and optional AI summaries in one PySide6 app.
 
-It combines recursive scanning, preview-first organization, duplicate detection, full-text indexing, file tags, saved searches, OCR, and optional AI summaries in one PySide6 application. Core file operations stay local by default. Cloud AI providers are only used when you explicitly configure and run AI summarization.
+Scanning, indexing, tags, duplicate detection, and organization stay local by default. Cloud AI providers are only used when you configure them and explicitly run AI features.
 
 ## Demo
 
@@ -32,15 +32,16 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 
 </div>
 
-## What's New in 0.6.1
+## What's New in 0.6.2
 
-| Feature | Description |
-|---------|-------------|
-| **Type Annotation Cleanup** | 17 `annotation-unchecked` mypy warnings resolved across 8 source files. Remaining 4 are pre-existing PySide6 stub notes (not fixable in application code). |
-| **Testing Expansion** | 7 new test files: event_bus, app_state, tag_rules, notification, directory_tree, tags_panel, plugin_manager_panel. Total: **704 passing tests** across 40+ test files. |
-| **Search Batch Operations** | Right-click context menu on search results with multi-select (ExtendedSelection). Batch delete (send2trash), move (shutil.move), copy (shutil.copy2), tag, and open file location. Undo log for move operations accessible from the same menu. |
-| **Auto-Update Download & Install** | `UpdateChecker.download(url, dest, progress_callback)` for streaming downloads with progress; `UpdateChecker.install(path)` launches the platform-specific installer (Windows `/S`, macOS `open`, Linux chmod+exec). New "🔄 Updates" tab in SettingsDialog shows check/download/install flow. |
-| **UI Stuck Fixes** | Scan exception now properly restores UI state (file_browser, file_stats_panel, summary_panel). Large-file preview uses streaming reads instead of loading entire file into memory. Division-by-zero guard in batch rename progress calculation. Progress bar now reaches 100% instead of cycling 0–99. |
+| Area | Update |
+| --- | --- |
+| Semantic search | Full-text results can now be re-ranked by AI embedding similarity, with cached embeddings when semantic mode is enabled during indexing. |
+| Faster result workflows | Search results support multi-select batch actions: copy, move, delete, tag, open location, and undo recent move operations. |
+| Desktop lifecycle | Added startup registration, tray behavior settings, background watching controls, and a dedicated update flow. |
+| Stability | Scan failures now restore UI state, large previews stream file content, rename progress is guarded, and progress bars finish cleanly. |
+| Quality | Current local check: 742 tests collected, 741 passed, 1 skipped; Ruff and mypy pass. |
+| Packaging | Windows, Linux, and macOS build paths include the newer auto-start and semantic embedding modules. |
 
 ## Screenshots
 
@@ -64,42 +65,36 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 | --- |
 | ![Plugin manager](docs/assets/screenshots/09-plugins.png) |
 
-## Feature Set
-
-### Desktop Workflow
-
-- Native PySide6 interface with dashboard-first navigation.
-- File browser with preview pane, archive browsing, custom columns, and batch copy/move/delete actions.
-- Favorites, recent folders, recent files, global search shortcut, customizable shortcuts, light/dark themes, tray support, and toast notifications.
-- 18 UI languages through the built-in i18n system.
+## Features
 
 ### Search and Indexing
 
 - Whoosh-powered local full-text index.
-- Keyword, fuzzy, and boolean search with content extraction.
-- Search history, saved searches, tag filtering, CSV export, and incremental index updates.
+- Keyword, fuzzy, boolean, tag-filtered, saved, and semantic search.
+- Search history, CSV export, and incremental index updates.
+- Embedding cache for semantic re-ranking without adding a heavy numeric dependency.
+
+### File Management
+
+- Preview-first file browser with custom columns and archive browsing.
+- Batch copy, move, delete, tag, rename, and open-location actions.
+- Favorites, recent folders, recent files, global shortcuts, themes, tray support, and notifications.
+- 18 built-in UI languages.
 
 ### Organization and Cleanup
 
-- Organize by file type, date, extension, or size range.
-- Rename templates and batch regex rename with preview before execution.
-- Duplicate detection with size grouping, partial-hash filtering, full SHA-256 verification, and safe deletion through the system recycle bin.
+- Organize files by type, date, extension, or size range.
+- Batch rename with templates, regex support, and preview before execution.
+- Duplicate detection with size grouping, partial hashing, full SHA-256 verification, and safe deletion through the system recycle bin.
 - Undo-log support for organization workflows.
 
 ### AI, OCR, and Extractors
 
-- AI summaries and keyword extraction for PDF, Markdown, code, text, Office files, and images.
+- Optional AI summaries and keyword extraction for PDF, Markdown, code, text, Office files, and images.
 - OCR support through Tesseract for image text extraction.
 - Local providers: Ollama, llama.cpp, LM Studio, or OpenAI-compatible local endpoints.
 - Cloud providers: OpenAI, Anthropic, and custom OpenAI-compatible APIs.
 - Plugin system for custom content extractors.
-
-### Build and Release
-
-- Windows PyInstaller build plus Inno Setup installer.
-- Linux AppImage build.
-- macOS `.app` and `.dmg` build.
-- GitHub Actions pipeline for linting, tests, and three-platform packaging.
 
 ## Quick Start
 
@@ -108,7 +103,7 @@ It combines recursive scanning, preview-first organization, duplicate detection,
 - Python 3.10 or newer
 - Windows, macOS, or Linux
 - Optional: Ollama, llama.cpp, LM Studio, or another local AI runtime
-- Optional: OpenAI, Anthropic, or any OpenAI-compatible cloud endpoint
+- Optional: OpenAI, Anthropic, or any OpenAI-compatible endpoint
 - Optional: Tesseract OCR for image text extraction
 
 ### Run from Source
@@ -163,7 +158,7 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 
 ## AI Providers
 
-FilePilot AI supports local and cloud AI providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup details, configuration examples, and provider-specific privacy notes.
+FilePilot AI supports local and cloud providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup details, examples, and provider-specific privacy notes.
 
 | Provider | Mode | Default URL |
 | --- | --- | --- |
@@ -174,31 +169,7 @@ FilePilot AI supports local and cloud AI providers through a unified interface. 
 | Anthropic | Cloud | `https://api.anthropic.com` |
 | Custom endpoint | Cloud or local | User-defined |
 
-Cloud providers only receive the content you choose to summarize. Scanning, indexing, tags, search, duplicate detection, and organization do not require cloud AI.
-
-## Project Structure
-
-```text
-filepilot-ai/
-|-- filepilot/
-|   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher, scheduler
-|   |-- extractors/          # PDF, Markdown, code, image, Office, OCR extractors
-|   |-- resources/           # Application icons
-|   |-- styles/              # Theme manager and QSS themes
-|   |-- ui/                  # PySide6 panels and dialogs
-|   |-- app.py               # Application bootstrap
-|   |-- cli.py               # Command-line interface
-|   |-- i18n.py              # Translation catalog
-|   `-- main.py              # GUI entry point
-|-- tests/                   # Unit and UI tests
-|-- scripts/                 # Windows, Linux, and macOS build scripts
-|-- docs/                    # Build and AI provider guides
-|-- .github/workflows/       # CI pipeline
-|-- FilePilot.spec           # Windows PyInstaller build config
-|-- pyproject.toml           # Package metadata and tooling
-`-- requirements.txt         # Runtime dependencies
-```
+Cloud providers only receive content you choose to summarize. Routine scanning, indexing, tagging, searching, duplicate detection, and organization do not require cloud AI.
 
 ## Architecture
 
@@ -208,6 +179,8 @@ flowchart LR
     CLI["CLI"] --> Core
     Core --> Scanner["File scanner"]
     Core --> Indexer["Whoosh indexer"]
+    Indexer --> EmbedCache["Embedding cache"]
+    EmbedCache --> AI["AI provider embed()"]
     Core --> Duplicates["Duplicate finder"]
     Core --> Organizer["Organizer"]
     Core --> Tags["Tags and saved searches"]
@@ -219,6 +192,31 @@ flowchart LR
     Extractors --> Summarizer["AI summarizer"]
     Summarizer --> Providers["Local and cloud AI providers"]
     Duplicates --> Recycle["System recycle bin via send2trash"]
+```
+
+## Project Structure
+
+```text
+filepilot-ai/
+|-- filepilot/
+|   |-- ai/                  # AI providers and summarization
+|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher
+|   |-- extractors/          # PDF, Markdown, code, image, Office, OCR extractors
+|   |-- resources/           # Application icons
+|   |-- styles/              # Theme manager and QSS themes
+|   |-- ui/                  # PySide6 panels and dialogs
+|   |-- app.py               # Application bootstrap
+|   |-- auto_start.py        # OS startup registration
+|   |-- cli.py               # Command-line interface
+|   |-- i18n.py              # Translation catalog
+|   `-- main.py              # GUI entry point
+|-- tests/                   # Unit and UI tests
+|-- scripts/                 # Windows, Linux, and macOS build scripts
+|-- docs/                    # Build, AI provider, and asset docs
+|-- .github/workflows/       # CI pipeline
+|-- FilePilot.spec           # Windows PyInstaller build config
+|-- pyproject.toml           # Package metadata and tooling
+`-- requirements.txt         # Runtime dependencies
 ```
 
 ## Build Installers
@@ -235,11 +233,11 @@ For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
 
 | Area | Design |
 | --- | --- |
-| Local-first workflow | File scanning, indexing, duplicate detection, tags, and organization run locally |
-| Optional AI | Summarization can use local models or explicit cloud providers |
-| API keys | Stored with OS keyring when available, with encrypted fallback storage |
-| Safe deletion | Duplicate cleanup uses the system recycle bin through `send2trash` |
-| Telemetry | No analytics, tracking, or background phone-home behavior |
+| Local-first workflow | File scanning, indexing, duplicate detection, tags, and organization run locally. |
+| Optional AI | Summarization can use local models or explicitly configured cloud providers. |
+| API keys | Stored with OS keyring when available, with encrypted fallback storage. |
+| Safe deletion | Duplicate cleanup uses the system recycle bin through `send2trash`. |
+| Telemetry | No analytics, tracking, or background phone-home behavior. |
 
 ## Quality Gates
 
@@ -250,7 +248,7 @@ mypy
 pytest
 ```
 
-The CI pipeline runs linting, tests, coverage upload, and packaged builds for Windows, Linux, and macOS.
+The CI pipeline runs linting, type checking, tests, coverage upload, and packaged builds for Windows, Linux, and macOS.
 
 ## Contributing
 

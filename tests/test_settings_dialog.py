@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PySide6.QtWidgets import QTabWidget
 
 from filepilot.i18n import SUPPORTED_LANGUAGES
 from filepilot.ui.settings_dialog import SettingsDialog
@@ -24,6 +25,9 @@ def _make_settings():
         "theme": "dark",
         "language": "en",
         "recent_dirs": [],
+        "minimize_to_tray": True,
+        "close_to_tray": True,
+        "auto_start": False,
     }
 
 
@@ -91,6 +95,14 @@ def _make_dialog(settings_dict=None):
     default_lang_idx = lang_keys.index(settings_dict.get("language", "en"))
     obj.lang_combo = _ComboBox(default_lang_idx)
 
+    # Tray / auto-start checkboxes
+    obj.minimize_to_tray_cb = MagicMock()
+    obj.minimize_to_tray_cb.isChecked.return_value = settings_dict.get("minimize_to_tray", True)
+    obj.close_to_tray_cb = MagicMock()
+    obj.close_to_tray_cb.isChecked.return_value = settings_dict.get("close_to_tray", True)
+    obj.auto_start_cb = MagicMock()
+    obj.auto_start_cb.isChecked.return_value = settings_dict.get("auto_start", False)
+
     return obj
 
 
@@ -150,6 +162,9 @@ class TestGetSettings:
             "index_dir",
             "max_file_size_mb",
             "language",
+            "minimize_to_tray",
+            "close_to_tray",
+            "auto_start",
         ):
             assert k in r
 
@@ -169,6 +184,19 @@ class TestGetSettings:
         r = d.get_settings()
         assert r["ai_provider"] == provider
         assert r["ai_mode"] == mode
+
+
+class TestSettingsLayout:
+    def test_updates_are_consolidated_into_general_tab(self, qtbot):
+        dialog = SettingsDialog(settings=_make_settings())
+        qtbot.addWidget(dialog)
+
+        tabs = dialog.findChild(QTabWidget)
+        tab_names = [tabs.tabText(i) for i in range(tabs.count())]
+
+        assert tabs.count() == 4
+        assert "Updates" not in tab_names
+        assert dialog.check_update_btn.text() == "Check for Updates"
 
 
 # ── File size parsing (pure logic) ──────────────────────────────────
@@ -268,4 +296,4 @@ class TestUpdateTab:
             error="Network error",
         )
         d._on_update_result(result)
-        d.update_status_label.setText.assert_called_with("⚠ Check failed: Network error")
+        d.update_status_label.setText.assert_called_with("Check failed: Network error")

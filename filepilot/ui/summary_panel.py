@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 from filepilot.utils.file_utils import CAT_CODE, CAT_MARKDOWN, CAT_OFFICE, CAT_PDF, CAT_TEXT
 
@@ -113,7 +114,7 @@ class SummaryPanel(BasePanel):
         self._create_status_bar(layout)
 
     def _create_title_section(self, layout):
-        title = QLabel("📝 AI Summary Generation")
+        title = QLabel(t("summary_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
         desc = QLabel(
@@ -163,7 +164,7 @@ class SummaryPanel(BasePanel):
         self.cb_ocr_images.setToolTip("Use Tesseract OCR to extract text from image files")
         right_layout.addWidget(self.cb_ocr_images)
         right_layout.addStretch()
-        self.btn_generate = QPushButton("🚀 Generate Summary")
+        self.btn_generate = QPushButton(t("summary_generate"))
         self.btn_generate.setObjectName("btnSuccess")
         self.btn_generate.clicked.connect(self._on_generate)
         self.btn_generate.setEnabled(False)
@@ -228,7 +229,7 @@ class SummaryPanel(BasePanel):
     def _on_add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select files for summarization",
+            t("summary_select_file"),
             str(self.current_dir or str(Path.home())),
             "Supported files (*.pdf *.md *.txt *.py *.js *.ts *.java *.cpp"
             " *.c *.h *.go *.rs *.rb *.php *.swift *.kt"
@@ -260,7 +261,7 @@ class SummaryPanel(BasePanel):
     def _on_add_folder(self):
         dir_path = QFileDialog.getExistingDirectory(
             self,
-            "Select folder to scan",
+            t("summary_select_folder"),
             str(self.current_dir or Path.home()),
         )
         if not dir_path:

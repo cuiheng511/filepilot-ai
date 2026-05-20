@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.file_scanner import FileCategory, FileInfo, FileScanner
 from filepilot.core.worker import Worker
+from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
 logger = logging.getLogger("filepilot.stats_panel")
@@ -200,7 +201,7 @@ class FileStatsPanel(BasePanel):
         layout.setSpacing(8)
 
         # Title
-        title = QLabel("\U0001f4ca File Statistics & Disk Usage")
+        title = QLabel(t("disk_title"))
         title_font = QFont()
         title_font.setPointSize(16)
         title_font.setBold(True)
@@ -242,7 +243,7 @@ class FileStatsPanel(BasePanel):
         # Stat cards row
         stats_row = QHBoxLayout()
         self._stat_total_files = self._make_stat_card("Total Files", "0")
-        self._stat_total_size = self._make_stat_card("Total Size", "0 B")
+        self._stat_total_size = self._make_stat_card(t("disk_total"), "0 B")
         self._stat_categories = self._make_stat_card("Categories", "0")
         stats_row.addWidget(self._stat_total_files)
         stats_row.addWidget(self._stat_total_size)
@@ -286,7 +287,7 @@ class FileStatsPanel(BasePanel):
     def _show_empty_state(self) -> None:
         """Show placeholder when no analysis has been run."""
         self._update_stat("Total Files", "0")
-        self._update_stat("Total Size", "0 B")
+        self._update_stat(t("disk_total"), "0 B")
         self._update_stat("Categories", "0")
         self._clear_sections()
         self._update_add_button_state()
@@ -445,7 +446,7 @@ class FileStatsPanel(BasePanel):
 
         # Update stat cards
         self._update_stat("Total Files", f"{stats['total_files']:,}")
-        self._update_stat("Total Size", self._fmt_size(stats["total_size"]))
+        self._update_stat(t("disk_total"), self._fmt_size(stats["total_size"]))
         self._update_stat("Categories", str(len(stats["by_category"])))
 
         # Rebuild distribution sections

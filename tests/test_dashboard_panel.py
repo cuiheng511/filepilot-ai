@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QListWidgetItem
 
 from filepilot.core.event_bus import EventBus
+from filepilot.i18n import t
 from filepilot.ui.dashboard_panel import DashboardPanel
 
 
@@ -16,7 +17,7 @@ def test_update_stats_updates_all_four_cards():
     try:
         panel.update_stats(total_files=42, total_size="12 MB", categories=5, tags=3)
         assert panel.stat_cards["📊 Total Files"].text() == "42"
-        assert panel.stat_cards["💾 Total Size"].text() == "12 MB"
+        assert panel.stat_cards[t("disk_total")].text() == "12 MB"
         assert panel.stat_cards["📁 Categories"].text() == "5"
         assert panel.stat_cards["🏷️ Tags"].text() == "3"
     finally:
@@ -181,7 +182,7 @@ def test_quick_action_buttons_exist():
     panel = DashboardPanel()
     try:
         assert panel.btn_open_folder.text() == "📂 Open Folder"
-        assert panel.btn_scan.text() == "🔄 Scan Files"
+        assert panel.btn_scan.text() == t("browse_scan")
         assert panel.btn_index.text() == "📇 Build Index"
         assert panel.btn_find_duplicates.text() == "🔍 Find Duplicates"
     finally:

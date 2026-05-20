@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.i18n import t
+
 
 class BasePanel(QWidget):
     """Base class for all feature panels, providing shared signals and common methods."""
@@ -29,7 +31,7 @@ class BasePanel(QWidget):
         self._cancelled: bool = False
 
         # Cancel button (added by subclasses to their layouts)
-        self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel = QPushButton(t("cancel"))
         self.btn_cancel.setVisible(False)
         self.btn_cancel.clicked.connect(self._on_cancel)
         self._cancelling: bool = False

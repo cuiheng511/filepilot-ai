@@ -109,9 +109,11 @@ if ! $SKIP_PYINSTALLER; then
     --hidden-import "filepilot.ai.cloud_ai" \
     --hidden-import "filepilot.ai.summarizer" \
     --hidden-import "filepilot.app" \
+    --hidden-import "filepilot.auto_start" \
     --hidden-import "filepilot.cli" \
     --hidden-import "filepilot.i18n" \
     --hidden-import "filepilot.log" \
+    --hidden-import "filepilot.core.embeddings" \
     --hidden-import "filepilot.core.search_cache" \
     --hidden-import "filepilot.core.file_scanner" \
     --hidden-import "filepilot.core.duplicate_finder" \

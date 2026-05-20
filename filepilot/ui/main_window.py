@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Slot
+from PySide6.QtCore import QEvent, QSize, Qt, Slot
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -271,13 +271,37 @@ class MainWindow(QMainWindow):
             self.drop_overlay.setGeometry(self.centralWidget().rect())
 
     def closeEvent(self, event: QCloseEvent):
-        """Cancel background operations on close."""
+        """Cancel background operations on close.
+
+        If the tray icon is visible and close_to_tray is enabled,
+        hide to tray instead of quitting.
+        """
+        tray = getattr(self, "tray_manager", None)
+        if tray and tray.is_visible() and self.state and self.state.get("close_to_tray", True):
+            event.ignore()
+            self.hide()
+            return
         if hasattr(self, "browse_panel"):
             for i in range(self.browse_panel._tabs.count()):
                 panel = self.browse_panel._tabs.widget(i)
                 if hasattr(panel, "_cancelled"):
                     panel._cancelled = True
         event.accept()
+
+    def changeEvent(self, event):
+        """Intercept minimize to hide to tray instead."""
+        if (
+            event.type() == QEvent.WindowStateChange
+            and self.isMinimized()
+            and getattr(self, "tray_manager", None)
+            and self.tray_manager.is_visible()
+            and self.state
+            and self.state.get("minimize_to_tray", True)
+        ):
+            event.ignore()
+            self.hide()
+            return
+        super().changeEvent(event)
 
     def _connect_event_bus(self):
         """Wire event bus signals to handlers."""
@@ -448,7 +472,7 @@ class MainWindow(QMainWindow):
 
         toolbar.addSeparator()
 
-        self.btn_scan = QPushButton("🔄 Scan")
+        self.btn_scan = QPushButton(t("browse_scan"))
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         toolbar.addWidget(self.btn_scan)
@@ -477,7 +501,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(self.progress_bar)
 
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel(t("ready"))
         self.status_bar.addWidget(self.status_label)
 
     def _setup_shortcuts(self):

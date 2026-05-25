@@ -36,12 +36,21 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 
 | Area | Update |
 | --- | --- |
-| Semantic search | Full-text results can now be re-ranked by AI embedding similarity, with cached embeddings when semantic mode is enabled during indexing. |
-| Faster result workflows | Search results support multi-select batch actions: copy, move, delete, tag, open location, and undo recent move operations. |
-| Desktop lifecycle | Added startup registration, tray behavior settings, background watching controls, and a dedicated update flow. |
-| Stability | Scan failures now restore UI state, large previews stream file content, rename progress is guarded, and progress bars finish cleanly. |
-| Quality | Current local check: 742 tests collected, 741 passed, 1 skipped; Ruff and mypy pass. |
-| Packaging | Windows, Linux, and macOS build paths include the newer auto-start and semantic embedding modules. |
+| Semantic search | Embedding-based re-ranking of Whoosh results using AI provider `embed()` — cosine similarity (pure Python), cached in `~/.filepilot/embeddings.json`. Toggle via "🔬 Semantic" checkbox. |
+| i18n completeness | 160 missing keys added across 16 non-en/zh languages; ~40 previously hardcoded UI strings now use `t()`. Remaining ~180 strings also wired (this release). |
+| Bug fixes | Embedding provider now cached (not re-created per-file). Embeddings persisted via `save()` after indexing. Search cache skips semantic results (scores change over time). Anthropic correctly returns `None` for `embed()`. |
+| Quality | 737 tests passing (18 new embedding tests), ruff/mypy clean. |
+
+### What was new in 0.6.1
+
+| Area | Update |
+| --- | --- |
+| Type annotations | 17 `annotation-unchecked` mypy warnings resolved across 8 source files. |
+| Test expansion | 7 new test files: event_bus, app_state, tag_rules, notification, directory_tree, tags_panel, plugin_manager_panel. Total: 745 tests. |
+| Batch operations | Right-click context menu on search results with multi-select: delete, move, copy, tag, open location. Undo log for moves. |
+| Auto-update | Streaming download with progress, platform-specific installer launch. New "🔄 Updates" tab in Settings. |
+| System tray | Minimize-to-tray, close-to-tray, three-platform auto-start (Windows/Linux/macOS). |
+| UI stuck fixes | Scan exception restores UI, large-file preview streams, zero-division guard in rename, progress bar reaches 100%. |
 
 ## Screenshots
 

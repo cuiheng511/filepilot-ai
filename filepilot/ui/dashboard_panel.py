@@ -44,7 +44,7 @@ class DashboardPanel(BasePanel):
         layout.setSpacing(16)
 
         # Title
-        title = QLabel("🏠 Dashboard")
+        title = QLabel(t("dashboard_title"))
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)
@@ -53,10 +53,10 @@ class DashboardPanel(BasePanel):
 
         # Quick stats row
         stats_layout = QHBoxLayout()
-        self.stat_total_files = self._make_stat_card("📊 Total Files", "—")
+        self.stat_total_files = self._make_stat_card(t("dashboard_total_files"), "—")
         self.stat_total_size = self._make_stat_card(t("disk_total"), "—")
-        self.stat_categories = self._make_stat_card("📁 Categories", "—")
-        self.stat_tags = self._make_stat_card("🏷️ Tags", "—")
+        self.stat_categories = self._make_stat_card(t("dashboard_categories"), "—")
+        self.stat_tags = self._make_stat_card(t("dashboard_tags"), "—")
         stats_layout.addWidget(self.stat_total_files)
         stats_layout.addWidget(self.stat_total_size)
         stats_layout.addWidget(self.stat_categories)
@@ -75,10 +75,10 @@ class DashboardPanel(BasePanel):
         # Quick actions
         actions_section = self._create_section("⚡ Quick Actions")
         actions_layout = QHBoxLayout()
-        self.btn_open_folder = QPushButton("📂 Open Folder")
+        self.btn_open_folder = QPushButton(t("dashboard_open_folder"))
         self.btn_scan = QPushButton(t("browse_scan"))
-        self.btn_index = QPushButton("📇 Build Index")
-        self.btn_find_duplicates = QPushButton("🔍 Find Duplicates")
+        self.btn_index = QPushButton(t("dashboard_build_index"))
+        self.btn_find_duplicates = QPushButton(t("dashboard_find_duplicates"))
         actions_layout.addWidget(self.btn_open_folder)
         actions_layout.addWidget(self.btn_scan)
         actions_layout.addWidget(self.btn_index)
@@ -151,16 +151,16 @@ class DashboardPanel(BasePanel):
         self, total_files: int = 0, total_size: str = "—", categories: int = 0, tags: int = 0
     ):
         """Update dashboard statistics"""
-        self._update_stat("📊 Total Files", f"{total_files:,}")
+        self._update_stat(t("dashboard_total_files"), f"{total_files:,}")
         self._update_stat(t("disk_total"), total_size)
-        self._update_stat("📁 Categories", str(categories))
-        self._update_stat("🏷️ Tags", str(tags))
+        self._update_stat(t("dashboard_categories"), str(categories))
+        self._update_stat(t("dashboard_tags"), str(tags))
 
     def update_recent_folders(self, folders: list[str]):
         """Update recent folders list"""
         self.recent_folders_list.clear()
         if not folders:
-            item = QListWidgetItem("No recent folders")
+            item = QListWidgetItem(t("dashboard_no_recent_folders"))
             item.setForeground(Qt.gray)
             self.recent_folders_list.addItem(item)
             return
@@ -175,7 +175,7 @@ class DashboardPanel(BasePanel):
         """Update recent files list"""
         self.recent_files_list.clear()
         if not files:
-            item = QListWidgetItem("No recent files")
+            item = QListWidgetItem(t("dashboard_no_recent_files"))
             item.setForeground(Qt.gray)
             self.recent_files_list.addItem(item)
             return
@@ -184,7 +184,7 @@ class DashboardPanel(BasePanel):
             try:
                 modified = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
             except (OSError, FileNotFoundError):
-                modified = "unknown"
+                modified = t("dashboard_unknown")
             item = QListWidgetItem(f"📄 {path.name}")
             item.setToolTip(f"{file_path}\nModified: {modified}")
             item.setData(Qt.UserRole, file_path)

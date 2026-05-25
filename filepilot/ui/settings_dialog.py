@@ -43,7 +43,7 @@ class SettingsDialog(QDialog):
         parent=None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("Settings - FilePilot AI")
+        self.setWindowTitle(t("settings_title"))
         self.setMinimumSize(680, 520)
         self.resize(760, 620)
 
@@ -76,11 +76,11 @@ class SettingsDialog(QDialog):
 
         # Shortcuts tab
         shortcuts_tab = self._create_shortcuts_tab()
-        tabs.addTab(shortcuts_tab, "Shortcuts")
+        tabs.addTab(shortcuts_tab, t("settings_shortcuts"))
 
         # Scheduled tasks tab
         tasks_tab = self._create_tasks_tab()
-        tabs.addTab(tasks_tab, "Scheduled Tasks")
+        tabs.addTab(tasks_tab, t("settings_scheduled"))
 
         layout.addWidget(tabs)
 
@@ -246,8 +246,8 @@ class SettingsDialog(QDialog):
         toolbar_layout.addWidget(self.task_list, 1)
 
         btn_layout = QVBoxLayout()
-        self.btn_add_task = QPushButton("Add Task")
-        self.btn_remove_task = QPushButton("Remove Selected")
+        self.btn_add_task = QPushButton(t("settings_add_task"))
+        self.btn_remove_task = QPushButton(t("settings_remove_task"))
         self.btn_remove_task.setEnabled(False)
         btn_layout.addWidget(self.btn_add_task)
         btn_layout.addWidget(self.btn_remove_task)
@@ -353,7 +353,7 @@ class SettingsDialog(QDialog):
         """Create update management controls for the general tab."""
         from filepilot.updater import UpdateChecker
 
-        updates_group = QGroupBox("Updates")
+        updates_group = QGroupBox(t("settings_updates"))
         layout = QVBoxLayout(updates_group)
         layout.setSpacing(12)
         self.update_status_label = QLabel("Click 'Check for Updates' to check.")
@@ -369,9 +369,9 @@ class SettingsDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.check_update_btn = QPushButton("Check for Updates")
+        self.check_update_btn = QPushButton(t("settings_check_updates"))
         self.check_update_btn.setObjectName("btnPrimary")
-        self.download_update_btn = QPushButton("Download & Install")
+        self.download_update_btn = QPushButton(t("settings_download_install"))
         self.download_update_btn.setObjectName("btnSuccess")
         self.download_update_btn.setEnabled(False)
         self.download_update_btn.setVisible(False)
@@ -429,8 +429,8 @@ class SettingsDialog(QDialog):
 
         dest, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Installer As",
-            str(Path.home() / "Downloads" / "FilePilot-AI-Installer"),
+            t("settings_save_installer"),
+            str(Path.home() / "Downloads" / t("settings_installer_name")),
             "All Files (*)",
         )
         if not dest:
@@ -469,7 +469,7 @@ class SettingsDialog(QDialog):
 
         reply = QMessageBox.question(
             self,
-            "Install Update",
+            t("settings_install_now"),
             "Download complete. Install now? The application will launch the installer.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,

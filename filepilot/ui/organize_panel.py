@@ -124,20 +124,20 @@ class OrganizePanel(BasePanel):
         dir_layout.setSpacing(8)
         src_layout = QHBoxLayout()
         src_layout.addWidget(QLabel(t("organize_src")))
-        self.src_path_label = QLabel("Not selected")
+        self.src_path_label = QLabel(t("organize_src_placeholder"))
         self.src_path_label.setObjectName("pathLabel")
         self.src_path_label.setWordWrap(True)
-        self.btn_src = QPushButton("Browse...")
+        self.btn_src = QPushButton(t("browse"))
         self.btn_src.clicked.connect(self._on_select_source)
         src_layout.addWidget(self.src_path_label, 1)
         src_layout.addWidget(self.btn_src)
         dir_layout.addLayout(src_layout)
         dst_layout = QHBoxLayout()
         dst_layout.addWidget(QLabel(t("organize_dst")))
-        self.dst_path_label = QLabel("Not selected (default: source_folder/_organized)")
+        self.dst_path_label = QLabel(t("organize_dst_placeholder"))
         self.dst_path_label.setObjectName("pathLabel")
         self.dst_path_label.setWordWrap(True)
-        self.btn_dst = QPushButton("Browse...")
+        self.btn_dst = QPushButton(t("browse"))
         self.btn_dst.clicked.connect(self._on_select_target)
         dst_layout.addWidget(self.dst_path_label, 1)
         dst_layout.addWidget(self.btn_dst)
@@ -170,7 +170,7 @@ class OrganizePanel(BasePanel):
             "Leave empty for no rename. Supports: {name} {date} {time} {ext} {category}"
         )
         rename_layout.addWidget(self.rename_input, 1)
-        self.template_btn = QPushButton("Template Help")
+        self.template_btn = QPushButton(t("template_help"))
         self.template_btn.setToolTip(
             "Available variables:\n"
             "  {name}     \u2014 Original filename\n"
@@ -200,10 +200,10 @@ class OrganizePanel(BasePanel):
         regex_replacement_layout.addWidget(self.regex_replacement_input, 1)
         regex_layout.addLayout(regex_replacement_layout)
         regex_options_layout = QHBoxLayout()
-        self.regex_case_cb = QCheckBox("Case insensitive")
-        self.regex_preview_btn = QPushButton("Preview")
+        self.regex_case_cb = QCheckBox(t("case_insensitive"))
+        self.regex_preview_btn = QPushButton(t("regex_preview"))
         self.regex_preview_btn.clicked.connect(self._on_regex_preview)
-        self.regex_execute_btn = QPushButton("Execute")
+        self.regex_execute_btn = QPushButton(t("regex_execute"))
         self.regex_execute_btn.setObjectName("btnSuccess")
         self.regex_execute_btn.clicked.connect(self._on_regex_execute)
         self.regex_execute_btn.setEnabled(False)
@@ -228,7 +228,7 @@ class OrganizePanel(BasePanel):
         self.btn_execute.setObjectName("btnSuccess")
         self.btn_execute.clicked.connect(self._on_execute)
         self.btn_execute.setEnabled(False)
-        self.btn_clear = QPushButton("Clear Results")
+        self.btn_clear = QPushButton(t("clear_results"))
         self.btn_clear.clicked.connect(self._clear_results)
         self.btn_undo = QPushButton(t("organize_undo"))
         self.btn_undo.setObjectName("btnWarning")
@@ -257,7 +257,7 @@ class OrganizePanel(BasePanel):
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(5)
         self.result_table.setHorizontalHeaderLabels(
-            ["Source Path", "Target Path", "Category", "Size", "Status"]
+            [t("src_path_header"), t("dst_path_header"), t("category_header"), "Size", t("status_header")]
         )
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setAlternatingRowColors(True)
@@ -561,12 +561,12 @@ class OrganizePanel(BasePanel):
 
         undo_path = Path.home() / ".filepilot" / "last_undo.json"
         if not undo_path.exists():
-            QMessageBox.warning(self, "Undo Failed", "No undo log found")
+            QMessageBox.warning(self, t("undo_failed"), t("no_undo_log"))
             return
 
         reply = QMessageBox.question(
             self,
-            "Confirm Undo",
+            t("confirm_undo_title"),
             "Undo the last organize operation?"
             " Files will be moved back to their original locations.",
             QMessageBox.Yes | QMessageBox.No,

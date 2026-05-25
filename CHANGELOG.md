@@ -2,8 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Index panel build/update methods** — Implemented `_build_index` and `_update_index` that were previously stubs; added content extraction pipeline with both registered extractors and plain-text fallback
+- **Index panel `_cancelled`** — Attribute now initialized in `__init__` to prevent `AttributeError` if cancel is called before first build
+
+## [0.6.2] - 2026-05-25
+
 ### Added
 - **Semantic Search** — Embedding-based re-ranking of Whoosh full-text results (`filepilot/core/embeddings.py`). Uses the configured AI provider's `embed()` to cache file embeddings during indexing (stored in `~/.filepilot/embeddings.json`). Search queries are embedded and results re-ranked by cosine similarity (pure Python, no numpy). Toggle via "🔬 Semantic" checkbox in the search panel. 18 new tests.
+- **Full i18n coverage** — All 310 translation keys filled for all 18 languages; ~180 missing strings completed across zh-CN/zh-TW/ja/ko/ar/he/th/vi/hi/bn/tr/fr/de/es/it/pt-BR/ru. Includes search filter labels, settings descriptions, directory tree placeholders, and semantic search UI.
 - **ServiceContainer/AppState/EventBus** — Centralized service wiring, typed state accessors with QObject signals, and decoupled cross-panel event bus
 - **DirectoryTreeWidget** — Standalone directory tree extracted from file_browser.py (`filepilot/ui/directory_tree.py`)
 - **Worker helper** — `QRunnable`-based Worker for QThreadPool operations (`filepilot/core/worker.py`)
@@ -44,12 +51,31 @@
 - **Search cache semantics** — Semantic search results no longer cached (embedding scores change over time as index grows); cache used only for plain-text Whoosh searches
 - **Anthropic fallback** — `get_embedding_provider()` correctly returns `None` for Anthropic (no `embed()` method); `search_semantic()` falls back to Whoosh score ordering
 - **i18n for semantic search** — Added `search_semantic` / `search_semantic_tip` keys across all 18 languages
+- **README version attribution** — Corrected version history: 0.6.1 features are now credited to 0.6.1, 0.6.2 features credited to 0.6.2
 
 ### Added (tests)
 - `test_dashboard_panel.py` — 17 tests covering stats, recent folders/files, signals, EventBus
 - `test_main_window_navigation.py` — 8 new tests: separator skipping, invalid index, keyboard mapping, global search
 - `test_integration.py` — 5 end-to-end tests: startup, navigation, open directory, toolbar state, global search
 - `test_embeddings.py` — 18 tests: cosine similarity (6), EmbeddingCache CRUD+persistence+search (10), embed_text fallback (2)
+- `test_i18n.py` — 9 tests: 310 key completeness across all 18 languages (3240 pairs), `t()` interpolation, missing fallback
+- `test_index_panel.py` — 41 tests: build/update/clear index, progress signals, cancellation, context menu, error handling, stat refresh
+
+## [0.6.1] - 2026-05-20
+
+### Added
+- **19 test files across all 10 panels** — Dashboard (5), Duplicates (11), File Browser (17), Index (6), Organize (9), Preview (4), Search (10), Settings (4), Summary (7), Main Window (7); total 80 new panel tests
+- **i18n completeness check** — `tests/test_i18n.py` validates that all 18 languages have every translation key defined
+- **Refined test framework** — Named `_TestSignals` classes for QObject signal-based panels, `FixtureFactory` with `scan_test_directory` context manager, `categorization_test_data` fixture for 21-file category test set
+
+### Fixed
+- **Dashboard panel `_refresh_stats` crash** — Guards against missing `app_state` with null-safe attribute access
+- **Search panel `t()` interpolation** — `settings_search` key missing `{0}` placeholder in 14 languages caused `KeyError` on format; all 14 fixed
+- **Search panel thread‑safety** — `search_text` / `settings_search` EmittingStr → typed `WorkerSignals(str, list)`, fixes runtime `QObject` parent warning
+- **Settings panel thread‑safety** — 6 EmittingStr → typed `WorkerSignals` fixes
+- **File browser `dirname` unbound variable** — `_on_open` now correctly uses `self.source_dir`
+- **Markdown extractor `ModuleNotFoundError`** — Added guard with user‑visible warning message
+- **Warning-free test run** — All 12 detected `DeprecationWarning`s and `ResourceWarning`s resolved (QTimer deleteLater, QThreadPool reparent, QPixmap default construct, QLayout addLayout spacing, QDialog setResult after close, QProcess kill guard)
 
 ## [0.6.0] - 2026-05-18
 

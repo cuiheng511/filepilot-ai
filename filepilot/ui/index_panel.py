@@ -1,6 +1,7 @@
 """Index Management Panel — Build, update, and view index"""
 
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import (
@@ -19,12 +20,54 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
-from filepilot.core.file_scanner import FileScanner
+from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.core.worker import Worker
+from filepilot.extractors.code_extractor import CodeExtractor
+from filepilot.extractors.docx_extractor import DocxExtractor
+from filepilot.extractors.markdown_extractor import MarkdownExtractor
+from filepilot.extractors.pdf_extractor import PDFExtractor
+from filepilot.extractors.pptx_extractor import PptxExtractor
+from filepilot.extractors.xlsx_extractor import XlsxExtractor
 from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
+_EXTRACTORS: dict[str, Any] = {
+    ".py": CodeExtractor(),
+    ".js": CodeExtractor(),
+    ".jsx": CodeExtractor(),
+    ".ts": CodeExtractor(),
+    ".tsx": CodeExtractor(),
+    ".java": CodeExtractor(),
+    ".c": CodeExtractor(),
+    ".cpp": CodeExtractor(),
+    ".h": CodeExtractor(),
+    ".hpp": CodeExtractor(),
+    ".cs": CodeExtractor(),
+    ".go": CodeExtractor(),
+    ".rs": CodeExtractor(),
+    ".rb": CodeExtractor(),
+    ".php": CodeExtractor(),
+    ".swift": CodeExtractor(),
+    ".kt": CodeExtractor(),
+    ".scala": CodeExtractor(),
+    ".html": CodeExtractor(),
+    ".css": CodeExtractor(),
+    ".scss": CodeExtractor(),
+    ".sql": CodeExtractor(),
+    ".r": CodeExtractor(),
+    ".m": CodeExtractor(),
+    ".mm": CodeExtractor(),
+    ".sh": CodeExtractor(),
+    ".bat": CodeExtractor(),
+    ".ps1": CodeExtractor(),
+    ".md": MarkdownExtractor(),
+    ".markdown": MarkdownExtractor(),
+    ".pdf": PDFExtractor(),
+    ".docx": DocxExtractor(),
+    ".pptx": PptxExtractor(),
+    ".xlsx": XlsxExtractor(),
+}
 
 class IndexPanel(BasePanel):
     """Index Management Panel"""
@@ -48,6 +91,7 @@ class IndexPanel(BasePanel):
         self.event_bus = event_bus
         self._pool = QThreadPool.globalInstance()
         self._indexing = False
+        self._cancelled = False
 
         self._setup_ui()
         self._connect_signals()
@@ -110,10 +154,10 @@ class IndexPanel(BasePanel):
     def _create_directory_selection(self, layout):
         dir_layout = QHBoxLayout()
         dir_layout.addWidget(QLabel("\U0001f4c2 Folder to Index:"))
-        self.dir_label = QLabel("Not selected")
+        self.dir_label = QLabel(t("index_dir_placeholder"))
         self.dir_label.setObjectName("pathLabel")
         self.dir_label.setWordWrap(True)
-        self.btn_browse = QPushButton("Browse...")
+        self.btn_browse = QPushButton(t("index_browse"))
         self.btn_browse.clicked.connect(self._on_select_source)
         dir_layout.addWidget(self.dir_label, 1)
         dir_layout.addWidget(self.btn_browse)
@@ -175,7 +219,7 @@ class IndexPanel(BasePanel):
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(5)
         self.file_table.setHorizontalHeaderLabels(
-            ["Filename", "Path", "Category", "Size", "Modified Date"],
+            [t("index_file_header"), t("index_path_header"), t("index_category_header"), t("index_size_header"), t("index_date_header")],
         )
         self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.file_table.setSelectionMode(QTableWidget.ExtendedSelection)
@@ -208,7 +252,7 @@ class IndexPanel(BasePanel):
     def _on_select_source(self):
         dir_path = QFileDialog.getExistingDirectory(
             self,
-            "Select folder to index",
+            t("select_folder_to_index"),
             str(self.source_dir or Path.home()),
         )
         if dir_path:
@@ -270,7 +314,7 @@ class IndexPanel(BasePanel):
 
         reply = QMessageBox.question(
             self,
-            "Confirm Build Index",
+            t("confirm_build_index"),
             f"Build full-text search index for {self.source_dir}.\n\n"
             "Existing index will be overwritten.\n"
             "This may take some time. Continue?",
@@ -336,6 +380,71 @@ class IndexPanel(BasePanel):
         w.signals.finished.connect(lambda _: None)
         self._pool.start(w)
 
+    def _extract_content(self, file_info: FileInfo) -> str:
+        ext = file_info.extension.lower()
+        extractor = _EXTRACTORS.get(ext)
+        if extractor:
+            try:
+                return extractor.extract_text(file_info.path) or ""
+            except Exception:
+                pass
+        text_exts = {".txt", ".log", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".json", ".xml", ".csv"}
+        if ext in text_exts:
+            try:
+                return file_info.path.read_text(encoding="utf-8", errors="replace")[:5000]
+            except Exception:
+                pass
+        return ""
+
+    def _build_index(self, dir_path: Path):
+        files = list(
+            self.scanner.scan(
+                str(dir_path),
+                progress_callback=lambda i, p: None,
+            )
+        )
+        if self._cancelled:
+            return
+        total = len(files)
+
+        def on_progress(i: int, msg: str):
+            pct = int(i / total * 100) if total else 0
+            self.progress_updated.emit(pct)
+            self.progress_text.emit(f"{i}/{total}")
+
+        self.indexer.clear_index()
+        self.indexer.index_files(
+            files,
+            content_extractor=self._extract_content,
+            embedding_extractor=None,
+            progress_callback=on_progress,
+        )
+
+    def _update_index(self):
+        if not self.source_dir:
+            return
+        files = list(
+            self.scanner.scan(
+                str(self.source_dir),
+                progress_callback=lambda i, p: None,
+            )
+        )
+        if self._cancelled:
+            return
+        total = len(files)
+
+        def on_progress(i: int, msg: str):
+            pct = int(i / total * 100) if total else 0
+            self.progress_updated.emit(pct)
+            self.progress_text.emit(f"{i}/{total}")
+
+        self.indexer.index_files(
+            files,
+            content_extractor=self._extract_content,
+            embedding_extractor=None,
+            progress_callback=on_progress,
+        )
+
     @Slot()
     def _on_indexing_finished(self):
         """Indexing complete"""
@@ -372,7 +481,7 @@ class IndexPanel(BasePanel):
 
         reply = QMessageBox.warning(
             self,
-            "Confirm Clear Index",
+            t("confirm_clear_index"),
             "Are you sure you want to clear all index data?\n\n"
             "All indexed file records will be deleted. "
             "You will need to rebuild the index to search again.",

@@ -182,11 +182,7 @@ class SearchPanel(BasePanel):
         title = QLabel(t("search_title"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
-        desc = QLabel(
-            "Natural language search for local files."
-            " Supports search by file name, content, type, and date.\n"
-            'Example: "PDF files modified last week" or "find documents about machine learning"',
-        )
+        desc = QLabel(t("search_desc"))
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
@@ -212,31 +208,31 @@ class SearchPanel(BasePanel):
         options_layout = QHBoxLayout()
         options_layout.setSpacing(12)
 
-        search_group = QGroupBox("Search")
+        search_group = QGroupBox(t("search"))
         search_group.setObjectName("compactGroup")
         search_layout = QHBoxLayout(search_group)
-        self.fuzzy_cb = QCheckBox("Fuzzy search")
+        self.fuzzy_cb = QCheckBox(t("search_fuzzy"))
         self.fuzzy_cb.setChecked(True)
         search_layout.addWidget(self.fuzzy_cb)
         self.semantic_cb = QCheckBox(t("search_semantic"))
         self.semantic_cb.setToolTip(t("search_semantic_tip"))
         self.semantic_cb.setChecked(False)
         search_layout.addWidget(self.semantic_cb)
-        self.content_cb = QCheckBox("Search content")
+        self.content_cb = QCheckBox(t("search_content"))
         self.content_cb.setChecked(True)
         search_layout.addWidget(self.content_cb)
         options_layout.addWidget(search_group)
 
-        filters_group = QGroupBox("Filters")
+        filters_group = QGroupBox(t("filters"))
         filters_group.setObjectName("compactGroup")
         filters_layout = QHBoxLayout(filters_group)
-        filters_layout.addWidget(QLabel("Tag:"))
+        filters_layout.addWidget(QLabel(t("search_tag")))
         self.tag_filter = QComboBox()
-        self.tag_filter.addItem("All")
+        self.tag_filter.addItem(t("all"))
         self.tag_filter.setMinimumWidth(120)
         self._refresh_tag_filter()
         filters_layout.addWidget(self.tag_filter)
-        filters_layout.addWidget(QLabel("Saved:"))
+        filters_layout.addWidget(QLabel(t("search_saved")))
         self.saved_combo = QComboBox()
         self.saved_combo.setMinimumWidth(140)
         self.saved_combo.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -250,21 +246,21 @@ class SearchPanel(BasePanel):
         filters_layout.addWidget(self.btn_save_search)
         options_layout.addWidget(filters_group, 1)
 
-        actions_group = QGroupBox("Actions")
+        actions_group = QGroupBox(t("actions"))
         actions_group.setObjectName("compactGroup")
         actions_layout = QHBoxLayout(actions_group)
         self.index_btn = QPushButton(t("search_index_btn"))
         self.index_btn.clicked.connect(self._on_index)
         actions_layout.addWidget(self.index_btn)
-        self.export_btn = QPushButton("Export Results")
+        self.export_btn = QPushButton(t("search_export"))
         self.export_btn.clicked.connect(self._on_export)
         self.export_btn.setEnabled(False)
         actions_layout.addWidget(self.export_btn)
-        self.clear_btn = QPushButton("Clear Results")
+        self.clear_btn = QPushButton(t("clear_results"))
         self.clear_btn.clicked.connect(self._clear_results)
         actions_layout.addWidget(self.clear_btn)
-        self.clear_history_btn = QPushButton("Clear History")
-        self.clear_history_btn.setToolTip("Clear search history")
+        self.clear_history_btn = QPushButton(t("clear_history"))
+        self.clear_history_btn.setToolTip(t("clear_history_tip"))
         self.clear_history_btn.clicked.connect(self._clear_search_history)
         actions_layout.addWidget(self.clear_history_btn)
         options_layout.addWidget(actions_group)
@@ -275,7 +271,7 @@ class SearchPanel(BasePanel):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel = QPushButton(t("cancel"))
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
@@ -292,7 +288,7 @@ class SearchPanel(BasePanel):
         layout.addWidget(self.result_list, 1)
 
     def _create_status(self, layout):
-        self.stats_label = QLabel("Please open a folder and build the index first")
+        self.stats_label = QLabel(t("index_empty_warning"))
         self.stats_label.setObjectName("statusLabel")
         layout.addWidget(self.stats_label)
 
@@ -386,7 +382,7 @@ class SearchPanel(BasePanel):
         current = self.saved_combo.currentText()
         self.saved_combo.blockSignals(True)
         self.saved_combo.clear()
-        self.saved_combo.addItem("(saved searches)")
+        self.saved_combo.addItem(t("saved_searches_placeholder"))
         for s in saved:
             self.saved_combo.addItem(s.get("name", "?"))
         self.saved_combo.blockSignals(False)
@@ -401,7 +397,7 @@ class SearchPanel(BasePanel):
         query = self.search_input.currentText().strip()
         if not query:
             return
-        name, ok = QInputDialog.getText(self, "Save Search", "Search name:", text=query)
+        name, ok = QInputDialog.getText(self, t("save_search"), t("search_name"), text=query)
         if not ok or not name.strip():
             return
 
@@ -488,14 +484,14 @@ class SearchPanel(BasePanel):
         from PySide6.QtWidgets import QInputDialog, QMenu
 
         menu = QMenu(self)
-        rename_action = menu.addAction("✏ Rename")
-        delete_action = menu.addAction("🗑 Delete")
+        rename_action = menu.addAction(t("search_rename"))
+        delete_action = menu.addAction(t("search_delete"))
         action = menu.exec(self.saved_combo.viewport().mapToGlobal(pos))
         if action is None:
             return  # type: ignore[unreachable]
 
         if action == rename_action:
-            new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=entry["name"])
+            new_name, ok = QInputDialog.getText(self, t("rename"), t("new_name"), text=entry["name"])
             if ok and new_name.strip():
                 entry["name"] = new_name.strip()
                 if self.state:
@@ -531,9 +527,7 @@ class SearchPanel(BasePanel):
         # Check index status
         stats = self.indexer.get_stats()
         if stats["indexed_files"] == 0:
-            self.result_list.addItem(
-                "⚠️ Index is empty. Please build the index first before searching.",
-            )
+            self.result_list.addItem(t("index_empty_warning"))
             return  # Save to search history (after validation, before search)
         self._save_search_history(query)
 
@@ -550,6 +544,10 @@ class SearchPanel(BasePanel):
             # Execute search
             use_semantic = self.semantic_cb.isChecked()
             if use_semantic:
+                if len(self.indexer._embed_cache) == 0:
+                    self.status_message.emit(
+                        "🔬 Semantic: No embeddings cached. Results shown in Whoosh order. Index files with AI provider to enable."
+                    )
                 results = self.indexer.search_semantic(
                     query,
                     fuzzy=self.fuzzy_cb.isChecked(),
@@ -666,7 +664,7 @@ class SearchPanel(BasePanel):
     def _on_index(self):
         """Build index"""
         if not self.current_dir:
-            self.result_list.addItem("⚠️ Please open a folder first in the File Browser")
+            self.result_list.addItem(t("no_folder_warning"))
             return
 
         self._index_async(self.current_dir)
@@ -726,16 +724,16 @@ class SearchPanel(BasePanel):
 
     def _create_result_context_menu(self) -> QMenu:
         menu = QMenu(self)
-        menu.addAction("🗑 Send to Trash", self._batch_delete_results)
-        menu.addAction("✂ Move to...", self._batch_move_results)
-        menu.addAction("📋 Copy to...", self._batch_copy_results)
+        menu.addAction(t("send_to_trash"), self._batch_delete_results)
+        menu.addAction(t("move_to"), self._batch_move_results)
+        menu.addAction(t("copy_to"), self._batch_copy_results)
         menu.addSeparator()
-        menu.addAction("🏷 Add Tag...", self._batch_tag_results)
+        menu.addAction(t("search_result_add_tag"), self._batch_tag_results)
         menu.addSeparator()
-        undoing = menu.addAction("↩ Undo Move", self._batch_undo_move)
+        undoing = menu.addAction(t("undo_move"), self._batch_undo_move)
         undoing.setEnabled(bool(self._batch_undo_log))
         menu.addSeparator()
-        menu.addAction("📂 Open File Location", self._open_file_location)
+        menu.addAction(t("open_file_location"), self._open_file_location)
         return menu
 
     def _batch_delete_results(self):
@@ -744,8 +742,8 @@ class SearchPanel(BasePanel):
             return
         reply = QMessageBox.question(
             self,
-            "Confirm Delete",
-            f"Send {len(paths)} file(s) to trash?",
+            t("confirm_delete"),
+            t("confirm_delete_files").format(n=len(paths)),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -793,7 +791,7 @@ class SearchPanel(BasePanel):
         paths = self._get_selected_paths()
         if not paths:
             return
-        dest = QFileDialog.getExistingDirectory(self, "Select destination folder")
+        dest = QFileDialog.getExistingDirectory(self, t("select_destination"))
         if not dest:
             return
         dest_path = Path(dest)
@@ -812,7 +810,7 @@ class SearchPanel(BasePanel):
         paths = self._get_selected_paths()
         if not paths:
             return
-        tag, ok = QInputDialog.getText(self, "Add Tag", "Tag name:")
+        tag, ok = QInputDialog.getText(self, t("search_add_tag_title"), t("tag_name"))
         if not ok or not tag or not tag.strip():
             return
         tag = tag.strip()
@@ -887,9 +885,9 @@ class SearchPanel(BasePanel):
 
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export Search Results",
+            t("export_search_title"),
             str(Path.home() / "search_results.json"),
-            "JSON (*.json);;CSV (*.csv)",
+            t("json_csv_filter"),
         )
         if not file_path:
             return

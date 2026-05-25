@@ -118,7 +118,7 @@ class FileBrowserPanel(BasePanel):
 
     def _create_header(self, layout):
         header_layout = QHBoxLayout()
-        title = QLabel("📂 File Browser")
+        title = QLabel(t("browse_title"))
         title.setObjectName("sectionTitle")
         header_layout.addWidget(title)
         header_layout.addStretch()
@@ -136,7 +136,7 @@ class FileBrowserPanel(BasePanel):
 
     def _create_toolbar(self, layout):
         toolbar_layout = QHBoxLayout()
-        self.btn_refresh = QPushButton("🔄 Refresh")
+        self.btn_refresh = QPushButton(t("refresh"))
         self.btn_refresh.clicked.connect(self._on_refresh)
         self.btn_refresh.setEnabled(False)
         toolbar_layout.addWidget(self.btn_refresh)
@@ -144,22 +144,22 @@ class FileBrowserPanel(BasePanel):
         self.btn_export.clicked.connect(self._on_export)
         self.btn_export.setEnabled(False)
         toolbar_layout.addWidget(self.btn_export)
-        self.btn_actions = QPushButton("⚡ Actions")
+        self.btn_actions = QPushButton(t("browse_actions"))
         self.btn_actions.setEnabled(False)
         self.actions_menu = QMenu(self)
         self.actions_menu.addAction(t("summary_copy"), self._batch_copy)
-        self.actions_menu.addAction("✂ Move", self._batch_move)
-        self.actions_menu.addAction("🗑 Delete", self._batch_delete)
+        self.actions_menu.addAction(t("browse_move"), self._batch_move)
+        self.actions_menu.addAction(t("browse_delete"), self._batch_delete)
         self.btn_actions.setMenu(self.actions_menu)
         toolbar_layout.addWidget(self.btn_actions)
         toolbar_layout.addStretch()
-        self.btn_columns = QPushButton("📋 Columns")
+        self.btn_columns = QPushButton(t("browse_columns"))
         self.btn_columns.clicked.connect(self._on_show_column_menu)
         toolbar_layout.addWidget(self.btn_columns)
-        self.cb_show_hidden = QCheckBox("Show hidden files")
+        self.cb_show_hidden = QCheckBox(t("show_hidden"))
         self.cb_show_hidden.stateChanged.connect(self._on_refresh)
         toolbar_layout.addWidget(self.cb_show_hidden)
-        self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel = QPushButton(t("browse_cancel"))
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
@@ -172,7 +172,7 @@ class FileBrowserPanel(BasePanel):
         self.filter_type = QComboBox()
         self.filter_type.addItems(
             [
-                "All Types",
+                t("all_types"),
                 "PDF",
                 "Markdown",
                 "Code",
@@ -185,23 +185,23 @@ class FileBrowserPanel(BasePanel):
             ]
         )
         self.filter_type.currentIndexChanged.connect(self._apply_filter)
-        filter_layout.addWidget(QLabel("Type:"))
+        filter_layout.addWidget(QLabel(t("type_label")))
         filter_layout.addWidget(self.filter_type)
         self.filter_size = QComboBox()
-        self.filter_size.addItems(["All Sizes", "< 1 MB", "1–10 MB", "10–100 MB", "> 100 MB"])
+        self.filter_size.addItems([t("all_sizes"), t("size_small"), t("size_medium"), t("size_large"), t("size_xlarge")])
         self.filter_size.currentIndexChanged.connect(self._apply_filter)
-        filter_layout.addWidget(QLabel("Size:"))
+        filter_layout.addWidget(QLabel(t("size_label")))
         filter_layout.addWidget(self.filter_size)
         self.filter_date = QComboBox()
-        self.filter_date.addItems(["Any Date", "Today", "This Week", "This Month", "This Year"])
+        self.filter_date.addItems([t("any_date"), t("date_today"), t("date_week"), t("date_month"), t("date_year")])
         self.filter_date.currentIndexChanged.connect(self._apply_filter)
-        filter_layout.addWidget(QLabel("Date:"))
+        filter_layout.addWidget(QLabel(t("date_label")))
         filter_layout.addWidget(self.filter_date)
         self.filter_tags = QComboBox()
-        self.filter_tags.addItem("Any Tag")
+        self.filter_tags.addItem(t("any_tag"))
         self._refresh_filter_tags()
         self.filter_tags.currentIndexChanged.connect(self._apply_filter)
-        filter_layout.addWidget(QLabel("Tag:"))
+        filter_layout.addWidget(QLabel(t("tag_label")))
         filter_layout.addWidget(self.filter_tags)
         self.filter_count = QLabel("")
         self.filter_count.setObjectName("statusLabel")
@@ -213,7 +213,7 @@ class FileBrowserPanel(BasePanel):
         current = self.filter_tags.currentText()
         self.filter_tags.blockSignals(True)
         self.filter_tags.clear()
-        self.filter_tags.addItem("Any Tag")
+        self.filter_tags.addItem(t("any_tag"))
         for tag in self.tag_manager.get_all_tags():
             self.filter_tags.addItem(tag)
         idx = self.filter_tags.findText(current)
@@ -238,35 +238,35 @@ class FileBrowserPanel(BasePanel):
         hidden = self.cb_show_hidden.isChecked()
         files = [f for f in files if hidden or not f.name.startswith(".")]
         type_text = self.filter_type.currentText()
-        if type_text != "All Types":
+        if type_text != t("all_types"):
             files = [f for f in files if get_category_name(f.path.suffix.lower()) == type_text]
         size_text = self.filter_size.currentText()
-        if size_text == "< 1 MB":
+        if size_text == t("size_small"):
             files = [f for f in files if f.size_bytes < 1_048_576]
-        elif size_text == "1–10 MB":
+        elif size_text == t("size_medium"):
             files = [f for f in files if 1_048_576 <= f.size_bytes < 10_485_760]
-        elif size_text == "10–100 MB":
+        elif size_text == t("size_large"):
             files = [f for f in files if 10_485_760 <= f.size_bytes < 104_857_600]
-        elif size_text == "> 100 MB":
+        elif size_text == t("size_xlarge"):
             files = [f for f in files if f.size_bytes >= 104_857_600]
         date_text = self.filter_date.currentText()
         now = datetime.now()
-        if date_text == "Today":
+        if date_text == t("date_today"):
             files = [f for f in files if f.modified_time.date() == now.date()]
-        elif date_text == "This Week":
+        elif date_text == t("date_week"):
             start = now - timedelta(days=now.weekday())
             files = [f for f in files if f.modified_time.date() >= start.date()]
-        elif date_text == "This Month":
+        elif date_text == t("date_month"):
             files = [
                 f
                 for f in files
                 if f.modified_time.date().month == now.month
                 and f.modified_time.date().year == now.year
             ]
-        elif date_text == "This Year":
+        elif date_text == t("date_year"):
             files = [f for f in files if f.modified_time.date().year == now.year]
         tag_text = self.filter_tags.currentText()
-        if tag_text != "Any Tag":
+        if tag_text != t("any_tag"):
             files = [f for f in files if self.tag_manager.has_tag(str(f.path), tag_text)]
         return files
 
@@ -318,7 +318,7 @@ class FileBrowserPanel(BasePanel):
         file_widget = QWidget()
         file_layout = QVBoxLayout(file_widget)
         file_layout.setContentsMargins(0, 0, 0, 0)
-        file_layout.addWidget(QLabel("📄 Files"))
+        file_layout.addWidget(QLabel(t("files_section")))
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(0)
         self.file_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -335,7 +335,7 @@ class FileBrowserPanel(BasePanel):
         preview_widget = QWidget()
         preview_layout = QVBoxLayout(preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
-        preview_layout.addWidget(QLabel("👁 Preview"))
+        preview_layout.addWidget(QLabel(t("preview_section")))
         self.preview_panel = PreviewPanel()
         preview_layout.addWidget(self.preview_panel, 1)
         main_splitter.addWidget(self.dir_tree)
@@ -701,7 +701,7 @@ class FileBrowserPanel(BasePanel):
         stats_label = QLabel(stats)
         btn_layout.addWidget(stats_label)
         btn_layout.addStretch()
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(t("close"))
         close_btn.clicked.connect(dialog.accept)
         btn_layout.addWidget(close_btn)
 
@@ -750,16 +750,16 @@ class FileBrowserPanel(BasePanel):
             return
 
         text = action.text()
-        if "Add Tag" in text:
-            tag, ok = QInputDialog.getText(self, "Add Tag", "Enter tag name:")
+        if t("add_tag") in text:
+            tag, ok = QInputDialog.getText(self, t("add_tag"), t("tag_name"))
             if ok and tag.strip():
                 self.tag_manager.add_tag(file_path, tag.strip())
                 self._refresh_tag_column()
                 self.status_message.emit(f"Added tag '{tag.strip()}' to {Path(file_path).name}")
-        elif "Remove Tag" in text:
+        elif t("remove_tag") in text:
             tags = self.tag_manager.get_tags(file_path)
             if tags:
-                tag, ok = QInputDialog.getItem(self, "Remove Tag", "Select tag:", tags)
+                tag, ok = QInputDialog.getItem(self, t("remove_tag"), t("tag_name"), tags)
                 if ok and tag:
                     self.tag_manager.remove_tag(file_path, tag)
                     self._refresh_tag_column()
@@ -768,7 +768,7 @@ class FileBrowserPanel(BasePanel):
             from PySide6.QtWidgets import QColorDialog
 
             current = self.tag_manager.get_color(file_path) or "#888"
-            qcolor = QColorDialog.getColor(QColor(current), self, "Pick a color")
+            qcolor = QColorDialog.getColor(QColor(current), self, t("pick_color"))
             if qcolor.isValid():
                 self.tag_manager.set_color(file_path, qcolor.name())
                 self._refresh_tag_column()
@@ -803,7 +803,7 @@ class FileBrowserPanel(BasePanel):
         paths = self._get_selected_paths()
         if not paths:
             return
-        dest = QFileDialog.getExistingDirectory(self, "Copy to...")
+        dest = QFileDialog.getExistingDirectory(self, t("copy_to"))
         if not dest:
             return
         dest_path = Path(dest)
@@ -826,7 +826,7 @@ class FileBrowserPanel(BasePanel):
         paths = self._get_selected_paths()
         if not paths:
             return
-        dest = QFileDialog.getExistingDirectory(self, "Move to...")
+        dest = QFileDialog.getExistingDirectory(self, t("move_to"))
         if not dest:
             return
         dest_path = Path(dest)
@@ -852,7 +852,7 @@ class FileBrowserPanel(BasePanel):
             return
         reply = QMessageBox.question(
             self,
-            "Confirm Delete",
+            t("confirm_delete"),
             f"Delete {len(paths)} file{'s' if len(paths) != 1 else ''}? (moves to Recycle Bin)",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -995,9 +995,9 @@ class FileBrowserPanel(BasePanel):
 
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
-            "Export File List",
+            t("export_file_list"),
             str(Path.home() / "file_list.csv"),
-            "CSV (*.csv);;JSON (*.json)",
+            t("csv_json_filter"),
         )
         if not file_path:
             return

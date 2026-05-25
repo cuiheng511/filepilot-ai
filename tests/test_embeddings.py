@@ -152,6 +152,145 @@ class TestEmbedText:
         assert embed_text("hello") == []
 
 
+class TestIntegrationWithIndexer:
+    """Integration test: embedding_extractor path in indexer + search_semantic."""
+
+    def test_index_files_with_embedding_extractor(self, tmp_path, monkeypatch):
+        """Verify that embedding_extractor is called and saved during indexing."""
+        from filepilot.core.file_scanner import FileInfo
+        from filepilot.core.indexer import FileIndexer
+        from filepilot.utils.file_utils import FileCategory
+        from datetime import datetime
+
+        call_log = []
+
+        def fake_embed(text):
+            call_log.append(text)
+            return [0.1, 0.2, 0.3]
+
+        monkeypatch.setattr(
+            "filepilot.core.indexer.embed_text",
+            fake_embed,
+        )
+
+        now = datetime.now()
+        fi = FileInfo(
+            path=tmp_path / "test.txt",
+            name="test.txt",
+            extension=".txt",
+            size_bytes=10,
+            size_str="10 B",
+            category=FileCategory.DOCUMENT,
+            mime_type="text/plain",
+            modified_time=now,
+            created_time=now,
+        )
+        fi.path.write_text("hello world", encoding="utf-8")
+
+        indexer = FileIndexer(tmp_path / "index")
+        indexed = indexer.index_files(
+            [fi],
+            embedding_extractor=lambda f: "hello world",
+        )
+
+        assert indexed == 1
+        assert len(call_log) == 1
+        assert call_log[0] == "hello world"
+        assert len(indexer._embed_cache) == 1
+        assert indexer._embed_cache.get(str(fi.path)) == [0.1, 0.2, 0.3]
+
+    def test_search_semantic_fallback_when_no_embeddings(self, tmp_path, monkeypatch):
+        """Without embeddings, search_semantic should fall back to Whoosh results."""
+        from filepilot.core.file_scanner import FileInfo
+        from filepilot.core.indexer import FileIndexer
+        from filepilot.utils.file_utils import FileCategory
+        from datetime import datetime
+
+        monkeypatch.setattr(
+            "filepilot.core.indexer.embed_text",
+            lambda _: [],
+        )
+
+        now = datetime.now()
+        fi = FileInfo(
+            path=tmp_path / "report.txt",
+            name="report.txt",
+            extension=".txt",
+            size_bytes=10,
+            size_str="10 B",
+            category=FileCategory.DOCUMENT,
+            mime_type="text/plain",
+            modified_time=now,
+            created_time=now,
+        )
+        fi.path.write_text("quarterly report data", encoding="utf-8")
+
+        indexer = FileIndexer(tmp_path / "index")
+        indexer.index_files([fi], content_extractor=lambda _: "quarterly report data")
+
+        results = indexer.search_semantic("report", limit=10)
+        assert len(results) >= 1
+        assert results[0]["filename"] == "report.txt"
+        assert "semantic_score" not in results[0]
+
+    def test_search_semantic_reranks(self, tmp_path, monkeypatch):
+        """Verify that search_semantic re-ranks by embedding similarity."""
+        from filepilot.core.file_scanner import FileInfo
+        from filepilot.core.indexer import FileIndexer
+        from filepilot.utils.file_utils import FileCategory
+        from datetime import datetime
+
+        # Simulate: doc1 matches query (high cosine), doc2 doesn't (low cosine)
+        embeddings = {
+            "doc1": [1.0, 0.0],
+            "doc2": [0.0, 1.0],
+        }
+
+        def mock_embed(text):
+            # Return the query embedding
+            return [1.0, 0.0] if "report" in text else []
+
+        monkeypatch.setattr(
+            "filepilot.core.indexer.embed_text",
+            mock_embed,
+        )
+
+        now = datetime.now()
+        docs = []
+        for i, (name, emb) in enumerate(embeddings.items()):
+            fi = FileInfo(
+                path=tmp_path / f"{name}.txt",
+                name=f"{name}.txt",
+                extension=".txt",
+                size_bytes=10,
+                size_str="10 B",
+                category=FileCategory.DOCUMENT,
+                mime_type="text/plain",
+                modified_time=now,
+                created_time=now,
+            )
+            # Both files contain "report" so Whoosh will find both
+            fi.path.write_text(f"quarterly report content of {name}", encoding="utf-8")
+            docs.append(fi)
+
+        indexer = FileIndexer(tmp_path / "index")
+        indexer.index_files(
+            docs,
+            content_extractor=lambda f: f.path.read_text("utf-8"),
+            embedding_extractor=lambda f: f.path.read_text("utf-8"),
+        )
+
+        # Manually set embeddings (since mock_embed returns query embedding, not doc embedding)
+        for name, emb in embeddings.items():
+            indexer._embed_cache.put(str(tmp_path / f"{name}.txt"), emb)
+
+        results = indexer.search_semantic("report", limit=10)
+        assert len(results) == 2
+        assert results[0]["filename"] == "doc1.txt"
+        assert results[0]["semantic_score"] == pytest.approx(1.0)
+        assert results[1]["filename"] == "doc2.txt"
+
+
 class TestEmbeddingProvider:
     def test_provider_cache_tracks_settings_changes(self, monkeypatch):
         import filepilot.ai.cloud_ai as cloud_ai

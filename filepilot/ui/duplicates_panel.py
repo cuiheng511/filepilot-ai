@@ -98,11 +98,11 @@ class DuplicatesPanel(BasePanel):
 
     def _create_folder_selection(self, layout):
         dir_layout = QHBoxLayout()
-        dir_layout.addWidget(QLabel("📂 Scan folder:"))
-        self.dir_label = QLabel("Not selected")
+        dir_layout.addWidget(QLabel(t("duplicates_scan_folder")))
+        self.dir_label = QLabel(t("duplicates_dir_placeholder"))
         self.dir_label.setObjectName("pathLabel")
         self.dir_label.setWordWrap(True)
-        self.btn_browse = QPushButton("Browse...")
+        self.btn_browse = QPushButton(t("duplicates_browse"))
         self.btn_browse.clicked.connect(self._on_select_source)
         dir_layout.addWidget(self.dir_label, 1)
         dir_layout.addWidget(self.btn_browse)
@@ -110,9 +110,9 @@ class DuplicatesPanel(BasePanel):
 
     def _create_options_and_actions(self, layout):
         action_layout = QHBoxLayout()
-        self.cb_hash = QCheckBox("Use hash verification (more accurate)")
+        self.cb_hash = QCheckBox(t("duplicates_hash_verify"))
         self.cb_hash.setChecked(True)
-        self.cb_similar_name = QCheckBox("Find similar file names")
+        self.cb_similar_name = QCheckBox(t("duplicates_similar_names"))
         action_layout.addWidget(self.cb_hash)
         action_layout.addWidget(self.cb_similar_name)
         action_layout.addStretch()
@@ -121,7 +121,7 @@ class DuplicatesPanel(BasePanel):
         self.btn_scan.clicked.connect(self._on_scan)
         self.btn_scan.setEnabled(False)
         action_layout.addWidget(self.btn_scan)
-        self.btn_clear = QPushButton("Clear")
+        self.btn_clear = QPushButton(t("duplicates_clear"))
         self.btn_clear.clicked.connect(self._clear_all)
         action_layout.addWidget(self.btn_clear)
         layout.addLayout(action_layout)
@@ -131,7 +131,7 @@ class DuplicatesPanel(BasePanel):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         progress_layout.addWidget(self.progress_bar, 1)
-        self.btn_cancel = QPushButton("✕ Cancel")
+        self.btn_cancel = QPushButton(t("duplicates_cancel"))
         self.btn_cancel.setObjectName("btnDanger")
         self.btn_cancel.clicked.connect(self._on_cancel)
         self.btn_cancel.setVisible(False)
@@ -143,7 +143,7 @@ class DuplicatesPanel(BasePanel):
         self.stat_groups = self._make_stat_card(t("duplicates_groups"), "0")
         self.stat_files = self._make_stat_card(t("duplicates_files"), "0")
         self.stat_wasted = self._make_stat_card(t("duplicates_wasted"), "0 B")
-        self.stat_scanned = self._make_stat_card("📊 Scanned", "0 files")
+        self.stat_scanned = self._make_stat_card(t("duplicates_scanned"), "0 files")
         stats_layout.addWidget(self.stat_groups)
         stats_layout.addWidget(self.stat_files)
         stats_layout.addWidget(self.stat_wasted)
@@ -153,7 +153,7 @@ class DuplicatesPanel(BasePanel):
     def _create_result_splitter(self, layout):
         splitter = QSplitter(Qt.Vertical)
         self.result_tree = QTreeWidget()
-        self.result_tree.setHeaderLabels(["File Name", "Path", "Size", "Modified Date"])
+        self.result_tree.setHeaderLabels([t("duplicates_file_header"), t("duplicates_path_header"), t("duplicates_size_header"), t("duplicates_date_header")])
         self.result_tree.setAlternatingRowColors(True)
         self.result_tree.setAnimated(True)
         self.result_tree.setExpandsOnDoubleClick(True)
@@ -164,14 +164,14 @@ class DuplicatesPanel(BasePanel):
         op_widget = QWidget()
         op_layout = QHBoxLayout(op_widget)
         op_layout.setContentsMargins(0, 4, 0, 0)
-        self.btn_delete = QPushButton("🗑️ Delete Selected Duplicates")
+        self.btn_delete = QPushButton(t("duplicates_delete_selected"))
         self.btn_delete.setObjectName("btnDanger")
         self.btn_delete.clicked.connect(self._on_delete_selected)
         self.btn_delete.setEnabled(False)
-        self.btn_select_all_dup = QPushButton("Select All Duplicates")
+        self.btn_select_all_dup = QPushButton(t("duplicates_select_all"))
         self.btn_select_all_dup.clicked.connect(self._on_select_all_duplicates)
         self.btn_select_all_dup.setEnabled(False)
-        self.btn_keep_first = QPushButton("Keep First in Each Group")
+        self.btn_keep_first = QPushButton(t("duplicates_keep_first"))
         self.btn_keep_first.clicked.connect(self._on_keep_first)
         self.btn_keep_first.setEnabled(False)
         op_layout.addWidget(self.btn_delete)
@@ -198,7 +198,7 @@ class DuplicatesPanel(BasePanel):
     @Slot()
     def _on_select_source(self):
         dir_path = QFileDialog.getExistingDirectory(
-            self, "Select folder to scan", str(self.source_dir or Path.home())
+            self, t("select_folder_to_scan"), str(self.source_dir or Path.home())
         )
         if dir_path:
             self.source_dir = Path(dir_path)
@@ -238,7 +238,7 @@ class DuplicatesPanel(BasePanel):
         self.progress_bar.setVisible(True)
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
-        self._update_stat("📊 Scanned", "Scanning...")
+        self._update_stat(t("duplicates_scanned"), "Scanning...")
         self.status_message.emit("Scanning files...")
 
         def scan_worker():
@@ -362,7 +362,7 @@ class DuplicatesPanel(BasePanel):
         self._update_stat("📦 Duplicate Groups", str(stats["groups"]))
         self._update_stat("📄 Duplicate Files", str(stats["duplicate_files"]))
         self._update_stat("💾 Wasted Space", stats["wasted_space_str"])
-        self._update_stat("📊 Scanned", f"{len(self.files)} files")
+        self._update_stat(t("duplicates_scanned"), f"{len(self.files)} files")
 
         self.btn_scan.setEnabled(True)
         self.progress_bar.setVisible(False)
@@ -404,7 +404,7 @@ class DuplicatesPanel(BasePanel):
 
         reply = QMessageBox.warning(
             self,
-            "Confirm Deletion",
+            t("confirm_deletion"),
             f"Are you sure you want to delete {len(selected_paths)} files?\n\n"
             "Files will be moved to the recycle bin. This action cannot be undone!",
             QMessageBox.Yes | QMessageBox.No,

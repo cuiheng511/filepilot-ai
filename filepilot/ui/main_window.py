@@ -126,17 +126,17 @@ class MainWindow(QMainWindow):
         self._panel_indices: dict[str, int] = {}
 
         # ── Dashboard ──
-        self._add_nav_item("🏠 Dashboard", "Overview and quick actions", "dashboard", 0)
+        self._add_nav_item(t("dashboard_title"), t("dashboard_title"), "dashboard", 0)
 
         # ── Browse group ──
-        self._add_nav_separator("📂 Browse")
+        self._add_nav_separator(t("nav_browse"))
         self._add_nav_item(t("nav_browse"), t("browse_desc"), "browse", 1)
-        self._add_nav_item("⭐ Favorites", "Quick access to saved directories", "favorites", 2)
+        self._add_nav_item(t("nav_favorites"), t("nav_favorites_tip"), "favorites", 2)
 
         # ── Search group ──
-        self._add_nav_separator("🔍 Search")
+        self._add_nav_separator(t("nav_search"))
         self._add_nav_item(t("nav_search"), t("search_desc"), "search", 3)
-        self._add_nav_item("\U0001f3f7\ufe0f Tags", "File tags and color markers", "tags", 4)
+        self._add_nav_item("\U0001f3f7\ufe0f Tags", t("nav_tags"), "tags", 4)
 
         # ── Tools group ──
         self._add_nav_separator("🛠 Tools")
@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
 
         # ── Settings group ──
         self._add_nav_separator("⚙️ Settings")
-        self._add_nav_item("\U0001f50c Plugins", "Extractor plugin manager", "plugins", 9)
+        self._add_nav_item("\U0001f50c Plugins", t("nav_plugins_tip"), "plugins", 9)
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -351,7 +351,7 @@ class MainWindow(QMainWindow):
 
         # File menu
         file_menu = menubar.addMenu("&File")
-        open_action = QAction("📂 Open Folder...", self)
+        open_action = QAction(t("menu_open_folder"), self)
         open_action.setShortcut("Ctrl+O")
         open_action.triggered.connect(self._on_open_folder)
         file_menu.addAction(open_action)
@@ -372,14 +372,14 @@ class MainWindow(QMainWindow):
 
         # Tools menu
         tool_menu = menubar.addMenu("&Tools")
-        settings_action = QAction("⚙️ Settings...", self)
+        settings_action = QAction(t("menu_settings"), self)
         settings_action.setShortcut("Ctrl+,")
         settings_action.triggered.connect(self._on_settings)
         tool_menu.addAction(settings_action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
-        about_action = QAction("About FilePilot AI", self)
+        about_action = QAction(t("menu_about"), self)
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
 
@@ -389,7 +389,7 @@ class MainWindow(QMainWindow):
 
         recent = self.state.recent_dirs
         if not recent:
-            empty = QAction("(none)", self)
+            empty = QAction(t("menu_none"), self)
             empty.setEnabled(False)
             self._recent_menu.addAction(empty)
         else:
@@ -411,7 +411,7 @@ class MainWindow(QMainWindow):
 
         recent = self.state.recent_files
         if not recent:
-            empty = QAction("(none)", self)
+            empty = QAction(t("menu_none"), self)
             empty.setEnabled(False)
             self._recent_files_menu.addAction(empty)
         else:
@@ -466,7 +466,7 @@ class MainWindow(QMainWindow):
         toolbar.setIconSize(QSize(20, 20))
         self.addToolBar(toolbar)
 
-        self.btn_open = QPushButton("📂 Open Folder")
+        self.btn_open = QPushButton(t("toolbar_open_folder"))
         self.btn_open.clicked.connect(self._on_open_folder)
         toolbar.addWidget(self.btn_open)
 
@@ -477,7 +477,7 @@ class MainWindow(QMainWindow):
         self.btn_scan.setEnabled(False)
         toolbar.addWidget(self.btn_scan)
 
-        self.btn_index = QPushButton("📇 Index")
+        self.btn_index = QPushButton(t("toolbar_index"))
         self.btn_index.clicked.connect(self._on_index)
         self.btn_index.setEnabled(False)
         toolbar.addWidget(self.btn_index)
@@ -485,7 +485,7 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
 
         self.btn_theme = QPushButton("🌙")
-        self.btn_theme.setToolTip("Toggle dark/light theme")
+        self.btn_theme.setToolTip(t("toolbar_toggle_theme"))
         self.btn_theme.setCheckable(True)
         self.btn_theme.setChecked(True)
         self.btn_theme.clicked.connect(self._on_toggle_theme)
@@ -810,7 +810,7 @@ class MainWindow(QMainWindow):
         """About dialog"""
         QMessageBox.about(
             self,
-            "About FilePilot AI",
+            t("menu_about"),
             f"<h2>FilePilot AI v{__version__}</h2>"
             "<p>Smart file manager — organize, categorize, and search your local files.</p>"
             "<p>Features: file type recognition, auto-rename, auto-categorize<br>"

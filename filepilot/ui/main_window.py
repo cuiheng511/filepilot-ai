@@ -592,6 +592,7 @@ class MainWindow(QMainWindow):
             "Duplicates",
             "Summary",
             "Index",
+            "File Stats",
             "Plugins",
         ]
         if 0 <= stack_index < len(names) and hasattr(self, "status_label"):

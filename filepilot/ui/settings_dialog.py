@@ -400,7 +400,7 @@ class SettingsDialog(QDialog):
         self._update_checker.check_async(callback=_callback)
 
     def _on_update_result(self, result):
-        from filepilot.updater import __version__ as current_ver
+        from filepilot import __version__ as current_ver
 
         self.check_update_btn.setEnabled(True)
         if result.error:

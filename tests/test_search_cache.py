@@ -44,6 +44,18 @@ def test_get_cache_stats(tmp_path, monkeypatch):
 def test_cache_expiry(tmp_path, monkeypatch):
     monkeypatch.setattr(search_cache, "CACHE_DIR", tmp_path / "search_cache")
     monkeypatch.setattr(search_cache, "CACHE_TTL_HOURS", 0)
-    search_cache.cache_results("stale", [{"path": "/stale"}])
+    import hashlib
+    import json
+
+    qhash = hashlib.sha256(b"stale").hexdigest()[:16]
+    cache_dir = tmp_path / "search_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    expired_data = {
+        "query": "stale",
+        "cached_at": "2000-01-01T00:00:00",
+        "result_count": 1,
+        "results": [{"path": "/stale"}],
+    }
+    (cache_dir / f"{qhash}.json").write_text(json.dumps(expired_data), encoding="utf-8")
     cached = search_cache.get_cached_results("stale")
     assert cached is None

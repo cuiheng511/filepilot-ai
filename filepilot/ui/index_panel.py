@@ -69,6 +69,7 @@ _EXTRACTORS: dict[str, Any] = {
     ".xlsx": XlsxExtractor(),
 }
 
+
 class IndexPanel(BasePanel):
     """Index Management Panel"""
 
@@ -219,7 +220,13 @@ class IndexPanel(BasePanel):
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(5)
         self.file_table.setHorizontalHeaderLabels(
-            [t("index_file_header"), t("index_path_header"), t("index_category_header"), t("index_size_header"), t("index_date_header")],
+            [
+                t("index_file_header"),
+                t("index_path_header"),
+                t("index_category_header"),
+                t("index_size_header"),
+                t("index_date_header"),
+            ],
         )
         self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.file_table.setSelectionMode(QTableWidget.ExtendedSelection)
@@ -388,7 +395,18 @@ class IndexPanel(BasePanel):
                 return extractor.extract_text(file_info.path) or ""
             except Exception:
                 pass
-        text_exts = {".txt", ".log", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".json", ".xml", ".csv"}
+        text_exts = {
+            ".txt",
+            ".log",
+            ".ini",
+            ".cfg",
+            ".toml",
+            ".yaml",
+            ".yml",
+            ".json",
+            ".xml",
+            ".csv",
+        }
         if ext in text_exts:
             try:
                 return file_info.path.read_text(encoding="utf-8", errors="replace")[:5000]

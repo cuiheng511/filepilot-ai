@@ -491,7 +491,9 @@ class SearchPanel(BasePanel):
             return  # type: ignore[unreachable]
 
         if action == rename_action:
-            new_name, ok = QInputDialog.getText(self, t("rename"), t("new_name"), text=entry["name"])
+            new_name, ok = QInputDialog.getText(
+                self, t("rename"), t("new_name"), text=entry["name"]
+            )
             if ok and new_name.strip():
                 entry["name"] = new_name.strip()
                 if self.state:

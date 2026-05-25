@@ -5648,6 +5648,7 @@ _translations: dict[str, dict[str, str]] = {
     },
 }
 
+
 def set_language(lang: str) -> None:
     """Set the current language"""
     global _current_lang

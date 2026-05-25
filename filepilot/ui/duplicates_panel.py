@@ -153,7 +153,14 @@ class DuplicatesPanel(BasePanel):
     def _create_result_splitter(self, layout):
         splitter = QSplitter(Qt.Vertical)
         self.result_tree = QTreeWidget()
-        self.result_tree.setHeaderLabels([t("duplicates_file_header"), t("duplicates_path_header"), t("duplicates_size_header"), t("duplicates_date_header")])
+        self.result_tree.setHeaderLabels(
+            [
+                t("duplicates_file_header"),
+                t("duplicates_path_header"),
+                t("duplicates_size_header"),
+                t("duplicates_date_header"),
+            ]
+        )
         self.result_tree.setAlternatingRowColors(True)
         self.result_tree.setAnimated(True)
         self.result_tree.setExpandsOnDoubleClick(True)

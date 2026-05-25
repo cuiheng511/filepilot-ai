@@ -257,7 +257,13 @@ class OrganizePanel(BasePanel):
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(5)
         self.result_table.setHorizontalHeaderLabels(
-            [t("src_path_header"), t("dst_path_header"), t("category_header"), "Size", t("status_header")]
+            [
+                t("src_path_header"),
+                t("dst_path_header"),
+                t("category_header"),
+                "Size",
+                t("status_header"),
+            ]
         )
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.result_table.setAlternatingRowColors(True)

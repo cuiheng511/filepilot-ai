@@ -188,12 +188,16 @@ class FileBrowserPanel(BasePanel):
         filter_layout.addWidget(QLabel(t("type_label")))
         filter_layout.addWidget(self.filter_type)
         self.filter_size = QComboBox()
-        self.filter_size.addItems([t("all_sizes"), t("size_small"), t("size_medium"), t("size_large"), t("size_xlarge")])
+        self.filter_size.addItems(
+            [t("all_sizes"), t("size_small"), t("size_medium"), t("size_large"), t("size_xlarge")]
+        )
         self.filter_size.currentIndexChanged.connect(self._apply_filter)
         filter_layout.addWidget(QLabel(t("size_label")))
         filter_layout.addWidget(self.filter_size)
         self.filter_date = QComboBox()
-        self.filter_date.addItems([t("any_date"), t("date_today"), t("date_week"), t("date_month"), t("date_year")])
+        self.filter_date.addItems(
+            [t("any_date"), t("date_today"), t("date_week"), t("date_month"), t("date_year")]
+        )
         self.filter_date.currentIndexChanged.connect(self._apply_filter)
         filter_layout.addWidget(QLabel(t("date_label")))
         filter_layout.addWidget(self.filter_date)

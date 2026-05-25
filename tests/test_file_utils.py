@@ -135,6 +135,7 @@ class TestComputeFileHash:
     def test_nonexistent_file(self, tmp_path):
         nonexistent = tmp_path / "does_not_exist.bin"
         import pytest
+
         with pytest.raises(FileNotFoundError):
             compute_file_hash(str(nonexistent))
 

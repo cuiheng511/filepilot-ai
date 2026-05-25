@@ -1,6 +1,5 @@
 """Tests for filepilot.i18n — t() fallback, set_language, interpolation"""
 
-
 from filepilot.i18n import get_language, set_language, t
 
 
@@ -50,9 +49,19 @@ def test_switch_to_french():
 
 def test_all_known_keys_return_string():
     known_keys = [
-        "app_name", "nav_search", "nav_browse", "nav_index", "nav_organize",
-        "nav_duplicates", "nav_summary", "nav_tags", "nav_plugins_tip",
-        "dashboard_title", "ready", "loading", "settings_title",
+        "app_name",
+        "nav_search",
+        "nav_browse",
+        "nav_index",
+        "nav_organize",
+        "nav_duplicates",
+        "nav_summary",
+        "nav_tags",
+        "nav_plugins_tip",
+        "dashboard_title",
+        "ready",
+        "loading",
+        "settings_title",
     ]
     for key in known_keys:
         val = t(key)

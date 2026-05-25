@@ -1,6 +1,5 @@
 """Tests for filepilot.styles.manager — ThemeManager"""
 
-
 from filepilot.styles.manager import ThemeManager
 
 

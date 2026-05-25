@@ -217,10 +217,9 @@ class DashboardPanel(BasePanel):
             p = Path(dir_path)
             if p.is_dir():
                 files = sum(1 for _ in p.rglob("*") if _.is_file())
-                total_size = sum(
-                    _.stat().st_size for _ in p.rglob("*") if _.is_file()
-                )
+                total_size = sum(_.stat().st_size for _ in p.rglob("*") if _.is_file())
                 from filepilot.utils.file_utils import get_file_size_str
+
                 self.update_stats(total_files=files, total_size=get_file_size_str(total_size))
         except (OSError, PermissionError):
             pass

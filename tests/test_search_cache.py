@@ -1,6 +1,5 @@
 """Tests for filepilot.core.search_cache — file-based search cache"""
 
-
 from filepilot.core import search_cache
 
 

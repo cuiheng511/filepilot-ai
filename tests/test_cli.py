@@ -59,6 +59,7 @@ def test_scan_no_recursive(tmp_path, capsys):
     sub.mkdir()
     (sub / "b.txt").write_text("world")
     from filepilot.cli import cmd_scan
+
     cmd_scan(_Args(path=str(tmp_path), no_recursive=True))
     captured = capsys.readouterr()
     assert "Scan complete" in captured.err
@@ -66,6 +67,7 @@ def test_scan_no_recursive(tmp_path, capsys):
 
 class _Args:
     """Fake argparse namespace for testing CLI commands."""
+
     def __init__(self, **kwargs):
         self.path = ""
         self.query = ""

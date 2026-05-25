@@ -157,10 +157,11 @@ class TestIntegrationWithIndexer:
 
     def test_index_files_with_embedding_extractor(self, tmp_path, monkeypatch):
         """Verify that embedding_extractor is called and saved during indexing."""
+        from datetime import datetime
+
         from filepilot.core.file_scanner import FileInfo
         from filepilot.core.indexer import FileIndexer
         from filepilot.utils.file_utils import FileCategory
-        from datetime import datetime
 
         call_log = []
 
@@ -201,10 +202,11 @@ class TestIntegrationWithIndexer:
 
     def test_search_semantic_fallback_when_no_embeddings(self, tmp_path, monkeypatch):
         """Without embeddings, search_semantic should fall back to Whoosh results."""
+        from datetime import datetime
+
         from filepilot.core.file_scanner import FileInfo
         from filepilot.core.indexer import FileIndexer
         from filepilot.utils.file_utils import FileCategory
-        from datetime import datetime
 
         monkeypatch.setattr(
             "filepilot.core.indexer.embed_text",
@@ -235,10 +237,11 @@ class TestIntegrationWithIndexer:
 
     def test_search_semantic_reranks(self, tmp_path, monkeypatch):
         """Verify that search_semantic re-ranks by embedding similarity."""
+        from datetime import datetime
+
         from filepilot.core.file_scanner import FileInfo
         from filepilot.core.indexer import FileIndexer
         from filepilot.utils.file_utils import FileCategory
-        from datetime import datetime
 
         # Simulate: doc1 matches query (high cosine), doc2 doesn't (low cosine)
         embeddings = {
@@ -257,7 +260,7 @@ class TestIntegrationWithIndexer:
 
         now = datetime.now()
         docs = []
-        for i, (name, emb) in enumerate(embeddings.items()):
+        for _i, (name, _emb) in enumerate(embeddings.items()):
             fi = FileInfo(
                 path=tmp_path / f"{name}.txt",
                 name=f"{name}.txt",

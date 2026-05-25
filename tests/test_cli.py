@@ -2,7 +2,6 @@
 
 import json
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -83,7 +82,6 @@ class _Args:
 
 def main_args(argv):
     """Run main() with custom argv"""
-    import argparse
     old_argv = sys.argv
     try:
         sys.argv = ["filepilot.cli"] + argv

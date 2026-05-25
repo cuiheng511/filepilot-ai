@@ -11,7 +11,7 @@ def test_setup_logging_default():
 
 
 def test_setup_logging_debug():
-    logger = setup_logging(level="DEBUG")
+    setup_logging(level="DEBUG")
     root = logging.getLogger()
     assert root.level == logging.DEBUG
 

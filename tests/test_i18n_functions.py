@@ -1,6 +1,5 @@
 """Tests for filepilot.i18n — t() fallback, set_language, interpolation"""
 
-import pytest
 
 from filepilot.i18n import get_language, set_language, t
 

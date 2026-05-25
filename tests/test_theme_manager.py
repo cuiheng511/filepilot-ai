@@ -1,6 +1,5 @@
 """Tests for filepilot.styles.manager — ThemeManager"""
 
-from pathlib import Path
 
 from filepilot.styles.manager import ThemeManager
 

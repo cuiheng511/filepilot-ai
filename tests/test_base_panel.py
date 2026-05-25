@@ -1,7 +1,6 @@
 """Tests for filepilot.ui.base_panel — shared panel base class"""
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel
 
 from filepilot.ui.base_panel import BasePanel
 
@@ -23,7 +22,7 @@ def test_base_panel_make_stat_card(qtbot):
     assert card is not None
     # Card should contain both title and value labels
     labels = card.findChildren(QLabel)
-    texts = [l.text() for l in labels]
+    texts = [lb.text() for lb in labels]
     assert "Files" in texts
     assert "42" in texts
 
@@ -35,7 +34,7 @@ def test_base_panel_update_stat(qtbot):
     card = panel._make_stat_card("Files", "0")
     panel._update_stat("Files", "99")
     labels = card.findChildren(QLabel)
-    values = [l for l in labels if l.text() == "99"]
+    values = [lb for lb in labels if lb.text() == "99"]
     assert len(values) >= 1
 
 

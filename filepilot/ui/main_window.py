@@ -44,6 +44,7 @@ from filepilot.styles.manager import ThemeManager
 from filepilot.ui.dashboard_panel import DashboardPanel
 from filepilot.ui.duplicates_panel import DuplicatesPanel
 from filepilot.ui.favorites_panel import FavoritesPanel
+from filepilot.ui.file_stats_panel import FileStatsPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
 from filepilot.ui.organize_panel import OrganizePanel
@@ -144,10 +145,11 @@ class MainWindow(QMainWindow):
         self._add_nav_item(t("nav_duplicates"), t("duplicates_desc"), "duplicates", 6)
         self._add_nav_item(t("nav_summary"), t("summary_desc"), "summary", 7)
         self._add_nav_item(t("nav_index"), t("index_desc"), "index", 8)
+        self._add_nav_item("\U0001f4ca File Stats", "Visualize file distribution", "stats", 9)
 
         # ── Settings group ──
         self._add_nav_separator("⚙️ Settings")
-        self._add_nav_item("\U0001f50c Plugins", t("nav_plugins_tip"), "plugins", 9)
+        self._add_nav_item("\U0001f50c Plugins", t("nav_plugins_tip"), "plugins", 10)
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -186,6 +188,7 @@ class MainWindow(QMainWindow):
         self.index_panel = IndexPanel(
             indexer=svc.indexer, scanner=svc.scanner, app_state=self.state, event_bus=self.event_bus
         )
+        self.stats_panel = FileStatsPanel(scanner=svc.scanner)
         self.favorites_panel = FavoritesPanel(app_state=self.state, event_bus=self.event_bus)
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
@@ -199,7 +202,8 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.duplicates_panel)  # 6 - Duplicates
         self.content_stack.addWidget(self.summary_panel)  # 7 - Summary
         self.content_stack.addWidget(self.index_panel)  # 8 - Index
-        self.content_stack.addWidget(self.plugin_manager_panel)  # 9 - Plugins
+        self.content_stack.addWidget(self.stats_panel)  # 9 - File Stats
+        self.content_stack.addWidget(self.plugin_manager_panel)  # 10 - Plugins
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -515,6 +519,7 @@ class MainWindow(QMainWindow):
             "Duplicate Finder": "duplicates",
             "AI Summary": "summary",
             "File Index": "index",
+            "File Stats": "stats",
             "Favorites": "favorites",
             "Tags": "tags",
             "Plugins": "plugins",

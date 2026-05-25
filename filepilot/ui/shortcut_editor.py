@@ -21,9 +21,10 @@ DEFAULT_SHORTCUTS: dict[str, str] = {
     "Duplicate Finder": "Ctrl+4",
     "AI Summary": "Ctrl+5",
     "File Index": "Ctrl+6",
-    "Favorites": "Ctrl+7",
-    "Tags": "Ctrl+8",
-    "Plugins": "Ctrl+9",
+    "File Stats": "Ctrl+7",
+    "Favorites": "Ctrl+8",
+    "Tags": "Ctrl+9",
+    "Plugins": "Ctrl+0",
 }
 
 

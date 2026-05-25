@@ -345,14 +345,16 @@ Import order (handled by `ruff` isort):
 
 ## Internationalization (i18n)
 
-FilePilot has a lightweight translation framework at `filepilot/i18n.py`. It currently supports **Chinese (zh)** and **English (en)**, with English as the default.
+FilePilot has a lightweight translation framework at `filepilot/i18n.py`. It currently supports **18 languages**: English, Chinese (Simplified), Chinese (Traditional), Japanese, Korean, Arabic, Hebrew, Thai, Vietnamese, Hindi, Bengali, Turkish, French, German, Spanish, Italian, Portuguese (Brazil), and Russian.
+
+The framework is fully integrated into all UI panels — every user-facing string uses the `t()` function.
 
 ### API
 
 | Function | Description |
 |----------|-------------|
 | `t(key, **kwargs)` | Translate a string by key. Falls back to English, then the key itself if not found. Supports `str.format()` via kwargs. |
-| `set_language(lang)` | Switch language (`"zh"` or `"en"`). |
+| `set_language(lang)` | Switch language (ISO 639-1 code like `"zh"`, `"ja"`, `"ko"`, `"fr"`). |
 | `get_language()` | Get the current language code. |
 | `load_language_from_settings()` | Load language preference from `~/.filepilot/settings.json`. |
 
@@ -372,7 +374,7 @@ label.setText(t("greeting", name="World"))
 
 ### How to add a new language
 
-1. Add a new key to `_translations` dict in `filepilot/i18n.py`:
+1. Add a new key to the `_translations` dict in `filepilot/i18n.py` — see any existing language entry for the full key list (currently **310 keys**):
 
    ```python
    _translations: dict[str, dict[str, str]] = {

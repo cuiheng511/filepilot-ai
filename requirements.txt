@@ -12,7 +12,3 @@ python-docx>=1.1.0
 openpyxl>=3.1.0
 python-pptx>=0.6.21
 send2trash>=1.8.0
-
-# Test dependencies
-pytest>=8.0.0
-pytest-qt>=4.2.0

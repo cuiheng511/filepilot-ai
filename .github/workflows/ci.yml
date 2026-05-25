@@ -336,7 +336,8 @@ jobs:
             --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
             --hidden-import send2trash --hidden-import watchdog \
             --exclude-module tkinter --exclude-module matplotlib \
-            --exclude-module scipy --exclude-module pandas \
+            --exclude-module scipy --exclude-module numpy \
+            --exclude-module pandas \
             --exclude-module torch --exclude-module tensorflow \
             filepilot/main.py
 
@@ -491,7 +492,8 @@ jobs:
             --hidden-import docx --hidden-import openpyxl --hidden-import pptx \
             --hidden-import send2trash --hidden-import watchdog \
             --exclude-module tkinter --exclude-module matplotlib \
-            --exclude-module scipy --exclude-module pandas \
+            --exclude-module scipy --exclude-module numpy \
+            --exclude-module pandas \
             --exclude-module torch --exclude-module tensorflow \
             --icon filepilot/resources/app.icns \
             filepilot/main.py

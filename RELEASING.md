@@ -2,21 +2,19 @@
 
 > FilePilot AI — Cross-platform release checklist for maintainers.
 
-## v0.4.0 Release Notes
+## Current Release: v0.6.2
 
-**Release date:** 2026-05-14
+**Release date:** 2026-05-25
 
-### Key Highlights
+See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
-- **Cross-platform CI** — GitHub Actions now builds on all 3 platforms: Windows (`exe` + Inno Setup), Linux (`.AppImage`), macOS (`.dmg`)
-- **Cross-platform builders** — `scripts/build.sh` auto-detects OS and dispatches to the right builder (new: `build_appimage.sh` for Linux, `build_macos.sh` for macOS)
-- **CI quality gates** — `mypy` + `pip check` run in all three build jobs before PyInstaller build
-- **Auto-tracking Inno Setup URL** — CI fetches latest Inno Setup version dynamically
-- **PEP 621 entry points** — `[project.scripts]` (`filepilot`) and `[project.gui-scripts]` (`filepilot-gui`) registered
-- **macOS .icns icon** — Auto-generated from `app.png` during macOS builds
-- **Architecture diagram** — `send2trash` → Recycle Bin path documented in README Mermaid flowchart
+### Quick Links
 
-> Full changelog: [CHANGELOG.md](./CHANGELOG.md)
+| Platform | Download |
+|----------|----------|
+| Windows  | `FilePilot-AI-Setup-0.6.2.exe` |
+| Linux    | `FilePilot-0.6.2-x86_64.AppImage` |
+| macOS    | `FilePilot-0.6.2.dmg` |
 
 ---
 
@@ -96,11 +94,11 @@ iscc scripts\filepilot-installer.iss
 git checkout main
 git pull origin main
 
-# Create a signed tag
-git tag -a v0.4.0 -m "v0.4.0"
+# Create a signed tag (replace X.Y.Z with actual version)
+git tag -a vX.Y.Z -m "vX.Y.Z"
 
 # Push the tag (triggers CI build)
-git push origin v0.4.0
+git push origin vX.Y.Z
 ```
 
 > **Tag format:** `v<major>.<minor>.<patch>` — always lowercase `v`, no spaces.
@@ -157,28 +155,28 @@ Run the installer on each platform and confirm:
 ## 4. GitHub Release
 
 1. Go to **https://github.com/cuiheng511/filepilot-ai/releases/new**
-2. Choose the tag you just pushed (e.g., `v0.4.0`)
-3. **Release title:** `v0.4.0`
+2. Choose the tag you just pushed (e.g., `v0.6.2`)
+3. **Release title:** `v0.6.2`
 4. **Description:** Paste the CHANGELOG entry for this version.
-   - Include installation instructions:
+   - Include installation instructions (replace `X.Y.Z` with the actual version):
      ```markdown
      ## Downloads
 
      | Platform | File |
      |----------|------|
-     | Windows  | `FilePilot-AI-Setup-0.4.0.exe` |
-     | Linux    | `FilePilot-0.4.0-x86_64.AppImage` |
-     | macOS    | `FilePilot-0.4.0.dmg` |
+     | Windows  | `FilePilot-AI-Setup-X.Y.Z.exe` |
+     | Linux    | `FilePilot-X.Y.Z-x86_64.AppImage` |
+     | macOS    | `FilePilot-X.Y.Z.dmg` |
 
      ## Installation
 
      ### Windows
-     Run the `.exe` installer. Admin rights required by default (override with `ALLUSERS=1`).
+     Run the `.exe` installer.
 
      ### Linux
      ```bash
-     chmod +x FilePilot-0.4.0-x86_64.AppImage
-     ./FilePilot-0.4.0-x86_64.AppImage
+     chmod +x FilePilot-X.Y.Z-x86_64.AppImage
+     ./FilePilot-X.Y.Z-x86_64.AppImage
      ```
 
      ### macOS
@@ -200,7 +198,7 @@ Run the installer on each platform and confirm:
 - [ ] **Verify auto-update** — On a separate machine, run the old version and check that it detects the new release:
   ```bash
   python -m filepilot.updater
-  # Expected: "Update available: 0.4.0"
+  # Expected: "Update available: X.Y.Z"
   ```
 - [ ] **Close the milestone** — If you use GitHub Milestones, close the corresponding milestone.
 - [ ] **Update `CHANGELOG.md`** — Add a new `## [Unreleased]` section at the top for the next cycle:

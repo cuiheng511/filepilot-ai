@@ -45,46 +45,71 @@ from filepilot.extractors import (
 from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
 
-# Extractor mapping by extension
-_EXTRACTORS = {
-    ".pdf": PDFExtractor(),
-    ".md": MarkdownExtractor(),
-    ".markdown": MarkdownExtractor(),
-    ".mdx": MarkdownExtractor(),
-    ".py": CodeExtractor(),
-    ".js": CodeExtractor(),
-    ".ts": CodeExtractor(),
-    ".jsx": CodeExtractor(),
-    ".tsx": CodeExtractor(),
-    ".java": CodeExtractor(),
-    ".cpp": CodeExtractor(),
-    ".c": CodeExtractor(),
-    ".h": CodeExtractor(),
-    ".hpp": CodeExtractor(),
-    ".cs": CodeExtractor(),
-    ".go": CodeExtractor(),
-    ".rs": CodeExtractor(),
-    ".rb": CodeExtractor(),
-    ".php": CodeExtractor(),
-    ".swift": CodeExtractor(),
-    ".kt": CodeExtractor(),
-    ".scala": CodeExtractor(),
-    ".sql": CodeExtractor(),
-    ".sh": CodeExtractor(),
-    ".bash": CodeExtractor(),
-    ".ps1": CodeExtractor(),
-    ".bat": CodeExtractor(),
-    ".pl": CodeExtractor(),
-    ".lua": CodeExtractor(),
-    ".r": CodeExtractor(),
-    ".m": CodeExtractor(),
-    ".dart": CodeExtractor(),
-    ".vue": CodeExtractor(),
-    ".svelte": CodeExtractor(),
-    ".docx": DocxExtractor(),
-    ".xlsx": XlsxExtractor(),
-    ".pptx": PptxExtractor(),
+# Extractor mapping by extension (lazy-loaded singletons to avoid import-time cost)
+_extractor_instances: dict[str, object] = {}
+
+_EXTRACTOR_MAP: dict[str, type] = {
+    ".pdf": PDFExtractor,
+    ".md": MarkdownExtractor,
+    ".markdown": MarkdownExtractor,
+    ".mdx": MarkdownExtractor,
+    ".docx": DocxExtractor,
+    ".xlsx": XlsxExtractor,
+    ".pptx": PptxExtractor,
 }
+
+_CODE_EXTENSIONS = {
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".java",
+    ".cpp",
+    ".c",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".go",
+    ".rs",
+    ".rb",
+    ".php",
+    ".swift",
+    ".kt",
+    ".scala",
+    ".sql",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".bat",
+    ".pl",
+    ".lua",
+    ".r",
+    ".m",
+    ".dart",
+    ".vue",
+    ".svelte",
+}
+
+
+def _get_extractor(ext: str):
+    """Get or create an extractor instance for the given extension."""
+    if ext in _extractor_instances:
+        return _extractor_instances[ext]
+
+    cls = _EXTRACTOR_MAP.get(ext)
+    if cls:
+        instance = cls()
+        _extractor_instances[ext] = instance
+        return instance
+
+    if ext in _CODE_EXTENSIONS:
+        if "code" not in _extractor_instances:
+            _extractor_instances["code"] = CodeExtractor()
+        _extractor_instances[ext] = _extractor_instances["code"]
+        return _extractor_instances[ext]
+
+    return None
 
 
 class SearchHighlightDelegate(QStyledItemDelegate):
@@ -285,6 +310,7 @@ class SearchPanel(BasePanel):
         self.result_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.result_list.customContextMenuRequested.connect(self._on_result_context_menu)
         self.result_list.setItemDelegate(SearchHighlightDelegate(self.result_list))
+        self.result_list.itemDoubleClicked.connect(self._on_result_double_click)
         layout.addWidget(self.result_list, 1)
 
     def _create_status(self, layout):
@@ -674,7 +700,7 @@ class SearchPanel(BasePanel):
     def _extract_file_content(self, file_info: FileInfo) -> str:
         """Extract searchable content from a file using registered extractors."""
         ext = file_info.extension.lower()
-        extractor = _EXTRACTORS.get(ext)
+        extractor = _get_extractor(ext)
         if extractor:
             try:
                 return extractor.extract_text(file_info.path)  # type: ignore[no-any-return, attr-defined]
@@ -833,6 +859,22 @@ class SearchPanel(BasePanel):
             return
         target = Path(paths[0])
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.parent)))
+
+    @Slot()
+    def _on_result_double_click(self, item: QListWidgetItem):
+        """Open file on double-click."""
+        file_path = item.data(Qt.UserRole)
+        if not file_path:
+            return
+        path = Path(file_path)
+        if not path.exists():
+            self.status_message.emit(f"File not found: {path.name}")
+            return
+        # Open with system default application
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        # Notify via event bus
+        if self.event_bus:
+            self.event_bus.open_file_requested.emit(str(path))
 
     def _remove_paths_from_results(self, paths: list[str]):
         to_remove: list[QListWidgetItem] = []

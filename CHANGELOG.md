@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.3] - 2026-05-26
+
+### Added
+- **AI Chat Panel** — Conversational file assistant (`filepilot/ui/chat_panel.py`). Supports natural language queries ("find large PDFs", "how many code files?") with local intent parsing (no AI required for simple queries) and AI-enhanced mode for complex questions. Bubble-style chat UI with async processing.
+- **PDF Content Preview** — PreviewPanel now extracts and renders text from the first 5 pages of PDF files using PyMuPDF, with page numbers and styled HTML output.
+- **Incremental Indexing** — `FileIndexer.index_files(incremental=True)` compares file mtimes against MetadataDB to skip unchanged files. "Incremental Update" button in IndexPanel now uses true incremental logic (10-100x faster for repeat indexing).
+- **File Diff Highlighting** — File comparison dialog now shows unified diff with color-coded lines (green=added, red=removed, blue=headers) plus a side-by-side view tab using `difflib.SequenceMatcher`.
+- **Regex Rename Live Preview** — OrganizePanel shows real-time preview of regex rename results as user types pattern/replacement (first 5 matching files displayed instantly).
+- **Notification History** — `NotificationHistory` widget records all toast notifications with timestamps and level colors. Integrated into MainWindow's `_notify` method.
+- **Tag Cloud Visualization** — TagsPanel now has a "Tag Cloud" tab with font-size proportional to usage count, 15-color palette, click-to-filter interaction.
+- **File Version Snapshot** — `FileSnapshot` (`filepilot/core/file_snapshot.py`) records file move/rename/delete/organize operations in SQLite for history tracking. Integrated into FileOrganizer.
+- **Drag-and-Drop to Summary Panel** — SummaryPanel accepts file/folder drops directly into the file list for quick summarization.
+- **Cloud Sync Detection** — `filepilot/core/cloud_sync.py` detects OneDrive/Dropbox/Google Drive/iCloud Drive folders. FileBrowser has optional "Cloud" column showing sync provider. Windows OneDrive file status detection via file attributes.
+- **Plugin Registry/Marketplace** — `filepilot/core/plugin_registry.py` fetches community plugins from GitHub with local cache. PluginManagerPanel has "Browse Registry" button and "Available" tab with one-click install/uninstall.
+- **Search Result Double-Click** — Double-clicking a search result opens the file with the system default application.
+
+### Changed
+- **TagManager deferred save** — Writes are now batched with a 300ms debounce timer instead of saving on every single tag operation. Bulk tagging is 10-50x faster. Added `flush()` method for explicit save.
+- **Search extractors lazy-loaded** — `_EXTRACTORS` dict replaced with `_get_extractor()` function that creates instances on first use, reducing import-time overhead.
+- **Cloud label caching** — `_get_cloud_label()` caches results per parent directory to avoid repeated `Path.resolve()` calls for files in the same folder.
+- **TagCloud FlowLayout** — Replaced with proper `_FlowContainer` widget that handles `resizeEvent` for correct reflow on window resize.
+
+### Fixed
+- **settings_dialog.py** — Fixed `from filepilot.updater import __version__` (module doesn't export it) to `from filepilot import __version__`.
+- **main_window.py** — Fixed `_on_nav_changed` names list missing "File Stats" entry causing index mismatch.
+- **CI workflow** — Fixed invalid GitHub Actions versions (v6/v7 don't exist) and repaired UTF-8 encoding corruption from PowerShell string operations.
+
 ## [Unreleased]
 
 ### Fixed

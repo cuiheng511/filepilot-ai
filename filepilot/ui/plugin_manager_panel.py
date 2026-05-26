@@ -57,16 +57,32 @@ class PluginManagerPanel(BasePanel):
         self.btn_install_sample.clicked.connect(self._on_install_sample)
         self.btn_open_dir = QPushButton("\U0001f4c2 Open Plugins Dir")
         self.btn_open_dir.clicked.connect(self._on_open_dir)
+        self.btn_browse_registry = QPushButton("\U0001f310 Browse Registry")
+        self.btn_browse_registry.clicked.connect(self._on_browse_registry)
         toolbar.addWidget(self.btn_discover)
         toolbar.addWidget(self.btn_install_sample)
+        toolbar.addWidget(self.btn_browse_registry)
         toolbar.addWidget(self.btn_open_dir)
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
-        # Plugin list
+        # Tabs: Installed | Registry
+        from PySide6.QtWidgets import QTabWidget
+
+        self._tabs = QTabWidget()
+
+        # Installed plugins tab
         self.plugin_list = QListWidget()
         self.plugin_list.setAlternatingRowColors(True)
-        layout.addWidget(self.plugin_list, 1)
+        self._tabs.addTab(self.plugin_list, "Installed")
+
+        # Registry tab
+        self.registry_list = QListWidget()
+        self.registry_list.setAlternatingRowColors(True)
+        self.registry_list.itemDoubleClicked.connect(self._on_registry_install)
+        self._tabs.addTab(self.registry_list, "Available (Registry)")
+
+        layout.addWidget(self._tabs, 1)
 
         self.stats_label = QLabel("Click 'Discover Plugins' to scan for installed plugins")
         self.stats_label.setObjectName("statusLabel")
@@ -124,3 +140,97 @@ class PluginManagerPanel(BasePanel):
                 subprocess.Popen(["xdg-open", str(plugins_dir)])
         except Exception as e:
             self.status_message.emit(f"\u274c Failed to open directory: {e}")
+
+    @Slot()
+    def _on_browse_registry(self):
+        """Fetch and display available plugins from the registry."""
+        self._tabs.setCurrentIndex(1)
+        self.registry_list.clear()
+        self.registry_list.addItem("Loading registry...")
+        self.status_message.emit("Fetching plugin registry...")
+
+        from PySide6.QtCore import QTimer
+
+        from filepilot.core.plugin_registry import PluginRegistry
+
+        self._registry = PluginRegistry()
+
+        def on_fetched(entries):
+            QTimer.singleShot(0, lambda: self._display_registry(entries))
+
+        self._registry.fetch_async(callback=on_fetched)
+
+    def _display_registry(self, entries):
+        """Display registry entries in the list."""
+        self.registry_list.clear()
+
+        if not entries:
+            self.registry_list.addItem("No plugins available in registry.")
+            self.status_message.emit("Registry is empty or unreachable")
+            return
+
+        for entry in entries:
+            status = "Installed" if entry.installed else "Available"
+            icon = "\u2705" if entry.installed else "\U0001f4e6"
+            exts = ", ".join(entry.extensions) if entry.extensions else ""
+            text = f"{icon} {entry.display_name} v{entry.version} [{status}]"
+            if exts:
+                text += f"  ({exts})"
+
+            item = QListWidgetItem(text)
+            item.setToolTip(
+                f"Name: {entry.name}\n"
+                f"Author: {entry.author}\n"
+                f"Description: {entry.description}\n"
+                f"Extensions: {exts}\n"
+                f"Status: {status}\n\n"
+                f"Double-click to install/uninstall"
+            )
+            item.setData(Qt.UserRole, entry.name)
+            if entry.installed:
+                from PySide6.QtGui import QColor
+
+                item.setForeground(QColor("#4caf50"))
+            self.registry_list.addItem(item)
+
+        installed = sum(1 for e in entries if e.installed)
+        self.status_message.emit(f"Registry: {len(entries)} plugins ({installed} installed)")
+
+    @Slot()
+    def _on_registry_install(self, item: QListWidgetItem):
+        """Install or uninstall a plugin from the registry."""
+        if not hasattr(self, "_registry"):
+            return
+
+        name = item.data(Qt.UserRole)
+        if not name:
+            return
+
+        entry = next((e for e in self._registry.entries if e.name == name), None)
+        if not entry:
+            return
+
+        if entry.installed:
+            # Uninstall
+            if self._registry.uninstall_plugin(entry):
+                self.status_message.emit(f"Uninstalled: {entry.display_name}")
+                self.plugin_manager.reload()
+                self._refresh_plugins()
+                self._display_registry(self._registry.entries)
+            else:
+                self.status_message.emit(f"Failed to uninstall: {entry.display_name}")
+        else:
+            # Install
+            if not entry.url:
+                self.status_message.emit(
+                    f"{entry.display_name} is a built-in plugin. Use 'Install Sample' instead."
+                )
+                return
+            self.status_message.emit(f"Installing {entry.display_name}...")
+            if self._registry.install_plugin(entry):
+                self.status_message.emit(f"Installed: {entry.display_name}")
+                self.plugin_manager.reload()
+                self._refresh_plugins()
+                self._display_registry(self._registry.entries)
+            else:
+                self.status_message.emit(f"Failed to install: {entry.display_name}")

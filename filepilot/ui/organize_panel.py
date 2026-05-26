@@ -191,16 +191,30 @@ class OrganizePanel(BasePanel):
         regex_pattern_layout.addWidget(QLabel("Pattern:"))
         self.regex_pattern_input = QLineEdit()
         self.regex_pattern_input.setPlaceholderText(r"e.g., ^(\d{4})-(\d{2})-(\d{2})_")
+        self.regex_pattern_input.textChanged.connect(self._on_regex_live_preview)
         regex_pattern_layout.addWidget(self.regex_pattern_input, 1)
         regex_layout.addLayout(regex_pattern_layout)
         regex_replacement_layout = QHBoxLayout()
         regex_replacement_layout.addWidget(QLabel("Replace:"))
         self.regex_replacement_input = QLineEdit()
         self.regex_replacement_input.setPlaceholderText(r"e.g., \2/\3/\1_")
+        self.regex_replacement_input.textChanged.connect(self._on_regex_live_preview)
         regex_replacement_layout.addWidget(self.regex_replacement_input, 1)
         regex_layout.addLayout(regex_replacement_layout)
+
+        # Live preview area
+        self.regex_live_label = QLabel("")
+        self.regex_live_label.setObjectName("regexLivePreview")
+        self.regex_live_label.setWordWrap(True)
+        self.regex_live_label.setStyleSheet(
+            "QLabel#regexLivePreview { color: #888; font-size: 11px;"
+            " background: rgba(255,255,255,0.03); padding: 6px; border-radius: 4px; }"
+        )
+        regex_layout.addWidget(self.regex_live_label)
+
         regex_options_layout = QHBoxLayout()
         self.regex_case_cb = QCheckBox(t("case_insensitive"))
+        self.regex_case_cb.stateChanged.connect(self._on_regex_live_preview)
         self.regex_preview_btn = QPushButton(t("regex_preview"))
         self.regex_preview_btn.clicked.connect(self._on_regex_preview)
         self.regex_execute_btn = QPushButton(t("regex_execute"))
@@ -597,6 +611,46 @@ class OrganizePanel(BasePanel):
         self.stats_label.setText(t("ready"))
 
     # ── Batch Regex Rename ──
+
+    @Slot()
+    def _on_regex_live_preview(self):
+        """Update live preview as user types regex pattern/replacement."""
+        pattern = self.regex_pattern_input.text().strip()
+        replacement = self.regex_replacement_input.text()
+
+        if not pattern:
+            self.regex_live_label.setText("")
+            return
+
+        try:
+            flags = re.IGNORECASE if self.regex_case_cb.isChecked() else 0
+            compiled = re.compile(pattern, flags)
+        except re.error as e:
+            self.regex_live_label.setText(f"<span style='color:#ef5350;'>Invalid regex: {e}</span>")
+            return
+
+        # Show preview on first 5 scanned files that match
+        if not self.files:
+            self.regex_live_label.setText(
+                "<span style='color:#888;'>Scan files first to see live preview</span>"
+            )
+            return
+
+        previews = []
+        for f in self.files[:50]:  # Check first 50 files
+            new_name = compiled.sub(replacement, f.name)
+            if new_name != f.name:
+                previews.append(f"  {f.name} -> <b>{new_name}</b>")
+            if len(previews) >= 5:
+                break
+
+        if not previews:
+            self.regex_live_label.setText(
+                "<span style='color:#888;'>No files match this pattern</span>"
+            )
+        else:
+            count_text = f"<b>{len(previews)}</b> matches (showing first {len(previews)}):"
+            self.regex_live_label.setText(count_text + "<br>" + "<br>".join(previews))
 
     @Slot()
     def _on_regex_preview(self):

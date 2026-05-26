@@ -169,6 +169,16 @@ class FileOrganizer:
                     self._organized_count += 1
                     self._undo_log.append({"source": str(file_info.path), "dest": str(dest_path)})
 
+                    # Record in file snapshot history
+                    try:
+                        from filepilot.core.file_snapshot import FileSnapshot
+
+                        FileSnapshot().record_organize(
+                            file_info.path, dest_path, file_info.category.label
+                        )
+                    except Exception:
+                        pass  # Non-critical — don't fail the organize
+
                 if progress_callback:
                     progress_callback(i + 1, file_info.name)
 

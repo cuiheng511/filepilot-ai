@@ -46,6 +46,48 @@ from filepilot.utils.file_utils import (
     get_file_size_str,
 )
 
+# Lazy-loaded cloud sync detection (avoid import cost on startup)
+_cloud_providers_cache: list | None = None
+_cloud_dir_cache: dict[str, str] = {}  # dir_path -> cloud_label
+
+
+def _get_cloud_label(file_path: Path) -> str:
+    """Get cloud sync label for a file path. Returns empty string if not in cloud folder.
+
+    Caches results per parent directory to avoid repeated path resolution
+    for files in the same folder.
+    """
+    global _cloud_providers_cache
+    if _cloud_providers_cache is None:
+        try:
+            from filepilot.core.cloud_sync import detect_cloud_providers
+
+            _cloud_providers_cache = detect_cloud_providers()
+        except Exception:
+            _cloud_providers_cache = []
+
+    if not _cloud_providers_cache:
+        return ""
+
+    # Cache by parent directory (most files in same dir share cloud status)
+    parent = str(file_path.parent)
+    if parent in _cloud_dir_cache:
+        return _cloud_dir_cache[parent]
+
+    resolved = file_path.resolve()
+    label = ""
+    for provider in _cloud_providers_cache:
+        try:
+            if resolved.is_relative_to(provider.root_path):
+                label = f"{provider.icon} {provider.name}"
+                break
+        except (ValueError, TypeError):
+            continue
+
+    _cloud_dir_cache[parent] = label
+    return label
+
+
 COLUMN_DEFS = {
     "name": ("Name", QHeaderView.Stretch),
     "size": ("Size", QHeaderView.ResizeToContents),
@@ -55,6 +97,7 @@ COLUMN_DEFS = {
     "path": ("Path", QHeaderView.Stretch),
     "extension": ("Ext", QHeaderView.ResizeToContents),
     "tags": ("Tags", QHeaderView.ResizeToContents),
+    "cloud": ("Cloud", QHeaderView.ResizeToContents),
 }
 
 DEFAULT_COLUMNS = ["name", "size", "type", "modified", "path", "tags"]
@@ -308,6 +351,8 @@ class FileBrowserPanel(BasePanel):
                         color = self.tag_manager.get_color(f.path)
                         if color:
                             item.setForeground(QColor(color))
+                elif key == "cloud":
+                    item = QTableWidgetItem(_get_cloud_label(f.path))
                 else:
                     item = QTableWidgetItem("")
                 self.file_table.setItem(row, col, item)
@@ -489,6 +534,8 @@ class FileBrowserPanel(BasePanel):
                         color = self.tag_manager.get_color(f.path)
                         if color:
                             item.setForeground(QColor(color))
+                elif key == "cloud":
+                    item = QTableWidgetItem(_get_cloud_label(f.path))
                 else:
                     item = QTableWidgetItem("")
 
@@ -538,6 +585,8 @@ class FileBrowserPanel(BasePanel):
                         color = self.tag_manager.get_color(f.path)
                         if color:
                             item.setForeground(QColor(color))
+                elif key == "cloud":
+                    item = QTableWidgetItem(_get_cloud_label(f.path))
                 else:
                     item = QTableWidgetItem("")
 
@@ -646,42 +695,26 @@ class FileBrowserPanel(BasePanel):
 
     @Slot()
     def _compare_files(self):
-        """Open file comparison dialog for two selected files."""
+        """Open file comparison dialog with unified diff highlighting."""
         paths = self._get_selected_paths()
         if len(paths) < 2:
             self.status_message.emit("Select at least 2 files to compare")
             return
+        import difflib
+
         from PySide6.QtWidgets import (
             QDialog,
             QHBoxLayout,
             QPushButton,
-            QSplitter,
+            QTabWidget,
             QVBoxLayout,
         )
 
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"📊 Compare: {paths[0].name} vs {paths[1].name}")
-        dialog.setMinimumSize(800, 500)
+        dialog.setWindowTitle(f"Compare: {paths[0].name} vs {paths[1].name}")
+        dialog.setMinimumSize(900, 600)
 
         layout = QVBoxLayout(dialog)
-        splitter = QSplitter(Qt.Horizontal)
-
-        left = QTextEdit()
-        left.setReadOnly(True)
-        right = QTextEdit()
-        right.setReadOnly(True)
-
-        for p, widget in [(paths[0], left), (paths[1], right)]:
-            try:
-                text = p.read_text(encoding="utf-8", errors="replace")
-                widget.setPlainText(text)
-            except Exception:
-                widget.setPlainText(f"[Cannot read {p.name}]")
-
-        splitter.addWidget(left)
-        splitter.addWidget(right)
-
-        import difflib
 
         try:
             lines_a = paths[0].read_text(encoding="utf-8", errors="replace").splitlines()
@@ -689,29 +722,146 @@ class FileBrowserPanel(BasePanel):
         except Exception:
             lines_a, lines_b = [], []
 
+        # Build unified diff with HTML highlighting
         diff = list(
             difflib.unified_diff(
                 lines_a, lines_b, fromfile=paths[0].name, tofile=paths[1].name, lineterm=""
             )
         )
-        difflines = [line for line in diff if line.startswith("+") or line.startswith("-")]
-        stats = (
-            f"  Added: {sum(1 for line in difflines if line.startswith('+'))}  "
-            f"Removed: {sum(1 for line in difflines if line.startswith('-'))}  "
-            f"Total diff lines: {len(difflines)}"
+
+        # Unified diff view (highlighted)
+        diff_html_lines = []
+        for line in diff:
+            escaped = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            if line.startswith("+++") or line.startswith("---"):
+                diff_html_lines.append(
+                    f"<div style='background:#1a3a5c;padding:2px 6px;font-weight:bold;'>"
+                    f"{escaped}</div>"
+                )
+            elif line.startswith("@@"):
+                diff_html_lines.append(
+                    f"<div style='background:#2d2d5c;color:#8888ff;padding:2px 6px;'>"
+                    f"{escaped}</div>"
+                )
+            elif line.startswith("+"):
+                diff_html_lines.append(
+                    f"<div style='background:#1a3d1a;color:#4caf50;padding:1px 6px;'>"
+                    f"{escaped}</div>"
+                )
+            elif line.startswith("-"):
+                diff_html_lines.append(
+                    f"<div style='background:#3d1a1a;color:#ef5350;padding:1px 6px;'>"
+                    f"{escaped}</div>"
+                )
+            else:
+                diff_html_lines.append(f"<div style='padding:1px 6px;color:#ccc;'>{escaped}</div>")
+
+        diff_html = (
+            "<div style='font-family:Consolas,monospace;font-size:12px;line-height:1.4;'>"
+            + "".join(diff_html_lines)
+            + "</div>"
         )
 
+        # Side-by-side view
+        side_html = self._build_side_by_side_diff(lines_a, lines_b, paths[0].name, paths[1].name)
+
+        # Tabs: Unified | Side-by-Side
+        tabs = QTabWidget()
+        unified_view = QTextEdit()
+        unified_view.setReadOnly(True)
+        unified_view.setHtml(diff_html)
+        tabs.addTab(unified_view, "Unified Diff")
+
+        side_view = QTextEdit()
+        side_view.setReadOnly(True)
+        side_view.setHtml(side_html)
+        tabs.addTab(side_view, "Side by Side")
+
+        layout.addWidget(tabs)
+
+        # Stats bar
+        added = sum(1 for line in diff if line.startswith("+") and not line.startswith("+++"))
+        removed = sum(1 for line in diff if line.startswith("-") and not line.startswith("---"))
         btn_layout = QHBoxLayout()
-        stats_label = QLabel(stats)
+        stats_label = QLabel(
+            f"<b>+{added}</b> added | <b>-{removed}</b> removed | "
+            f"{len(lines_a)} vs {len(lines_b)} lines"
+        )
         btn_layout.addWidget(stats_label)
         btn_layout.addStretch()
         close_btn = QPushButton(t("close"))
         close_btn.clicked.connect(dialog.accept)
         btn_layout.addWidget(close_btn)
 
-        layout.addWidget(splitter)
         layout.addLayout(btn_layout)
         dialog.exec()
+
+    def _build_side_by_side_diff(
+        self, lines_a: list[str], lines_b: list[str], name_a: str, name_b: str
+    ) -> str:
+        """Build side-by-side diff HTML table."""
+        import difflib
+
+        matcher = difflib.SequenceMatcher(None, lines_a, lines_b)
+        rows = []
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                for i, j in zip(range(i1, i2), range(j1, j2), strict=True):
+                    left = lines_a[i].replace("&", "&amp;").replace("<", "&lt;")
+                    right = lines_b[j].replace("&", "&amp;").replace("<", "&lt;")
+                    rows.append(
+                        f"<tr><td class='ln'>{i + 1}</td><td class='eq'>{left}</td>"
+                        f"<td class='ln'>{j + 1}</td><td class='eq'>{right}</td></tr>"
+                    )
+            elif tag == "replace":
+                max_len = max(i2 - i1, j2 - j1)
+                for k in range(max_len):
+                    left_ln = str(i1 + k + 1) if k < (i2 - i1) else ""
+                    right_ln = str(j1 + k + 1) if k < (j2 - j1) else ""
+                    left = (
+                        lines_a[i1 + k].replace("&", "&amp;").replace("<", "&lt;")
+                        if k < (i2 - i1)
+                        else ""
+                    )
+                    right = (
+                        lines_b[j1 + k].replace("&", "&amp;").replace("<", "&lt;")
+                        if k < (j2 - j1)
+                        else ""
+                    )
+                    rows.append(
+                        f"<tr><td class='ln'>{left_ln}</td><td class='rm'>{left}</td>"
+                        f"<td class='ln'>{right_ln}</td><td class='ad'>{right}</td></tr>"
+                    )
+            elif tag == "delete":
+                for i in range(i1, i2):
+                    left = lines_a[i].replace("&", "&amp;").replace("<", "&lt;")
+                    rows.append(
+                        f"<tr><td class='ln'>{i + 1}</td><td class='rm'>{left}</td>"
+                        f"<td class='ln'></td><td class='empty'></td></tr>"
+                    )
+            elif tag == "insert":
+                for j in range(j1, j2):
+                    right = lines_b[j].replace("&", "&amp;").replace("<", "&lt;")
+                    rows.append(
+                        f"<tr><td class='ln'></td><td class='empty'></td>"
+                        f"<td class='ln'>{j + 1}</td><td class='ad'>{right}</td></tr>"
+                    )
+
+        table = "".join(rows[:2000])  # Limit for performance
+        return (
+            "<style>"
+            "table { border-collapse:collapse; width:100%; font-family:Consolas,monospace; font-size:11px; }"
+            "td { padding:1px 4px; white-space:pre; vertical-align:top; }"
+            ".ln { color:#666; width:30px; text-align:right; border-right:1px solid #333; }"
+            ".eq { background:#1e1e1e; color:#ccc; }"
+            ".rm { background:#3d1a1a; color:#ef5350; }"
+            ".ad { background:#1a3d1a; color:#4caf50; }"
+            ".empty { background:#2a2a2a; }"
+            "th { background:#333; color:#fff; padding:4px 8px; text-align:left; }"
+            "</style>"
+            f"<table><tr><th colspan='2'>{name_a}</th><th colspan='2'>{name_b}</th></tr>"
+            f"{table}</table>"
+        )
 
     # ── Tag Automation ────────────────────────────────────────────────────
 

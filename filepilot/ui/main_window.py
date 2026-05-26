@@ -150,6 +150,7 @@ class MainWindow(QMainWindow):
         # ── Settings group ──
         self._add_nav_separator("⚙️ Settings")
         self._add_nav_item("\U0001f50c Plugins", t("nav_plugins_tip"), "plugins", 10)
+        self._add_nav_item("\U0001f4ac AI Chat", "Conversational file assistant", "chat", 11)
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -193,6 +194,13 @@ class MainWindow(QMainWindow):
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
 
+        from filepilot.ui.chat_panel import ChatPanel
+
+        self.chat_panel = ChatPanel(
+            indexer=svc.indexer, app_state=self.state, event_bus=self.event_bus
+        )
+        self.chat_panel.update_services(ai_provider=svc.local_ai or svc.cloud_ai)
+
         self.content_stack.addWidget(self.dashboard_panel)  # 0 - Dashboard
         self.content_stack.addWidget(self.browse_panel)  # 1 - Browse
         self.content_stack.addWidget(self.favorites_panel)  # 2 - Favorites
@@ -204,6 +212,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.index_panel)  # 8 - Index
         self.content_stack.addWidget(self.stats_panel)  # 9 - File Stats
         self.content_stack.addWidget(self.plugin_manager_panel)  # 10 - Plugins
+        self.content_stack.addWidget(self.chat_panel)  # 11 - AI Chat
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -234,6 +243,11 @@ class MainWindow(QMainWindow):
 
         # Notification toast
         self._toast = NotificationToast(self.centralWidget())
+
+        # Notification history (records all toasts for review)
+        from filepilot.ui.notification_history import NotificationHistory
+
+        self._notification_history = NotificationHistory()
 
         # File watcher — connect signals for auto-index
         svc = self.services
@@ -594,6 +608,7 @@ class MainWindow(QMainWindow):
             "Index",
             "File Stats",
             "Plugins",
+            "AI Chat",
         ]
         if 0 <= stack_index < len(names) and hasattr(self, "status_label"):
             self.status_label.setText(f"Current: {names[stack_index]}")
@@ -854,9 +869,11 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
 
     def _notify(self, text: str, level: str = "info", duration_ms: int = 3000):
-        """Show a non-blocking notification toast"""
+        """Show a non-blocking notification toast and record to history"""
         if hasattr(self, "_toast"):
             self._toast.show_message(text, level, duration_ms)
+        if hasattr(self, "_notification_history"):
+            self._notification_history.record(text, level)
 
     def _recreate_services(self):
         """Update service instances after settings change (no panel recreation needed)"""
@@ -892,6 +909,9 @@ class MainWindow(QMainWindow):
             cloud_ai=svc.cloud_ai,
         )
         self.index_panel.update_services(scanner=svc.scanner, indexer=svc.indexer)
+        self.chat_panel.update_services(
+            indexer=svc.indexer, ai_provider=svc.local_ai or svc.cloud_ai
+        )
 
         # Refresh dashboard with recent data
         self.dashboard_panel.update_recent_folders(self.state.recent_dirs)

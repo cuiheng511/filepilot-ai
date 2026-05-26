@@ -2,6 +2,7 @@
 
 import json
 import logging
+import threading
 from pathlib import Path
 
 logger = logging.getLogger("filepilot.tag_manager")
@@ -23,10 +24,19 @@ DEFAULT_COLORS = [
 
 
 class TagManager:
-    """Manages file tags with persistent storage and cross-directory search."""
+    """Manages file tags with persistent storage and cross-directory search.
+
+    Uses a deferred save strategy: writes are batched and flushed after a short
+    delay (300ms) to avoid excessive disk I/O during bulk operations.
+    """
+
+    _SAVE_DELAY_MS = 300
 
     def __init__(self) -> None:
         self._tags: dict[str, dict] = {}
+        self._dirty = False
+        self._save_timer: threading.Timer | None = None
+        self._lock = threading.Lock()
         self._load()
 
     def _load(self):
@@ -38,14 +48,35 @@ class TagManager:
                 self._tags = {}
 
     def _save(self):
+        """Immediate save to disk."""
         TAGS_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
             TAGS_FILE.write_text(
                 json.dumps(self._tags, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            self._dirty = False
         except Exception as e:
             logger.warning("Failed to save tags: %s", e)
+
+    def _schedule_save(self):
+        """Schedule a deferred save. Multiple rapid changes are batched."""
+        self._dirty = True
+        with self._lock:
+            if self._save_timer is not None:
+                self._save_timer.cancel()
+            self._save_timer = threading.Timer(self._SAVE_DELAY_MS / 1000.0, self._save)
+            self._save_timer.daemon = True
+            self._save_timer.start()
+
+    def flush(self):
+        """Force immediate save if there are pending changes."""
+        with self._lock:
+            if self._save_timer is not None:
+                self._save_timer.cancel()
+                self._save_timer = None
+        if self._dirty:
+            self._save()
 
     def add_tag(self, file_path: str | Path, tag: str, color: str | None = None) -> None:
         path_str = str(Path(file_path).resolve())
@@ -56,7 +87,7 @@ class TagManager:
             entry["tags"].append(tag)
         if color:
             entry["color"] = color
-        self._save()
+        self._schedule_save()
 
     def remove_tag(self, file_path: str | Path, tag: str) -> None:
         path_str = str(Path(file_path).resolve())
@@ -65,7 +96,7 @@ class TagManager:
             entry["tags"] = [t for t in entry["tags"] if t.lower() != tag.lower()]
             if not entry["tags"]:
                 del self._tags[path_str]
-            self._save()
+            self._schedule_save()
 
     def get_tags(self, file_path: str | Path) -> list[str]:
         path_str = str(Path(file_path).resolve())
@@ -85,7 +116,7 @@ class TagManager:
             self._tags[path_str] = {"tags": [], "color": color}
         else:
             self._tags[path_str]["color"] = color
-        self._save()
+        self._schedule_save()
 
     def has_tag(self, file_path: str | Path, tag: str) -> bool:
         path_str = str(Path(file_path).resolve())
@@ -110,14 +141,14 @@ class TagManager:
         path_str = str(Path(file_path).resolve())
         if path_str in self._tags:
             del self._tags[path_str]
-            self._save()
+            self._schedule_save()
 
     def cleanup_nonexistent(self) -> int:
         to_remove = [p for p in self._tags if not Path(p).exists()]
         for p in to_remove:
             del self._tags[p]
         if to_remove:
-            self._save()
+            self._schedule_save()
         return len(to_remove)
 
     def get_tag_count(self) -> int:

@@ -106,6 +106,16 @@ class PreviewPanel(QWidget):
                 )
             return
 
+        # PDF preview (async text extraction)
+        if cat == "PDF":
+            self.preview_stack.setCurrentIndex(0)
+            self.text_preview.setPlainText(t("loading"))
+            worker = Worker(self._preview_pdf_worker, path)
+            worker.signals.finished.connect(lambda _: None)
+            worker.signals.error.connect(lambda msg: None)
+            QThreadPool.globalInstance().start(worker)
+            return
+
         # Text/code/markdown preview (async)
         is_text_like = cat in ("Code", "Text") or ext in (
             ".txt",
@@ -131,16 +141,10 @@ class PreviewPanel(QWidget):
             QThreadPool.globalInstance().start(worker)
             return
 
-        # PDF / Office — metadata only
+        # Office — metadata only
         self.preview_stack.setCurrentIndex(0)
         stats_html = f"<p>Size: {size_str}</p><p>Modified: {modified_str:.0f}</p>"
-        if cat == "PDF":
-            self.text_preview.setHtml(
-                f"<p><b>📕 PDF file:</b> {path.name}</p>"
-                f"<p><i>Use the 'AI Summary' panel"
-                f" to extract content from this PDF.</i></p>{stats_html}"
-            )
-        elif cat == "Office":
+        if cat == "Office":
             self.text_preview.setHtml(
                 f"<p><b>📄 Office file:</b> {path.name}</p>"
                 f"<p><i>Use the 'AI Summary' panel to extract content.</i></p>{stats_html}"
@@ -150,6 +154,68 @@ class PreviewPanel(QWidget):
                 f"<p><b>📄 {path.name}</b></p>{stats_html}"
                 f"<p><i>Preview not available for this file type.</i></p>"
             )
+
+    def _preview_pdf_worker(self, path: Path):
+        """Extract and render PDF text in background."""
+        try:
+            import fitz  # PyMuPDF
+
+            with fitz.open(str(path)) as doc:
+                page_count = doc.page_count
+                pages_html = []
+                max_pages = min(5, page_count)
+                for i in range(max_pages):
+                    page = doc[i]
+                    text = page.get_text().strip()
+                    if text:
+                        escaped = (
+                            text[:3000]
+                            .replace("&", "&amp;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;")
+                            .replace("\n", "<br>")
+                        )
+                        pages_html.append(
+                            f"<div style='margin-bottom:16px;'>"
+                            f"<b style='color:#e67e22;'>Page {i + 1}</b>"
+                            f"<hr style='border:1px solid #333;'>"
+                            f"<div style='font-size:12px;line-height:1.5;'>{escaped}</div>"
+                            f"</div>"
+                        )
+                    else:
+                        pages_html.append(
+                            f"<p style='color:#888;'><i>Page {i + 1}: (no text content)</i></p>"
+                        )
+
+                size_str = get_file_size_str(path.stat().st_size)
+                header = (
+                    f"<div style='margin-bottom:12px;'>"
+                    f"<b>PDF: {path.name}</b><br>"
+                    f"<span style='color:#888;font-size:11px;'>"
+                    f"{page_count} pages | {size_str}"
+                    f"</span></div>"
+                )
+                footer = ""
+                if page_count > max_pages:
+                    footer = (
+                        f"<p style='color:#888;font-style:italic;'>"
+                        f"... {page_count - max_pages} more pages not shown</p>"
+                    )
+                styled = (
+                    "<style>"
+                    "  body { font-family: 'Segoe UI', sans-serif; padding: 12px; }"
+                    "</style>"
+                    f"{header}{''.join(pages_html)}{footer}"
+                )
+                self.preview_ready.emit(styled, str(path))
+        except ImportError:
+            self.preview_ready.emit(
+                "<p><b>PDF preview unavailable</b></p>"
+                "<p><i>Install PyMuPDF: pip install PyMuPDF</i></p>",
+                str(path),
+            )
+        except Exception as e:
+            self.preview_ready.emit(f"<p><i>Failed to preview PDF: {e}</i></p>", str(path))
 
     def _preview_text_worker(self, path: Path, is_markdown: bool):
         """Read text file in background and emit preview_ready."""

@@ -461,6 +461,7 @@ class IndexPanel(BasePanel):
             content_extractor=self._extract_content,
             embedding_extractor=None,
             progress_callback=on_progress,
+            incremental=True,
         )
 
     @Slot()

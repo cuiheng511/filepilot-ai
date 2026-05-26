@@ -133,7 +133,13 @@ class SummaryPanel(BasePanel):
         left_layout.addWidget(QLabel(t("summary_selected")))
         self.file_list = QListWidget()
         self.file_list.setAlternatingRowColors(True)
+        self.file_list.setAcceptDrops(True)
+        self.file_list.setDragDropMode(QListWidget.DropOnly)
         left_layout.addWidget(self.file_list, 1)
+
+        # Enable drag-drop on the entire panel
+        self.setAcceptDrops(True)
+
         btn_layout = QHBoxLayout()
         self.btn_add_files = QPushButton(t("summary_add_files"))
         self.btn_add_files.clicked.connect(self._on_add_files)
@@ -303,6 +309,63 @@ class SummaryPanel(BasePanel):
         item.setToolTip(path_str)
         self.file_list.addItem(item)
         self.btn_generate.setEnabled(self.file_list.count() > 0)
+
+    # ── Drag and Drop ──
+
+    def dragEnterEvent(self, event):  # noqa: N802
+        """Accept file drops."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):  # noqa: N802
+        """Accept drag move."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):  # noqa: N802
+        """Handle dropped files — add them to the file list."""
+        urls = event.mimeData().urls()
+        if not urls:
+            return
+
+        added = 0
+        existing = {self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())}
+
+        for url in urls:
+            file_path = url.toLocalFile()
+            if not file_path:
+                continue
+            path = Path(file_path)
+
+            if path.is_dir():
+                # Add all supported files from directory
+                for f in path.rglob("*"):
+                    if f.is_file() and self._is_supported(f) and str(f) not in existing:
+                        label = f"{f.name} ({f.suffix})"
+                        item = QListWidgetItem(label)
+                        item.setData(Qt.UserRole, str(f))
+                        item.setToolTip(str(f))
+                        self.file_list.addItem(item)
+                        existing.add(str(f))
+                        added += 1
+            elif (
+                path.is_file()
+                and str(path) not in existing
+                and (self._is_supported(path) or path.suffix.lower() in IMAGE_EXTS)
+            ):
+                label = f"{path.name} ({path.suffix})"
+                item = QListWidgetItem(label)
+                item.setData(Qt.UserRole, str(path))
+                item.setToolTip(str(path))
+                self.file_list.addItem(item)
+                existing.add(str(path))
+                added += 1
+
+        if added:
+            self.btn_generate.setEnabled(True)
+            self.status_message.emit(f"Added {added} file(s) via drag-and-drop")
+
+        event.acceptProposedAction()
 
     # ── Generate summary ──
 

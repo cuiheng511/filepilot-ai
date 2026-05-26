@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 from filepilot.core.tag_manager import TagManager
@@ -71,11 +72,31 @@ class TagsPanel(BasePanel):
 
         layout.addLayout(search_layout)
 
+        # Tabs: List view | Tag Cloud
+        from PySide6.QtWidgets import QTabWidget
+
+        self._view_tabs = QTabWidget()
+
+        # List view tab
+        list_tab = QWidget()
+        list_layout = QVBoxLayout(list_tab)
+        list_layout.setContentsMargins(0, 0, 0, 0)
         self.tagged_list = QListWidget()
         self.tagged_list.setAlternatingRowColors(True)
         self.tagged_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tagged_list.itemDoubleClicked.connect(self._on_item_double_click)
-        layout.addWidget(self.tagged_list, 1)
+        list_layout.addWidget(self.tagged_list)
+        self._view_tabs.addTab(list_tab, "List View")
+
+        # Tag Cloud tab
+        from filepilot.ui.tag_cloud import TagCloudWidget
+
+        self.tag_cloud = TagCloudWidget(tag_manager=self.tag_manager)
+        self.tag_cloud.tag_clicked.connect(self._on_cloud_tag_clicked)
+        self._view_tabs.addTab(self.tag_cloud, "Tag Cloud")
+        self._view_tabs.currentChanged.connect(self._on_view_tab_changed)
+
+        layout.addWidget(self._view_tabs, 1)
 
         toolbar = QHBoxLayout()
         self.btn_add_tag = QPushButton("\U0001f3f7\ufe0f Add Tag to File...")
@@ -143,6 +164,19 @@ class TagsPanel(BasePanel):
             self._refresh_tags(filtered_tag=tag)
         else:
             self._refresh_tags()
+
+    @Slot()
+    def _on_cloud_tag_clicked(self, tag: str):
+        """Handle tag click from cloud view — filter list by that tag."""
+        self.tag_search_input.setEditText(tag)
+        self._view_tabs.setCurrentIndex(0)  # Switch to list view
+        self._refresh_tags(filtered_tag=tag)
+
+    @Slot()
+    def _on_view_tab_changed(self, index: int):
+        """Refresh tag cloud when switching to cloud tab."""
+        if index == 1:
+            self.tag_cloud.refresh()
 
     @Slot()
     def _on_clear_search(self):

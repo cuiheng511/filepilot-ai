@@ -161,7 +161,7 @@ def get_onedrive_file_status(file_path: str | Path) -> str:
     if sys.platform != "win32":
         return "unknown"
 
-    try:
+    try:  # type: ignore[unreachable]
         import ctypes
 
         path = str(Path(file_path).resolve())

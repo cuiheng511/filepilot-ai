@@ -38,7 +38,8 @@ class FileSnapshot:
             self._local.conn = sqlite3.connect(str(self._db_path))
             self._local.conn.row_factory = sqlite3.Row
             self._local.conn.execute("PRAGMA journal_mode=WAL")
-        return self._local.conn
+        conn: sqlite3.Connection = self._local.conn
+        return conn
 
     def _init_db(self):
         conn = self._conn()

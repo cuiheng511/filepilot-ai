@@ -135,7 +135,12 @@ class FlowLayout(QVBoxLayout):
         self._container = _FlowContainer()
         super().addWidget(self._container)
 
-    def addWidget(self, widget: QWidget):  # noqa: N802
+    def addWidget(  # noqa: N802
+        self,
+        widget: QWidget,
+        stretch: int | None = None,
+        alignment: Qt.AlignmentFlag | None = None,
+    ):
         """Add widget to flow."""
         widget.setParent(self._container)
         self._container._widgets.append(widget)

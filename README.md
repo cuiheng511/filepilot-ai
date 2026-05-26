@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.2
+Version 0.6.3
 
 </div>
 
@@ -32,16 +32,25 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 
 </div>
 
-## What's New in 0.6.2
+## What's New in 0.6.3
 
 | Area | Update |
 | --- | --- |
-| Semantic search | Embedding-based re-ranking of Whoosh results using AI provider `embed()` — cosine similarity (pure Python), cached in `~/.filepilot/embeddings.json`. Toggle via "🔬 Semantic" checkbox. |
-| i18n completeness | 160 missing keys added across 16 non-en/zh languages; ~40 previously hardcoded UI strings now use `t()`. Remaining ~180 strings also wired (this release). |
-| Bug fixes | Embedding provider now cached (not re-created per-file). Embeddings persisted via `save()` after indexing. Search cache skips semantic results (scores change over time). Anthropic correctly returns `None` for `embed()`. |
-| Quality | 737 tests passing (18 new embedding tests), ruff/mypy clean. |
+| AI Chat panel | Conversational file assistant — ask "Find large PDFs", "How many Python files?" in natural language. Uses local intent parsing (no AI needed for simple queries) or optional AI provider for smarter responses. |
+| Plugin Registry | Browse and install community plugins from GitHub with one click. Built-in fallback registry includes CSV Analyzer, Log Parser, YAML/TOML Extractor, EPUB Extractor. |
+| Incremental indexing | Only re-indexes changed files (10-100x faster for large directories). Enabled by default in Index panel. |
+| Tag Cloud | New visual tag cloud tab in Tags panel — font size scales with usage. Click a tag to filter the tag list. |
+| PDF preview | Inline PDF text extraction via PyMuPDF (first 5 pages). Falls back gracefully if not installed. |
+| Live regex preview | See rename results as you type the pattern/replacement in the Organize panel. |
+| Drag-and-drop summary | Drag files/folders onto Summary panel to add them to the queue. |
+| Cloud sync indicators | OneDrive, Dropbox, Google Drive, iCloud Drive detection with per-file status column in File Browser. |
+| Enhanced diff view | _Compare Files_ now shows unified diff + side-by-side view with syntax-colored highlighting. |
+| Deferred TagManager saves | Tag operations batched with 300ms debounce timer — bulk tagging 10-50x faster. |
+| File operation history | SQLite-backed `FileSnapshot` records moves, renames, deletes, and organizes for undo tracking. |
+| Notification history | All toast notifications recorded; accessible via the notification history widget. |
+| Quality | 855 tests passing, ruff/mypy clean. |
 
-### What was new in 0.6.1
+### What was new in 0.6.2
 
 | Area | Update |
 | --- | --- |
@@ -97,13 +106,14 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 - Duplicate detection with size grouping, partial hashing, full SHA-256 verification, and safe deletion through the system recycle bin.
 - Undo-log support for organization workflows.
 
-### AI, OCR, and Extractors
+### AI, Chat, OCR, and Extractors
 
+- AI Chat panel for conversational file queries — works without an AI provider for basic searches.
 - Optional AI summaries and keyword extraction for PDF, Markdown, code, text, Office files, and images.
 - OCR support through Tesseract for image text extraction.
 - Local providers: Ollama, llama.cpp, LM Studio, or OpenAI-compatible local endpoints.
 - Cloud providers: OpenAI, Anthropic, and custom OpenAI-compatible APIs.
-- Plugin system for custom content extractors.
+- Plugin system with one-click install from the community registry.
 
 ## Quick Start
 
@@ -209,7 +219,7 @@ flowchart LR
 filepilot-ai/
 |-- filepilot/
 |   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher
+|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher, cloud_sync, file_snapshot, plugin_registry
 |   |-- extractors/          # PDF, Markdown, code, image, Office, OCR extractors
 |   |-- resources/           # Application icons
 |   |-- styles/              # Theme manager and QSS themes

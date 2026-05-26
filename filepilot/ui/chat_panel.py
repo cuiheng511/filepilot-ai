@@ -309,6 +309,7 @@ class ChatPanel(BasePanel):
         )
 
         try:
+            assert self._ai_provider is not None
             response = self._ai_provider.generate(
                 prompt=query,
                 system_prompt=context,

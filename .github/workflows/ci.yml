@@ -100,13 +100,17 @@ jobs:
 
       - name: Run tests with coverage (Linux)
         if: runner.os == 'Linux'
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_OPENGL: software
+          QT_QUICK_BACKEND: software
+          LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
-          xvfb-run --auto-servernum \
-            python -m pytest tests/ \
-              --cov=filepilot \
-              --cov-report=xml:coverage.xml \
-              --cov-report=term-missing \
-              -v --tb=short
+          python -m pytest tests/ \
+            --cov=filepilot \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            -v --tb=short
 
       - name: Run tests with coverage (Windows)
         if: runner.os == 'Windows'

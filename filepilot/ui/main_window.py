@@ -308,6 +308,9 @@ class MainWindow(QMainWindow):
                 panel = self.browse_panel._tabs.widget(i)
                 if panel is not None and hasattr(panel, "_cancelled"):
                     panel._cancelled = True
+        # Stop the file watcher to prevent signals to destroyed widgets
+        if self._watcher:
+            self._watcher.stop()
         event.accept()
 
     def changeEvent(self, event):

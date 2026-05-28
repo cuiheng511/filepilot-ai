@@ -524,3 +524,31 @@ QToolTip {
     border-radius: 4px;
     font-size: 12px;
 }
+
+/* Chat, notifications, and tag cloud */
+QLabel#chatBubble {
+    color: #2c3e50;
+    padding: 10px 14px;
+    border-radius: 12px;
+}
+QLabel#chatBubble[role="user"] {
+    background: #dceeff;
+}
+QLabel#chatBubble[role="assistant"] {
+    background: #ffffff;
+    border: 1px solid #dcdde1;
+}
+QLabel#emptyStateLabel {
+    color: #95a5a6;
+    font-style: italic;
+    padding: 20px;
+}
+QLabel#tagCloudLabel {
+    padding: 4px 8px;
+    margin: 2px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 4px;
+}
+QLabel#tagCloudLabel:hover {
+    background: rgba(0,0,0,0.10);
+}

@@ -191,7 +191,7 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 
 ## AI Providers
 
-FilePilot AI supports local and cloud providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup details, examples, and provider-specific privacy notes.
+FilePilot AI supports local and cloud providers through a unified interface. See [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) for setup details, examples, and provider-specific privacy notes. Newer workflows such as AI Chat, Plugin Registry, Tag Cloud, Live Regex Preview, Notification History, and embedding cache maintenance are covered in [docs/FEATURES.md](docs/FEATURES.md).
 
 | Provider | Mode | Default URL |
 | --- | --- | --- |

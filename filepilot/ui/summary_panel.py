@@ -29,8 +29,32 @@ SUPPORTED_EXTS = CAT_CODE | CAT_PDF | CAT_MARKDOWN | CAT_TEXT | CAT_OFFICE
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".gif", ".webp"}
 
 
+def collect_supported_drop_paths(paths: list[Path], existing: set[str]) -> list[Path]:
+    """Collect supported dropped files without touching Qt widgets."""
+    collected: list[Path] = []
+    seen = set(existing)
+    for path in paths:
+        if path.is_dir():
+            try:
+                candidates = [p for p in path.rglob("*") if p.is_file()]
+            except OSError:
+                continue
+        else:
+            candidates = [path]
+
+        for candidate in candidates:
+            candidate_str = str(candidate)
+            suffix = candidate.suffix.lower()
+            if candidate_str in seen:
+                continue
+            if candidate.is_file() and (suffix in SUPPORTED_EXTS or suffix in IMAGE_EXTS):
+                collected.append(candidate)
+                seen.add(candidate_str)
+    return collected
+
+
 class SummaryPanel(BasePanel):
-    """AI summary generation panel — extracts summaries and keywords from files"""
+    """AI summary generation panel - extracts summaries and keywords from files."""
 
     summary_ready = Signal(str)
     keyword_ready = Signal(str)
@@ -229,7 +253,7 @@ class SummaryPanel(BasePanel):
         """Check if the file extension is supported"""
         return path.suffix.lower() in SUPPORTED_EXTS
 
-    # ── File selection ──
+    # File selection
 
     @Slot()
     def _on_add_files(self):
@@ -255,7 +279,7 @@ class SummaryPanel(BasePanel):
             if str(path) not in existing:
                 label = f"{path.name} ({path.suffix})"
                 if is_image:
-                    label = f"🖼️ {path.name} ({path.suffix})"
+                    label = f"[Image] {path.name} ({path.suffix})"
                 item = QListWidgetItem(label)
                 item.setData(Qt.UserRole, str(path))
                 item.setToolTip(str(path))
@@ -293,7 +317,7 @@ class SummaryPanel(BasePanel):
                 self._add_file_requested.emit(path.name, path.suffix, str(path))
                 count += 1
             if count > 0:
-                self.status_message.emit(f"✅ Added {count} supported files")
+                self.status_message.emit(f"Added {count} supported files")
             else:
                 self.status_message.emit("No supported files found in the selected folder")
 
@@ -310,7 +334,7 @@ class SummaryPanel(BasePanel):
         self.file_list.addItem(item)
         self.btn_generate.setEnabled(self.file_list.count() > 0)
 
-    # ── Drag and Drop ──
+    # Drag and drop
 
     def dragEnterEvent(self, event):  # noqa: N802
         """Accept file drops."""
@@ -323,51 +347,43 @@ class SummaryPanel(BasePanel):
             event.acceptProposedAction()
 
     def dropEvent(self, event):  # noqa: N802
-        """Handle dropped files — add them to the file list."""
+        """Handle dropped files in a worker so large folders do not freeze the UI."""
         urls = event.mimeData().urls()
         if not urls:
             return
 
-        added = 0
         existing = {self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())}
+        paths = [Path(file_path) for url in urls if (file_path := url.toLocalFile())]
+        if not paths:
+            return
 
-        for url in urls:
-            file_path = url.toLocalFile()
-            if not file_path:
-                continue
-            path = Path(file_path)
+        self.status_message.emit(t("summary_drop_scanning"))
 
-            if path.is_dir():
-                # Add all supported files from directory
-                for f in path.rglob("*"):
-                    if f.is_file() and self._is_supported(f) and str(f) not in existing:
-                        label = f"{f.name} ({f.suffix})"
-                        item = QListWidgetItem(label)
-                        item.setData(Qt.UserRole, str(f))
-                        item.setToolTip(str(f))
-                        self.file_list.addItem(item)
-                        existing.add(str(f))
-                        added += 1
-            elif (
-                path.is_file()
-                and str(path) not in existing
-                and (self._is_supported(path) or path.suffix.lower() in IMAGE_EXTS)
-            ):
-                label = f"{path.name} ({path.suffix})"
-                item = QListWidgetItem(label)
-                item.setData(Qt.UserRole, str(path))
-                item.setToolTip(str(path))
-                self.file_list.addItem(item)
-                existing.add(str(path))
-                added += 1
+        def scan_dropped() -> int:
+            collected = collect_supported_drop_paths(paths, existing)
+            for path in collected:
+                self._add_file_requested.emit(path.name, path.suffix, str(path))
+            return len(collected)
 
+        worker = Worker(scan_dropped)
+        worker.signals.finished.connect(self._on_drop_scan_finished)
+        worker.signals.error.connect(
+            lambda msg: self.status_message.emit(t("summary_drop_error", msg=msg))
+        )
+        QThreadPool.globalInstance().start(worker)
+        event.acceptProposedAction()
+        return
+
+    @Slot(object)
+    def _on_drop_scan_finished(self, count: object) -> None:
+        added = count if isinstance(count, int) else 0
         if added:
             self.btn_generate.setEnabled(True)
-            self.status_message.emit(f"Added {added} file(s) via drag-and-drop")
+            self.status_message.emit(t("summary_drop_added", n=added))
+        else:
+            self.status_message.emit(t("summary_drop_empty"))
 
-        event.acceptProposedAction()
-
-    # ── Generate summary ──
+    # Generate summary
 
     @Slot()
     def _on_cancel(self):
@@ -379,14 +395,14 @@ class SummaryPanel(BasePanel):
         self.btn_cancel.setVisible(False)
         self.progress_bar.setVisible(False)
         self.btn_generate.setEnabled(True)
-        self.status_message.emit("⏹️ Operation cancelled")
+        self.status_message.emit("Operation cancelled")
         self._on_summary_done()
 
     @Slot()
     def _on_generate(self):
         """Start summary generation"""
         if self.file_list.count() == 0:
-            self.status_message.emit("⚠️ Please add files first")
+            self.status_message.emit("Please add files first")
             return
 
         self._ensure_ai_init()
@@ -495,7 +511,7 @@ class SummaryPanel(BasePanel):
             if not self._cancelled:
                 self.summary_ready.emit(summary or "No summary generated")
                 self.keyword_ready.emit(keywords_text or "No keywords extracted")
-                self.status_message.emit(f"✅ Summary complete — processed {len(files)} files")
+                self.status_message.emit(f"Summary complete - processed {len(files)} files")
                 from PySide6.QtCore import QMetaObject, Qt
 
                 QMetaObject.invokeMethod(self, "_on_summary_done", Qt.QueuedConnection)

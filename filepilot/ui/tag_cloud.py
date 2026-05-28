@@ -1,10 +1,11 @@
 """Tag Cloud Widget — visual tag display with size proportional to file count."""
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QLayout, QLayoutItem, QVBoxLayout, QWidget
 
 from filepilot.core.tag_manager import TagManager
+from filepilot.i18n import t
 
 _TAG_COLORS = [
     "#FF6B6B",
@@ -39,7 +40,7 @@ class TagCloudWidget(QWidget):
         self._tag_labels: list[QLabel] = []
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(8, 8, 8, 8)
         self._layout.setSpacing(4)
@@ -49,12 +50,13 @@ class TagCloudWidget(QWidget):
         self._flow_layout = FlowLayout(self._cloud_container)
         self._layout.addWidget(self._cloud_container, 1)
 
-    def refresh(self):
+    def refresh(self) -> None:
         """Rebuild the tag cloud from current tag data."""
         # Clear existing labels
         for label in self._tag_labels:
             label.deleteLater()
         self._tag_labels.clear()
+        self._flow_layout.clear()
 
         # Get tag counts
         tagged_files = self._tag_manager.get_tagged_files()
@@ -64,8 +66,8 @@ class TagCloudWidget(QWidget):
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
         if not tag_counts:
-            placeholder = QLabel("No tags yet. Add tags to files to see the cloud.")
-            placeholder.setStyleSheet("color: #888; font-style: italic; padding: 20px;")
+            placeholder = QLabel(t("tag_cloud_empty"))
+            placeholder.setObjectName("emptyStateLabel")
             placeholder.setAlignment(Qt.AlignCenter)
             self._flow_layout.addWidget(placeholder)
             self._tag_labels.append(placeholder)
@@ -89,7 +91,7 @@ class TagCloudWidget(QWidget):
             self._flow_layout.addWidget(label)
             self._tag_labels.append(label)
 
-    def set_tag_manager(self, tm: TagManager):
+    def set_tag_manager(self, tm: TagManager) -> None:
         """Update the tag manager reference."""
         self._tag_manager = tm
         self.refresh()
@@ -100,88 +102,115 @@ class ClickableTagLabel(QLabel):
 
     clicked = Signal(str)
 
-    def __init__(self, tag: str, count: int, color: str, font_size: int, parent=None):
+    def __init__(
+        self,
+        tag: str,
+        count: int,
+        color: str,
+        font_size: int,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._tag = tag
+        self.setObjectName("tagCloudLabel")
+        self.setAccessibleName(f"{tag}, {count} files")
         self.setText(f" {tag} ({count}) ")
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip(f"Tag: {tag}\nFiles: {count}\nClick to filter")
+        self.setToolTip(t("tag_cloud_tooltip", tag=tag, count=count))
         font = QFont()
         font.setPointSize(font_size)
         font.setBold(count > 3)
         self.setFont(font)
-        self.setStyleSheet(
-            f"QLabel {{ color: {color}; padding: 4px 8px; margin: 2px;"
-            f" background: rgba(255,255,255,0.05); border-radius: 4px; }}"
-            f"QLabel:hover {{ background: rgba(255,255,255,0.12); }}"
-        )
+        self.setStyleSheet(f"QLabel#tagCloudLabel {{ color: {color}; }}")
 
-    def mousePressEvent(self, event):  # noqa: N802
+    def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
             self.clicked.emit(self._tag)
         super().mousePressEvent(event)
 
 
-class FlowLayout(QVBoxLayout):
-    """Simple flow layout that wraps widgets horizontally.
+class FlowLayout(QLayout):
+    """Qt layout that wraps child widgets horizontally."""
 
-    Uses a container widget with manual positioning. Reflows on resize.
-    """
-
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None, margin: int = 0, spacing: int = 4) -> None:
         super().__init__(parent)
-        self.setContentsMargins(0, 0, 0, 0)
-        self.setSpacing(0)
-        self._container = _FlowContainer()
-        super().addWidget(self._container)
+        self._items: list[QLayoutItem] = []
+        self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
 
-    def addWidget(  # noqa: N802
-        self,
-        widget: QWidget,
-        stretch: int | None = None,
-        alignment: Qt.AlignmentFlag | None = None,
-    ):
-        """Add widget to flow."""
-        widget.setParent(self._container)
-        self._container._widgets.append(widget)
-        widget.show()
-        self._container._reflow()
+    def addItem(self, item: QLayoutItem) -> None:  # noqa: N802
+        self._items.append(item)
 
+    def count(self) -> int:
+        return len(self._items)
 
-class _FlowContainer(QWidget):
-    """Internal container that handles reflow on resize."""
+    def itemAt(self, index: int) -> QLayoutItem | None:  # noqa: N802
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._widgets: list[QWidget] = []
+    def takeAt(self, index: int) -> QLayoutItem | None:  # noqa: N802
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
 
-    def resizeEvent(self, event):  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow()
+    def expandingDirections(self) -> Qt.Orientation:  # noqa: N802
+        return Qt.Orientation(0)
 
-    def _reflow(self):
-        """Reposition all widgets in a flow pattern."""
-        if not self._widgets:
-            return
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:  # noqa: N802
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def clear(self) -> None:
+        while self._items:
+            item = self.takeAt(0)
+            widget = item.widget() if item else None
+            if widget:
+                widget.setParent(None)
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
         x = 0
         y = 0
         row_height = 0
-        max_width = max(self.width(), 200)
+        margins = self.contentsMargins()
+        effective_rect = rect.adjusted(
+            margins.left(), margins.top(), -margins.right(), -margins.bottom()
+        )
+        x = effective_rect.x()
+        y = effective_rect.y()
+        max_width = max(effective_rect.width(), 200)
+        spacing = self.spacing()
 
-        for widget in self._widgets:
-            hint = widget.sizeHint()
+        for item in self._items:
+            hint = item.sizeHint()
             w = hint.width()
             h = hint.height()
 
-            if x + w > max_width and x > 0:
-                x = 0
-                y += row_height + 4
+            if x + w > effective_rect.x() + max_width and x > effective_rect.x():
+                x = effective_rect.x()
+                y += row_height + spacing
                 row_height = 0
 
-            widget.move(x, y)
-            widget.resize(w, h)
-            x += w + 4
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x += w + spacing
             row_height = max(row_height, h)
 
-        total_height = y + row_height + 8
-        self.setMinimumHeight(total_height)
+        return y + row_height - rect.y() + margins.bottom()

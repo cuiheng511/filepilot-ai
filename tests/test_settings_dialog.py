@@ -10,7 +10,7 @@ import pytest
 from PySide6.QtWidgets import QTabWidget
 
 from filepilot.i18n import SUPPORTED_LANGUAGES
-from filepilot.ui.settings_dialog import SettingsDialog
+from filepilot.ui.settings_dialog import THEME_OPTIONS, SettingsDialog
 
 
 def _make_settings():
@@ -95,6 +95,10 @@ def _make_dialog(settings_dict=None):
     default_lang_idx = lang_keys.index(settings_dict.get("language", "en"))
     obj.lang_combo = _ComboBox(default_lang_idx)
 
+    # Theme combo
+    theme_values = [value for _label_key, value in THEME_OPTIONS]
+    obj.theme_combo = _ComboBox(theme_values.index(settings_dict.get("theme", "dark")))
+
     # Tray / auto-start checkboxes
     obj.minimize_to_tray_cb = MagicMock()
     obj.minimize_to_tray_cb.isChecked.return_value = settings_dict.get("minimize_to_tray", True)
@@ -145,6 +149,12 @@ class TestLanguageSwitching:
         d = _make_dialog()
         assert d.lang_combo.currentIndex() == 0
 
+    def test_get_settings_reflects_theme(self):
+        d = _make_dialog()
+        d.theme_combo.setCurrentIndex(2)
+        r = d.get_settings()
+        assert r["theme"] == "high_contrast"
+
 
 # ── Provider mapping ────────────────────────────────────────────────
 
@@ -162,6 +172,7 @@ class TestGetSettings:
             "index_dir",
             "max_file_size_mb",
             "language",
+            "theme",
             "minimize_to_tray",
             "close_to_tray",
             "auto_start",

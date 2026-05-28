@@ -132,7 +132,7 @@ _BUILTIN_REGISTRY: list[dict] = [
 class PluginRegistry:
     """Manages the plugin registry — fetching, caching, and installing plugins."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._entries: list[PluginEntry] = []
         self._loaded = False
 

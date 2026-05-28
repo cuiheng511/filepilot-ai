@@ -31,6 +31,12 @@ from filepilot.core.event_bus import EventBus
 from filepilot.i18n import SUPPORTED_LANGUAGES, set_language, t
 from filepilot.ui.shortcut_editor import ShortcutEditor
 
+THEME_OPTIONS = [
+    ("theme_dark", "dark"),
+    ("theme_light", "light"),
+    ("theme_high_contrast", "high_contrast"),
+]
+
 
 class SettingsDialog(QDialog):
     """Settings dialog"""
@@ -184,12 +190,15 @@ class SettingsDialog(QDialog):
         preferences_layout = QFormLayout()
         self.lang_combo = QComboBox()
         self.lang_combo.addItems([f"{v} ({k})" for k, v in SUPPORTED_LANGUAGES.items()])
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems([t(label_key) for label_key, _value in THEME_OPTIONS])
         self.index_dir = QLineEdit(str(Path.home() / ".filepilot" / "index"))
         self.max_file_size = QLineEdit("500")
         self.max_file_size.setPlaceholderText("Unit: MB")
-        preferences_layout.addRow("Language:", self.lang_combo)
-        preferences_layout.addRow("Index storage path:", self.index_dir)
-        preferences_layout.addRow("Max file size (MB):", self.max_file_size)
+        preferences_layout.addRow(t("settings_language"), self.lang_combo)
+        preferences_layout.addRow(t("settings_theme"), self.theme_combo)
+        preferences_layout.addRow(t("settings_index_path"), self.index_dir)
+        preferences_layout.addRow(t("settings_max_file_size"), self.max_file_size)
         preferences_group.setLayout(preferences_layout)
         layout.addWidget(preferences_group)
 
@@ -598,6 +607,12 @@ class SettingsDialog(QDialog):
             if idx >= 0:
                 self.lang_combo.setCurrentIndex(idx)
 
+        theme = self._settings.get("theme", "dark")
+        theme_values = [value for _label_key, value in THEME_OPTIONS]
+        self.theme_combo.setCurrentIndex(
+            theme_values.index(theme) if theme in theme_values else theme_values.index("dark")
+        )
+
         # Tray / auto-start checkboxes
         self.minimize_to_tray_cb.setChecked(self._settings.get("minimize_to_tray", True))
         self.close_to_tray_cb.setChecked(self._settings.get("close_to_tray", True))
@@ -607,6 +622,7 @@ class SettingsDialog(QDialog):
         """Get settings values, preserving keys not exposed in the dialog."""
         provider_names = ["ollama", "llamacpp", "openai", "anthropic", "custom"]
         provider = provider_names[self.provider_combo.currentIndex()]
+        theme_values = [value for _label_key, value in THEME_OPTIONS]
         result = dict(self._settings)
         result.update(
             {
@@ -618,6 +634,7 @@ class SettingsDialog(QDialog):
                 "index_dir": self.index_dir.text(),
                 "max_file_size_mb": self._parse_file_size(self.max_file_size.text()),
                 "language": list(SUPPORTED_LANGUAGES.keys())[self.lang_combo.currentIndex()],
+                "theme": theme_values[self.theme_combo.currentIndex()],
                 "shortcuts": self.shortcut_editor.get_overrides()
                 if hasattr(self, "shortcut_editor")
                 else self._settings.get("shortcuts", {}),
@@ -650,6 +667,7 @@ class SettingsDialog(QDialog):
         # Persist via AppState
         if self.state:
             self.state.update(self._settings)
+            self.state.theme = self._settings.get("theme", self.state.theme)
             self.state.save()
 
         # Notify via EventBus

@@ -47,6 +47,7 @@ from filepilot.ui.favorites_panel import FavoritesPanel
 from filepilot.ui.file_stats_panel import FileStatsPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
+from filepilot.ui.notification_history import NotificationHistory
 from filepilot.ui.organize_panel import OrganizePanel
 from filepilot.ui.plugin_manager_panel import PluginManagerPanel
 from filepilot.ui.search_panel import SearchPanel
@@ -102,7 +103,7 @@ class MainWindow(QMainWindow):
         # Keyboard shortcuts
         self._setup_shortcuts()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Build the main interface"""
         central = QWidget()
         self.setCentralWidget(central)
@@ -119,8 +120,8 @@ class MainWindow(QMainWindow):
         self.nav_list.setFont(font)
 
         # Nav items with category grouping
-        self._nav_items = {}
-        self._nav_item_indices = {}
+        self._nav_items: dict[str, QListWidgetItem] = {}
+        self._nav_item_indices: dict[str, int] = {}
         self._nav_key_to_row: dict[str, int] = {}
         self._nav_row_to_stack_index: dict[int, int] = {}
         self._stack_index_to_nav_row: dict[int, int] = {}
@@ -151,6 +152,12 @@ class MainWindow(QMainWindow):
         self._add_nav_separator("⚙️ Settings")
         self._add_nav_item("\U0001f50c Plugins", t("nav_plugins_tip"), "plugins", 10)
         self._add_nav_item("\U0001f4ac AI Chat", "Conversational file assistant", "chat", 11)
+        self._add_nav_item(
+            f"\U0001f514 {t('notifications_nav')}",
+            t("notifications_nav_tip"),
+            "notifications",
+            12,
+        )
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -193,6 +200,7 @@ class MainWindow(QMainWindow):
         self.favorites_panel = FavoritesPanel(app_state=self.state, event_bus=self.event_bus)
         self.tags_panel = TagsPanel()
         self.plugin_manager_panel = PluginManagerPanel()
+        self._notification_history = NotificationHistory()
 
         from filepilot.ui.chat_panel import ChatPanel
 
@@ -213,6 +221,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.stats_panel)  # 9 - File Stats
         self.content_stack.addWidget(self.plugin_manager_panel)  # 10 - Plugins
         self.content_stack.addWidget(self.chat_panel)  # 11 - AI Chat
+        self.content_stack.addWidget(self._notification_history)  # 12 - Notifications
 
         # Splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -243,11 +252,6 @@ class MainWindow(QMainWindow):
 
         # Notification toast
         self._toast = NotificationToast(self.centralWidget())
-
-        # Notification history (records all toasts for review)
-        from filepilot.ui.notification_history import NotificationHistory
-
-        self._notification_history = NotificationHistory()
 
         # File watcher — connect signals for auto-index
         svc = self.services
@@ -302,7 +306,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "browse_panel"):
             for i in range(self.browse_panel._tabs.count()):
                 panel = self.browse_panel._tabs.widget(i)
-                if hasattr(panel, "_cancelled"):
+                if panel is not None and hasattr(panel, "_cancelled"):
                     panel._cancelled = True
         event.accept()
 
@@ -352,7 +356,7 @@ class MainWindow(QMainWindow):
                 self._panel_indices[panel_key] = stack_index
         return item
 
-    def _add_nav_separator(self, text: str):
+    def _add_nav_separator(self, text: str) -> None:
         """Add a category separator in navigation"""
         item = QListWidgetItem(text)
         item.setSizeHint(QSize(0, 30))
@@ -363,7 +367,7 @@ class MainWindow(QMainWindow):
         item.setFont(font)
         self.nav_list.addItem(item)
 
-    def _setup_menu(self):
+    def _setup_menu(self) -> None:
         """Setup menu bar"""
         menubar = self.menuBar()
 
@@ -823,6 +827,8 @@ class MainWindow(QMainWindow):
     def _on_settings_applied(self, settings: dict):
         """Handle settings applied via event bus."""
         self.state.update(settings)
+        if "theme" in settings:
+            self._on_theme_changed(str(settings["theme"]))
         self.state.save()
         self._recreate_services()
 

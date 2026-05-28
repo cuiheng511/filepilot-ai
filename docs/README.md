@@ -4,21 +4,22 @@
 
 ---
 
-## 📖 Documentation Index
+## Documentation Index
 
 | Document | Description |
 | -------- | ----------- |
-| [BUILD.md](BUILD.md) | Cross-platform packaging guide — Windows Inno Setup (with Chinese localization), Linux AppImage, macOS .app+.dmg, CI pipeline, and troubleshooting |
-| [AI-PROVIDERS.md](AI-PROVIDERS.md) | AI provider setup and configuration — Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, and custom endpoints with per-provider installation guides |
-| [AUTO-UPDATE.md](AUTO-UPDATE.md) | Auto-update system API reference — UpdateChecker class, background check, cache behavior, and troubleshooting |
-| [PLUGIN_SDK.md](PLUGIN_SDK.md) | Extractor plugin SDK — BaseFileExtractor API, discovery, integration, and example plugin |
+| [BUILD.md](BUILD.md) | Cross-platform packaging guide for Windows, Linux, macOS, CI, and troubleshooting |
+| [AI-PROVIDERS.md](AI-PROVIDERS.md) | AI provider setup for Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, and custom endpoints |
+| [AUTO-UPDATE.md](AUTO-UPDATE.md) | Auto-update system API reference, background checks, cache behavior, and troubleshooting |
+| [FEATURES.md](FEATURES.md) | Feature usage notes for AI Chat, Plugin Registry, Tag Cloud, Live Regex Preview, Notification History, and embedding cache maintenance |
+| [PLUGIN_SDK.md](PLUGIN_SDK.md) | Extractor plugin SDK, BaseFileExtractor API, discovery, integration, and example plugins |
 
-## 📁 Assets
+## Assets
 
-- `assets/filepilot-demo.gif` — Application demo animation
-- `assets/screenshots/` — Feature screenshots (browse, search, organize, duplicates, summary, index)
+- `assets/filepilot-demo.gif` - Application demo animation
+- `assets/screenshots/` - Feature screenshots for browse, search, organize, duplicates, summary, and index
 
-## 📚 Related
+## Related
 
 | Document | Location | Description |
 | -------- | -------- | ----------- |

@@ -1,0 +1,101 @@
+/* High contrast theme for accessibility-focused use. */
+
+QMainWindow,
+QWidget {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+QLabel {
+    color: #ffffff;
+    font-size: 13px;
+}
+QLabel#sectionTitle {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+}
+QLabel#sectionDesc,
+QLabel#statsLabel,
+QLabel#emptyStateLabel {
+    color: #d0d0d0;
+}
+
+QPushButton,
+QLineEdit,
+QTextEdit,
+QListWidget,
+QTreeWidget,
+QTableWidget,
+QComboBox {
+    background-color: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+QPushButton:hover,
+QPushButton:focus,
+QLineEdit:focus,
+QTextEdit:focus,
+QListWidget:focus,
+QTreeWidget:focus,
+QTableWidget:focus,
+QComboBox:focus {
+    border-color: #ffff00;
+}
+
+QPushButton#btnPrimary,
+QPushButton#btnSuccess,
+QPushButton#btnWarning,
+QPushButton#btnDanger,
+QPushButton#btnSearch {
+    background-color: #ffff00;
+    color: #000000;
+    border: 2px solid #ffff00;
+    font-weight: bold;
+}
+
+#navSidebar {
+    background-color: #000000;
+    border-right: 2px solid #ffffff;
+}
+#navSidebar::item {
+    color: #ffffff;
+    padding: 10px 12px;
+}
+#navSidebar::item:selected {
+    background-color: #ffff00;
+    color: #000000;
+    font-weight: bold;
+}
+
+QLabel#chatBubble,
+QLabel#tagCloudLabel {
+    background-color: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    padding: 8px;
+    border-radius: 4px;
+}
+QLabel#chatBubble[role="user"],
+QLabel#chatBubble[role="assistant"] {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+QStatusBar,
+QToolBar,
+QMenuBar,
+QMenu {
+    background-color: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+}
+
+QToolTip {
+    background-color: #000000;
+    color: #ffffff;
+    border: 2px solid #ffff00;
+}

@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from filepilot.i18n import t
+
 
 class NotificationHistory(QWidget):
     """Widget that records and displays notification history.
@@ -26,6 +28,7 @@ class NotificationHistory(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setAccessibleName(t("notifications_title"))
         self._entries: list[dict] = []
         self._setup_ui()
 
@@ -36,16 +39,18 @@ class NotificationHistory(QWidget):
 
         # Header
         header = QHBoxLayout()
-        title = QLabel("Notifications")
-        title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        title = QLabel(t("notifications_title"))
+        title.setObjectName("sectionTitle")
         header.addWidget(title)
         header.addStretch()
 
         self.count_label = QLabel("0")
-        self.count_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.count_label.setObjectName("statsLabel")
+        self.count_label.setAccessibleName("Notification count")
         header.addWidget(self.count_label)
 
-        self.btn_clear = QPushButton("Clear")
+        self.btn_clear = QPushButton(t("clear"))
+        self.btn_clear.setAccessibleName(t("clear"))
         self.btn_clear.setFixedHeight(22)
         self.btn_clear.clicked.connect(self.clear)
         header.addWidget(self.btn_clear)
@@ -53,10 +58,8 @@ class NotificationHistory(QWidget):
 
         # List
         self.list_widget = QListWidget()
+        self.list_widget.setAccessibleName(t("notifications_title"))
         self.list_widget.setAlternatingRowColors(True)
-        self.list_widget.setStyleSheet(
-            "QListWidget { font-size: 11px; }QListWidget::item { padding: 3px 6px; }"
-        )
         layout.addWidget(self.list_widget, 1)
 
     @Slot(str, str)

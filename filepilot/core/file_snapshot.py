@@ -129,7 +129,8 @@ class FileSnapshot:
         """
         conn = self._conn()
         cursor = conn.execute(
-            "SELECT * FROM file_history WHERE file_name = ? ORDER BY timestamp DESC LIMIT 20",
+            "SELECT * FROM file_history WHERE file_name = ? "
+            "ORDER BY timestamp DESC, id DESC LIMIT 20",
             (file_name,),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -139,7 +140,7 @@ class FileSnapshot:
         conn = self._conn()
         cursor = conn.execute(
             "SELECT * FROM file_history WHERE source_path = ? OR dest_path = ? "
-            "ORDER BY timestamp DESC LIMIT 20",
+            "ORDER BY timestamp DESC, id DESC LIMIT 20",
             (path, path),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -148,7 +149,7 @@ class FileSnapshot:
         """Get recent file operations."""
         conn = self._conn()
         cursor = conn.execute(
-            "SELECT * FROM file_history ORDER BY timestamp DESC LIMIT ?",
+            "SELECT * FROM file_history ORDER BY timestamp DESC, id DESC LIMIT ?",
             (limit,),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -157,7 +158,8 @@ class FileSnapshot:
         """Get recent file deletions."""
         conn = self._conn()
         cursor = conn.execute(
-            "SELECT * FROM file_history WHERE operation = 'delete' ORDER BY timestamp DESC LIMIT ?",
+            "SELECT * FROM file_history WHERE operation = 'delete' "
+            "ORDER BY timestamp DESC, id DESC LIMIT ?",
             (limit,),
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -214,7 +216,7 @@ class FileSnapshot:
             excess = count - self.MAX_ENTRIES
             conn.execute(
                 "DELETE FROM file_history WHERE id IN "
-                "(SELECT id FROM file_history ORDER BY timestamp ASC LIMIT ?)",
+                "(SELECT id FROM file_history ORDER BY timestamp ASC, id ASC LIMIT ?)",
                 (excess,),
             )
             conn.commit()

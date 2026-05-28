@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtCore import Qt
 
+from filepilot.ui.summary_panel import collect_supported_drop_paths
+
 
 class TestSummaryPanelInitialState:
     """Test panel initial state"""
@@ -194,6 +196,18 @@ class TestSummaryPanelFileSelection:
             self.panel._on_add_folder()
 
         assert self.panel.file_list.count() == 0
+
+    def test_collect_supported_drop_paths_recurses_without_duplicates(self):
+        nested = self.tmp_dir / "nested"
+        nested.mkdir()
+        supported = nested / "notes.md"
+        supported.write_text("hello", encoding="utf-8")
+        unsupported = nested / "app.exe"
+        unsupported.write_text("nope", encoding="utf-8")
+
+        files = collect_supported_drop_paths([nested, self.test_md], {str(self.test_md)})
+
+        assert files == [supported]
 
 
 class TestSummaryPanelFileList:

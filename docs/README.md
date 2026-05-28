@@ -8,6 +8,7 @@
 
 | Document | Description |
 | -------- | ----------- |
+| [MCP.md](MCP.md) | MCP server setup, safety model, tools, and client configuration examples |
 | [BUILD.md](BUILD.md) | Cross-platform packaging guide for Windows, Linux, macOS, CI, and troubleshooting |
 | [AI-PROVIDERS.md](AI-PROVIDERS.md) | AI provider setup for Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, and custom endpoints |
 | [AUTO-UPDATE.md](AUTO-UPDATE.md) | Auto-update system API reference, background checks, cache behavior, and troubleshooting |

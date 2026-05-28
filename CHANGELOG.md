@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **FilePilot MCP server** - Added `filepilot-mcp` with directory-scoped access for MCP clients such as Claude Code, Codex, and Cursor.
+- **MCP safety layer** - Added allowed-directory validation, read limits, hidden-path blocking, and explicit write-mode checks.
+- **MCP file tools** - Added scan, filename search, indexing, indexed search, bounded file reads, text extraction, summaries, tag suggestions, duplicate detection, and dry-run organization plans.
+- **MCP documentation** - Added `docs/MCP.md` and refreshed the README around Desktop, CLI, and MCP usage.
+
 ## [0.6.4] - 2026-05-28
 
 ### Added

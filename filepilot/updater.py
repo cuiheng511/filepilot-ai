@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import platform
@@ -135,6 +136,7 @@ class UpdateChecker:
         url: str,
         dest_path: str | Path,
         progress_callback: Callable[[int], None] | None = None,
+        verify_checksum: bool = True,
     ) -> Path:
         """Download a release asset to a local path with progress reporting.
 
@@ -142,6 +144,7 @@ class UpdateChecker:
             url: Download URL.
             dest_path: Where to save the file.
             progress_callback: Called with bytes downloaded so far.
+            verify_checksum: Verify the downloaded asset against ``<url>.sha256``.
 
         Returns:
             Path to the downloaded file.
@@ -161,6 +164,8 @@ class UpdateChecker:
                     downloaded += len(chunk)
                     if progress_callback and total:
                         progress_callback(int(downloaded / total * 100))
+        if verify_checksum:
+            self._verify_download_checksum(url, dest)
         return dest
 
     def install(self, downloaded_path: str | Path) -> None:
@@ -318,6 +323,26 @@ class UpdateChecker:
             return 0
 
     # ── Internal: Cache ──
+
+    @staticmethod
+    def _verify_download_checksum(url: str, path: Path) -> None:
+        """Verify a downloaded asset against its release checksum sidecar."""
+        expected = UpdateChecker._fetch_expected_sha256(url)
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual.lower() != expected.lower():
+            path.unlink(missing_ok=True)
+            raise ValueError("Downloaded update failed SHA256 verification")
+
+    @staticmethod
+    def _fetch_expected_sha256(url: str) -> str:
+        """Fetch and parse the SHA256 sidecar for a release asset."""
+        resp = requests.get(f"{url}.sha256", timeout=10)
+        resp.raise_for_status()
+        checksum_text = resp.text.strip()
+        expected = checksum_text.split()[0] if checksum_text else ""
+        if len(expected) != 64 or any(c not in "0123456789abcdefABCDEF" for c in expected):
+            raise ValueError("Invalid update SHA256 checksum")
+        return expected
 
     def _load_cache(self) -> UpdateCheckResult | None:
         """Load cached check result if not expired."""

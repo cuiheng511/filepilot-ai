@@ -77,7 +77,7 @@ case "$(uname -s)" in
         done
       fi
       if [ -n "$ISCC_PATH" ]; then
-        VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.0")"
+        VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.4")"
         "$ISCC_PATH" "/dMyAppVersion=$VERSION" scripts/filepilot-installer.iss
         echo "✅ Installer built!"
       else

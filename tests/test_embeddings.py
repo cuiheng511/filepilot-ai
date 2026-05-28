@@ -84,6 +84,15 @@ class TestEmbeddingCache:
         cache2 = EmbeddingCache(cache_dir=tmpdir)
         assert cache2.get("/persist.txt") == [0.5, 0.5]
 
+    def test_uses_sqlite_cache_file(self):
+        tmpdir = tempfile.mkdtemp()
+        cache = EmbeddingCache(cache_dir=tmpdir)
+        cache.put("/persist.txt", [0.5, 0.5])
+        cache.save()
+
+        assert cache.cache_path.name == "embeddings.sqlite3"
+        assert cache.cache_path.exists()
+
     def test_load_corrupt_json(self, caplog):
         tmpdir = tempfile.mkdtemp()
         path = Path(tmpdir) / "embeddings.json"
@@ -91,6 +100,49 @@ class TestEmbeddingCache:
         cache = EmbeddingCache(cache_dir=tmpdir)
         assert len(cache) == 0
         assert "Failed to load embedding cache" in caplog.text
+
+    def test_migrates_legacy_json_cache(self, tmp_path):
+        legacy = tmp_path / "embeddings.json"
+        legacy.write_text('{"/legacy.txt": [0.3, 0.7]}', encoding="utf-8")
+
+        cache = EmbeddingCache(cache_dir=tmp_path)
+
+        assert cache.get("/legacy.txt") == [0.3, 0.7]
+        assert not legacy.exists()
+        assert (tmp_path / "embeddings.json.migrated").exists()
+
+    def test_provider_and_file_metadata_can_separate_entries(self):
+        cache = EmbeddingCache(cache_dir=tempfile.mkdtemp())
+        cache.put("/a", [1.0], mtime=1.0, size=10, provider_key="p1")
+        cache.put("/a", [2.0], mtime=2.0, size=10, provider_key="p1")
+
+        assert cache.get("/a", mtime=1.0, size=10, provider_key="p1") == [1.0]
+        assert cache.get("/a", mtime=2.0, size=10, provider_key="p1") == [2.0]
+
+    def test_stats_and_prune_missing_paths(self, tmp_path):
+        existing = tmp_path / "exists.txt"
+        existing.write_text("hello", encoding="utf-8")
+        cache = EmbeddingCache(cache_dir=tmp_path)
+        cache.put(str(existing), [1.0], provider_key="p1")
+        cache.put(str(tmp_path / "missing.txt"), [2.0], provider_key="p1")
+        cache.save()
+
+        stats = cache.stats()
+        assert stats["entries"] == 2
+        assert stats["providers"] == 1
+
+        assert cache.prune_missing_paths() == 1
+        assert cache.get(str(existing), provider_key="p1") == [1.0]
+        assert cache.get(str(tmp_path / "missing.txt"), provider_key="p1") is None
+
+    def test_prune_provider(self):
+        cache = EmbeddingCache(cache_dir=tempfile.mkdtemp())
+        cache.put("/a", [1.0], provider_key="p1")
+        cache.put("/a", [2.0], provider_key="p2")
+
+        assert cache.prune_provider("p1") == 1
+        assert cache.get("/a", provider_key="p1") is None
+        assert cache.get("/a", provider_key="p2") == [2.0]
 
     def test_search_re_rank(self):
         cache = EmbeddingCache(cache_dir=tempfile.mkdtemp())

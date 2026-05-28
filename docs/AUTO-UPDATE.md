@@ -61,7 +61,9 @@ thread = checker.check_async(callback=on_result)
 
 #### `download(url, dest_path, progress_callback=None)`
 
-Download a release asset to a local file with progress reporting.
+Download a release asset to a local file with progress reporting. By default,
+the updater also downloads `<asset>.sha256`, verifies the downloaded file, and
+removes the installer if the checksum does not match.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -71,7 +73,8 @@ Download a release asset to a local file with progress reporting.
 
 **Returns:** `Path` — the downloaded file path.
 
-**Raises:** `requests.RequestException` on HTTP or network failure.
+**Raises:** `requests.RequestException` on HTTP or network failure, `ValueError` on
+missing or mismatched SHA-256 integrity data.
 
 **Example:**
 ```python
@@ -95,7 +98,7 @@ Platform behavior:
 **Example:**
 ```python
 checker = UpdateChecker()
-checker.install("/tmp/FilePilot-AI-Setup-0.6.2.exe")
+checker.install("/tmp/FilePilot-AI-Setup-0.6.4.exe")
 ```
 
 #### `open_download_page()`
@@ -133,7 +136,7 @@ if result.has_update:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `version` | `str` | Version tag (e.g. `"0.4.0"`) |
+| `version` | `str` | Version tag (e.g. `"0.6.4"`) |
 | `published_at` | `str` | ISO 8601 timestamp of the release |
 | `html_url` | `str` | GitHub release page URL |
 
@@ -175,3 +178,20 @@ GitHub API has a rate limit of 60 requests/hour for unauthenticated requests. Th
 ### Thread safety
 
 The `UpdateChecker` is fully thread-safe. The background thread is a daemon thread, so it won't prevent the application from exiting.
+
+### Release asset integrity
+
+Every installer uploaded to a GitHub release should have a matching `.sha256`
+sidecar with the SHA-256 digest of the binary. CI verifies packaged release
+assets with:
+
+```bash
+python scripts/verify_release_assets.py \
+  "dist/FilePilot-AI-Setup-*.exe" \
+  "dist/FilePilot-*.AppImage" \
+  "dist/FilePilot-*.dmg"
+```
+
+The auto-updater depends on those sidecars before launching an installer. Windows
+and macOS builds should still be signed/notarized for platform trust; the SHA-256
+sidecar protects the updater from corrupted or mismatched release assets.

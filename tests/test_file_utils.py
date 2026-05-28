@@ -10,6 +10,7 @@ from filepilot.utils.file_utils import (
     get_file_size_str,
     is_file_locked,
     normalize_path,
+    resolve_path_conflict,
     safe_filename,
 )
 
@@ -86,6 +87,22 @@ class TestSafeFilename:
 
     def test_empty_string(self):
         assert safe_filename("") == "untitled"
+
+
+class TestResolvePathConflict:
+    def test_returns_original_when_available(self, tmp_path):
+        target = tmp_path / "report.txt"
+        assert resolve_path_conflict(target) == target
+
+    def test_adds_suffix_when_file_exists(self, tmp_path):
+        target = tmp_path / "report.txt"
+        target.write_text("old")
+        assert resolve_path_conflict(target) == tmp_path / "report_1.txt"
+
+    def test_honors_reserved_batch_destinations(self, tmp_path):
+        target = tmp_path / "report.txt"
+        reserved = {target, tmp_path / "report_1.txt"}
+        assert resolve_path_conflict(target, reserved) == tmp_path / "report_2.txt"
 
 
 class TestGetFileExtension:

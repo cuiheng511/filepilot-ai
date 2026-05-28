@@ -205,6 +205,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(system_group)
 
         layout.addWidget(self._create_updates_group())
+        layout.addWidget(self._create_cache_group())
 
         layout.addStretch()
         scroll.setWidget(widget)
@@ -388,6 +389,79 @@ class SettingsDialog(QDialog):
 
         return updates_group
 
+    def _create_cache_group(self) -> QGroupBox:
+        """Create embedding cache maintenance controls."""
+        cache_group = QGroupBox("Embedding Cache")
+        layout = QVBoxLayout(cache_group)
+        layout.setSpacing(10)
+
+        self.embedding_cache_status = QLabel("")
+        self.embedding_cache_status.setWordWrap(True)
+        layout.addWidget(self.embedding_cache_status)
+
+        btn_layout = QHBoxLayout()
+        self.refresh_embedding_cache_btn = QPushButton("Refresh Cache Stats")
+        self.prune_embedding_cache_btn = QPushButton("Remove Missing Files")
+        self.vacuum_embedding_cache_btn = QPushButton("Compact Cache")
+        btn_layout.addWidget(self.refresh_embedding_cache_btn)
+        btn_layout.addWidget(self.prune_embedding_cache_btn)
+        btn_layout.addWidget(self.vacuum_embedding_cache_btn)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        self.refresh_embedding_cache_btn.clicked.connect(self._refresh_embedding_cache_stats)
+        self.prune_embedding_cache_btn.clicked.connect(self._on_prune_embedding_cache)
+        self.vacuum_embedding_cache_btn.clicked.connect(self._on_vacuum_embedding_cache)
+        QTimer.singleShot(0, self._refresh_embedding_cache_stats)
+        return cache_group
+
+    def _get_embedding_cache(self):
+        from filepilot.core.embeddings import EmbeddingCache
+
+        index_dir = Path(self.index_dir.text()).expanduser()
+        return EmbeddingCache(index_dir.parent)
+
+    @staticmethod
+    def _format_bytes(size: int) -> str:
+        value = float(size)
+        for unit in ["B", "KB", "MB", "GB"]:
+            if value < 1024 or unit == "GB":
+                return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
+            value /= 1024
+        return f"{value:.1f} GB"
+
+    def _refresh_embedding_cache_stats(self) -> None:
+        try:
+            stats = self._get_embedding_cache().stats()
+            self.embedding_cache_status.setText(
+                "Entries: {entries} | Providers: {providers} | Size: {size} | Path: {path}".format(
+                    entries=stats["entries"],
+                    providers=stats["providers"],
+                    size=self._format_bytes(int(stats["size_bytes"])),
+                    path=stats["path"],
+                )
+            )
+        except Exception as e:
+            self.embedding_cache_status.setText(f"Failed to read embedding cache: {e}")
+
+    def _on_prune_embedding_cache(self) -> None:
+        try:
+            cache = self._get_embedding_cache()
+            removed = cache.prune_missing_paths()
+            cache.save()
+            self.embedding_cache_status.setText(f"Removed {removed} stale embedding entries.")
+            self._refresh_embedding_cache_stats()
+        except Exception as e:
+            self.embedding_cache_status.setText(f"Failed to prune embedding cache: {e}")
+
+    def _on_vacuum_embedding_cache(self) -> None:
+        try:
+            self._get_embedding_cache().vacuum()
+            self.embedding_cache_status.setText("Embedding cache compacted.")
+            self._refresh_embedding_cache_stats()
+        except Exception as e:
+            self.embedding_cache_status.setText(f"Failed to compact embedding cache: {e}")
+
     def _on_check_updates(self):
 
         self.update_status_label.setText("Checking for updates...")
@@ -485,7 +559,12 @@ class SettingsDialog(QDialog):
         self.update_progress.setVisible(False)
         self.download_update_btn.setEnabled(True)
         self.check_update_btn.setEnabled(True)
-        self.update_status_label.setText(f"Download failed: {error}")
+        lower_error = error.lower()
+        if "sha256" in lower_error or "checksum" in lower_error:
+            message = "Download failed integrity verification. The installer was not kept."
+        else:
+            message = f"Download failed: {error}"
+        self.update_status_label.setText(message)
 
     def _parse_file_size(self, text: str) -> int:
         """Parse file size input, default to 500 on invalid input"""

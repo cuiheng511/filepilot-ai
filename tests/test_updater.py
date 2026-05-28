@@ -1,5 +1,6 @@
 """Update checker tests."""
 
+import hashlib
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -74,8 +75,10 @@ class TestDownloadInstall:
         fake_resp.headers = {"content-length": str(len(fake_content))}
         fake_resp.iter_content.return_value = [fake_content]
         fake_resp.__enter__.return_value = fake_resp
+        checksum_resp = MagicMock()
+        checksum_resp.text = hashlib.sha256(fake_content).hexdigest()
 
-        with patch("filepilot.updater.requests.get", return_value=fake_resp):
+        with patch("filepilot.updater.requests.get", side_effect=[fake_resp, checksum_resp]):
             result = UpdateChecker().download("https://example.test/pkg.exe", dest)
 
         assert result == dest
@@ -89,13 +92,15 @@ class TestDownloadInstall:
         fake_resp.headers = {"content-length": str(total_len)}
         fake_resp.iter_content.return_value = chunks
         fake_resp.__enter__.return_value = fake_resp
+        checksum_resp = MagicMock()
+        checksum_resp.text = hashlib.sha256(b"".join(chunks)).hexdigest()
 
         progress_log: list[int] = []
 
         def on_progress(pct: int):
             progress_log.append(pct)
 
-        with patch("filepilot.updater.requests.get", return_value=fake_resp):
+        with patch("filepilot.updater.requests.get", side_effect=[fake_resp, checksum_resp]):
             UpdateChecker().download("https://example.test/pkg.exe", dest, on_progress)
 
         assert progress_log[-1] == 100  # final progress is 100%
@@ -110,6 +115,23 @@ class TestDownloadInstall:
             pytest.raises(Exception, match="HTTP 404"),
         ):
             UpdateChecker().download("https://example.test/bad.exe", tmp_path / "bad.exe")
+
+    def test_download_rejects_checksum_mismatch(self, tmp_path):
+        dest = tmp_path / "installer.exe"
+        fake_resp = MagicMock()
+        fake_resp.headers = {"content-length": "7"}
+        fake_resp.iter_content.return_value = [b"tampered"]
+        fake_resp.__enter__.return_value = fake_resp
+        checksum_resp = MagicMock()
+        checksum_resp.text = hashlib.sha256(b"expected").hexdigest()
+
+        with (
+            patch("filepilot.updater.requests.get", side_effect=[fake_resp, checksum_resp]),
+            pytest.raises(ValueError, match="SHA256"),
+        ):
+            UpdateChecker().download("https://example.test/pkg.exe", dest)
+
+        assert not dest.exists()
 
     def test_install_launches_subprocess_windows(self, tmp_path, monkeypatch):
         monkeypatch.setattr("filepilot.updater.sys.platform", "win32")

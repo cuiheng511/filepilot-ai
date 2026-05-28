@@ -232,6 +232,9 @@ jobs:
           $hash.Hash | Out-File -Encoding ascii "$($installer.FullName).sha256"
         shell: powershell
 
+      - name: Verify installer checksum
+        run: python scripts/verify_release_assets.py "dist\FilePilot-AI-Setup-*.exe" --warn-windows-signature
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         continue-on-error: true
@@ -372,6 +375,7 @@ jobs:
             SIZE=$(du -h "$APPIMAGE" | cut -f1)
             sha256sum "$APPIMAGE" > "${APPIMAGE}.sha256"
             echo "--AppImage OK --$APPIMAGE ($SIZE)"
+            python scripts/verify_release_assets.py "dist/FilePilot-*.AppImage"
           else
             echo "--AppImage creation may have failed."
             ls -la dist/ 2>/dev/null || true
@@ -525,7 +529,7 @@ jobs:
       - name: Create DMG
         run: |
           if [ -d "dist/FilePilot.app" ]; then
-            VERSION=$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.0")
+            VERSION=$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.4")
             DMG_SRC="/tmp/FilePilot-dmg-src"
             rm -rf "$DMG_SRC"
             mkdir -p "$DMG_SRC"
@@ -565,6 +569,7 @@ jobs:
             SIZE=$(du -h "$DMG" | cut -f1)
             sha256sum "$DMG" > "${DMG}.sha256"
             echo "--DMG OK --$DMG ($SIZE)"
+            python scripts/verify_release_assets.py "dist/FilePilot-*.dmg"
           else
             echo "--DMG not created"
             ls -la dist/ 2>/dev/null || true

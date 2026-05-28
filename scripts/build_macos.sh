@@ -26,7 +26,7 @@
 set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────────────────────────
-VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.0")"
+VERSION="$(python -c "from filepilot import __version__; print(__version__)" 2>/dev/null || echo "0.6.4")"
 APP_NAME="FilePilot"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

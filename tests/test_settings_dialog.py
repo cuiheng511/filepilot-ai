@@ -297,3 +297,16 @@ class TestUpdateTab:
         )
         d._on_update_result(result)
         d.update_status_label.setText.assert_called_with("Check failed: Network error")
+
+    def test_download_error_checksum_gets_integrity_message(self):
+        d = _make_dialog()
+        d.update_progress = MagicMock()
+        d.download_update_btn = MagicMock()
+        d.check_update_btn = MagicMock()
+        d.update_status_label = MagicMock()
+
+        d._on_download_error("Downloaded update failed SHA256 verification")
+
+        d.update_status_label.setText.assert_called_with(
+            "Download failed integrity verification. The installer was not kept."
+        )

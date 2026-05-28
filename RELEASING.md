@@ -2,9 +2,9 @@
 
 > FilePilot AI — Cross-platform release checklist for maintainers.
 
-## Current Release: v0.6.2
+## Current Release: v0.6.4
 
-**Release date:** 2026-05-25
+**Release date:** 2026-05-28
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
@@ -12,9 +12,9 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
 | Platform | Download |
 |----------|----------|
-| Windows  | `FilePilot-AI-Setup-0.6.2.exe` |
-| Linux    | `FilePilot-0.6.2-x86_64.AppImage` |
-| macOS    | `FilePilot-0.6.2.dmg` |
+| Windows  | `FilePilot-AI-Setup-0.6.4.exe` |
+| Linux    | `FilePilot-0.6.4-x86_64.AppImage` |
+| macOS    | `FilePilot-0.6.4.dmg` |
 
 ---
 
@@ -68,10 +68,10 @@ iscc scripts\filepilot-installer.iss
   - `pyproject.toml` — `project.version`
   - `CHANGELOG.md` — version header and release date
   - `README.md` — any version references in badges or text
-  - Fallback versions in build scripts (`build_installer.ps1`, `build_appimage.sh`, `build_macos.sh`) — they default to `0.0.0` or auto-detect, so no manual update needed.
+  - Fallback versions in build scripts (`build_installer.ps1`, `build_appimage.sh`, `build_macos.sh`) match the current release or auto-detect from `filepilot/__init__.py`.
 - [ ] **CHANGELOG.md** — Entry for the new version is complete and accurate. Follow the existing format:
   ```markdown
-  ## [0.4.0] - 2026-05-14
+  ## [X.Y.Z] - YYYY-MM-DD
 
   ### Added
   - **Feature** — description
@@ -127,6 +127,12 @@ After CI completes (check **Actions** tab in GitHub), download the artifacts and
 # Check SHA256
 sha256sum FilePilot-AI-Setup-*.exe
 
+# Or verify all packaged assets against their sidecars
+python scripts/verify_release_assets.py \
+  "dist/FilePilot-AI-Setup-*.exe" \
+  "dist/FilePilot-*.AppImage" \
+  "dist/FilePilot-*.dmg"
+
 # Verify the .exe is a valid Inno Setup installer (Windows)
 file FilePilot-AI-Setup-*.exe
 # Expected: "PE32+ executable (GUI) ... Inno Setup"
@@ -150,13 +156,19 @@ Run the installer on each platform and confirm:
 - [ ] Basic search / index / organize functions work
 - [ ] Auto-update check (`python -m filepilot.updater`) reports "You're up to date!"
 
+### Signing and notarization
+
+- Windows signing is enabled by `SIGNTOOL_PATH` and `SIGN_CERTIFICATE_SHA1` in `scripts/build_installer.ps1`.
+- macOS signing and notarization are enabled by `scripts/build_macos.sh --sign --notarize` and the Apple Developer environment variables documented in that script.
+- CI always verifies `.sha256` sidecars. For a stricter local Windows release check, run `python scripts/verify_release_assets.py "dist/FilePilot-AI-Setup-*.exe" --require-windows-signature` after signing.
+
 ---
 
 ## 4. GitHub Release
 
 1. Go to **https://github.com/cuiheng511/filepilot-ai/releases/new**
-2. Choose the tag you just pushed (e.g., `v0.6.2`)
-3. **Release title:** `v0.6.2`
+2. Choose the tag you just pushed (e.g., `v0.6.4`)
+3. **Release title:** `v0.6.4`
 4. **Description:** Paste the CHANGELOG entry for this version.
    - Include installation instructions (replace `X.Y.Z` with the actual version):
      ```markdown

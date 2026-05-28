@@ -25,10 +25,10 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QVBoxLayout,
 )
-from send2trash import send2trash
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
+from filepilot.core.file_operations import FileOperationPreview, FileOperationService
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.core.plugin_system import get_plugin_manager
@@ -44,6 +44,7 @@ from filepilot.extractors import (
 )
 from filepilot.i18n import t
 from filepilot.ui.base_panel import BasePanel
+from filepilot.utils.file_utils import resolve_path_conflict
 
 # Extractor mapping by extension (lazy-loaded singletons to avoid import-time cost)
 _extractor_instances: dict[str, object] = {}
@@ -169,6 +170,7 @@ class SearchPanel(BasePanel):
         self._cancelling = False
         self.tag_manager = TagManager()
         self._batch_undo_log: list[dict] = []
+        self.file_operations = FileOperationService()
 
         self._setup_ui()
         self._connect_signals()
@@ -777,17 +779,12 @@ class SearchPanel(BasePanel):
         )
         if reply != QMessageBox.Yes:
             return
-        errors = 0
-        for p in paths:
-            try:
-                send2trash(p)
-            except Exception:
-                errors += 1
-        if errors:
-            self.status_message.emit(f"Deleted {len(paths) - errors} file(s), {errors} error(s)")
-        else:
-            self.status_message.emit(f"Sent {len(paths)} file(s) to trash")
-        self._remove_paths_from_results(paths)
+        result = self.file_operations.trash([Path(p) for p in paths])
+        self.status_message.emit(result.status_message())
+        successful_paths = [str(op.source) for op in result.successful_operations]
+        self._remove_paths_from_results(successful_paths)
+        if self.event_bus and result.success_count:
+            self.event_bus.files_deleted.emit(successful_paths)
 
     def _batch_move_results(self):
         paths = self._get_selected_paths()
@@ -797,23 +794,25 @@ class SearchPanel(BasePanel):
         if not dest:
             return
         dest_path = Path(dest)
-        errors = 0
-        undo_ops: list[dict] = []
-        for p in paths:
-            try:
-                src = Path(p)
-                dst = str(dest_path / src.name)
-                shutil.move(str(p), dst)
-                undo_ops.append({"from": dst, "to": str(src)})
-            except Exception:
-                errors += 1
+        source_paths = [Path(p) for p in paths]
+        preview = self.file_operations.preview("move", source_paths, dest_path)
+        if not self._confirm_file_operation(preview):
+            return
+        result = self.file_operations.move(source_paths, dest_path)
+        undo_ops = [
+            {"from": str(op.destination), "to": str(op.source)}
+            for op in result.successful_operations
+            if op.destination is not None
+        ]
         if undo_ops:
             self._batch_undo_log.extend(undo_ops)
-        if errors:
-            self.status_message.emit(f"Moved {len(paths) - errors} file(s), {errors} error(s)")
-        else:
-            self.status_message.emit(f"Moved {len(paths)} file(s)")
-        self._remove_paths_from_results(paths)
+        self.status_message.emit(result.status_message())
+        self._remove_paths_from_results([str(op.source) for op in result.successful_operations])
+        if self.event_bus and result.success_count:
+            self.event_bus.files_moved.emit(
+                [str(op.source) for op in result.successful_operations],
+                str(dest_path),
+            )
 
     def _batch_copy_results(self):
         paths = self._get_selected_paths()
@@ -823,16 +822,17 @@ class SearchPanel(BasePanel):
         if not dest:
             return
         dest_path = Path(dest)
-        errors = 0
-        for p in paths:
-            try:
-                shutil.copy2(p, str(dest_path / Path(p).name))
-            except Exception:
-                errors += 1
-        if errors:
-            self.status_message.emit(f"Copied {len(paths) - errors} file(s), {errors} error(s)")
-        else:
-            self.status_message.emit(f"Copied {len(paths)} file(s)")
+        source_paths = [Path(p) for p in paths]
+        preview = self.file_operations.preview("copy", source_paths, dest_path)
+        if not self._confirm_file_operation(preview):
+            return
+        result = self.file_operations.copy(source_paths, dest_path)
+        self.status_message.emit(result.status_message())
+        if self.event_bus and result.success_count:
+            self.event_bus.files_copied.emit(
+                [str(op.source) for op in result.successful_operations],
+                str(dest_path),
+            )
 
     def _batch_tag_results(self):
         paths = self._get_selected_paths()
@@ -876,6 +876,23 @@ class SearchPanel(BasePanel):
         if self.event_bus:
             self.event_bus.open_file_requested.emit(str(path))
 
+    def _confirm_file_operation(self, preview: FileOperationPreview) -> bool:
+        """Show a compact preview before copy or move execution."""
+        if len(preview.operations) == 1 and preview.renamed_count == 0:
+            return True
+        message = preview.summary()
+        details = preview.details()
+        if details:
+            message = f"{message}\n\n{details}"
+        reply = QMessageBox.question(
+            self,
+            "Confirm File Operation",
+            message,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        return bool(reply == QMessageBox.Yes)
+
     def _remove_paths_from_results(self, paths: list[str]):
         to_remove: list[QListWidgetItem] = []
         for i in range(self.result_list.count()):
@@ -898,7 +915,8 @@ class SearchPanel(BasePanel):
                 src = op["from"]
                 dst = op["to"]
                 if Path(src).exists():
-                    shutil.move(src, dst)
+                    target = resolve_path_conflict(Path(dst))
+                    shutil.move(src, target)
             except Exception:
                 errors += 1
         self._batch_undo_log.clear()

@@ -6,8 +6,10 @@ that can be installed with one click from the Plugin Manager panel.
 The registry is a JSON file hosted on GitHub (or bundled locally as fallback).
 """
 
+import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Thread
@@ -24,6 +26,8 @@ REGISTRY_URL = (
 )
 REGISTRY_CACHE = Path.home() / ".filepilot" / "plugin_registry_cache.json"
 REGISTRY_CACHE_HOURS = 24
+PLUGIN_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+REQUIRE_REMOTE_PLUGIN_HASH = True
 
 
 @dataclass
@@ -36,6 +40,7 @@ class PluginEntry:
     version: str
     author: str
     url: str  # Raw URL to the .py file
+    sha256: str = ""
     extensions: list[str] = field(default_factory=list)
     installed: bool = False
 
@@ -48,8 +53,39 @@ class PluginEntry:
             version=data.get("version", "0.1.0"),
             author=data.get("author", "unknown"),
             url=data.get("url", ""),
+            sha256=data.get("sha256", ""),
             extensions=data.get("extensions", []),
         )
+
+
+def is_safe_plugin_name(name: str) -> bool:
+    """Return True when a registry plugin name is safe for a local filename."""
+    return bool(PLUGIN_NAME_RE.fullmatch(name))
+
+
+def get_plugin_path(name: str) -> Path:
+    """Resolve a plugin filename inside the plugin directory."""
+    if not is_safe_plugin_name(name):
+        raise ValueError(f"Invalid plugin name: {name!r}")
+    plugins_root = PLUGINS_DIR.resolve()
+    dest = (PLUGINS_DIR / f"{name}.py").resolve()
+    if not dest.is_relative_to(plugins_root):
+        raise ValueError(f"Plugin path escapes plugin directory: {name!r}")
+    return dest
+
+
+def verify_plugin_sha256(content: str | bytes, expected_sha256: str) -> bool:
+    """Return True when plugin content matches the expected SHA256."""
+    if not expected_sha256:
+        return True
+    raw_content = content if isinstance(content, bytes) else content.encode("utf-8")
+    actual = hashlib.sha256(raw_content).hexdigest()
+    return actual.lower() == expected_sha256.lower()
+
+
+def is_hash_pinned(entry: "PluginEntry") -> bool:
+    """Return True when a remote registry plugin includes a SHA256 pin."""
+    return bool(entry.sha256)
 
 
 # Built-in registry (fallback when network is unavailable)
@@ -167,26 +203,36 @@ class PluginRegistry:
 
         try:
             PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
-            dest = PLUGINS_DIR / f"{entry.name}.py"
+            dest = get_plugin_path(entry.name)
 
             # Download to temp file first
             resp = requests.get(entry.url, timeout=15)
             resp.raise_for_status()
 
             # Validate it's Python code (basic check)
-            content = resp.text
+            raw_content = resp.content
+            content = raw_content.decode("utf-8", errors="replace")
             if not content.strip():
                 logger.warning("Plugin %s: empty content", entry.name)
                 return False
+            if REQUIRE_REMOTE_PLUGIN_HASH and not is_hash_pinned(entry):
+                logger.warning("Plugin %s: missing required SHA256 pin", entry.name)
+                return False
+            if not verify_plugin_sha256(raw_content, entry.sha256):
+                logger.warning("Plugin %s: SHA256 mismatch", entry.name)
+                return False
 
             # Write to plugins directory
-            dest.write_text(content, encoding="utf-8")
+            dest.write_bytes(raw_content)
             entry.installed = True
             logger.info("Installed plugin: %s -> %s", entry.name, dest)
             return True
 
         except (requests.RequestException, OSError) as e:
             logger.warning("Failed to install plugin %s: %s", entry.name, e)
+            return False
+        except ValueError as e:
+            logger.warning("Rejected plugin %s: %s", entry.name, e)
             return False
 
     def uninstall_plugin(self, entry: PluginEntry) -> bool:
@@ -198,7 +244,11 @@ class PluginRegistry:
         Returns:
             True if removal succeeded.
         """
-        dest = PLUGINS_DIR / f"{entry.name}.py"
+        try:
+            dest = get_plugin_path(entry.name)
+        except ValueError as e:
+            logger.warning("Rejected plugin uninstall %s: %s", entry.name, e)
+            return False
         if dest.exists():
             try:
                 dest.unlink()
@@ -227,8 +277,11 @@ class PluginRegistry:
     def _mark_installed(self):
         """Check which plugins are already installed locally."""
         for entry in self._entries:
-            plugin_file = PLUGINS_DIR / f"{entry.name}.py"
-            entry.installed = plugin_file.exists()
+            try:
+                plugin_file = get_plugin_path(entry.name)
+                entry.installed = plugin_file.exists()
+            except ValueError:
+                entry.installed = False
 
     def _try_load_cache(self) -> bool:
         """Try to load from cache file."""

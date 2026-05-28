@@ -12,7 +12,7 @@
 [![Privacy](https://img.shields.io/badge/Privacy-Local--first-111827?style=for-the-badge)](#security-and-privacy)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.3
+Version 0.6.4
 
 </div>
 
@@ -24,6 +24,15 @@ FilePilot AI helps you understand a messy local folder before you move, delete, 
 
 Scanning, indexing, tags, duplicate detection, and organization stay local by default. Cloud AI providers are only used when you configure them and explicitly run AI features.
 
+## Highlights
+
+| Need | FilePilot AI helps with |
+| --- | --- |
+| Find files | Local full-text search, fuzzy search, saved searches, semantic re-ranking, and tag filters. |
+| Understand files | Preview, OCR, extractors, optional AI summaries, and an AI chat panel for natural-language file questions. |
+| Clean up safely | Duplicate detection, recycle-bin deletion, shared conflict-safe file operations, and previewable organization plans. |
+| Extend workflows | Community extractor plugins, task scheduling, tray support, and cross-platform installer builds. |
+
 ## Demo
 
 <div align="center">
@@ -32,7 +41,7 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 
 </div>
 
-## What's New in 0.6.3
+## What's New in 0.6.4
 
 | Area | Update |
 | --- | --- |
@@ -48,7 +57,12 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 | Deferred TagManager saves | Tag operations batched with 300ms debounce timer — bulk tagging 10-50x faster. |
 | File operation history | SQLite-backed `FileSnapshot` records moves, renames, deletes, and organizes for undo tracking. |
 | Notification history | All toast notifications recorded; accessible via the notification history widget. |
-| Quality | 855 tests passing, ruff/mypy clean. |
+| Safety hardening | Plugin names are validated before install, remote plugin SHA-256 pins are required, remote plugin installs require confirmation, update downloads verify SHA-256 sidecars, and batch copy/move operations avoid overwriting existing files. |
+| File operation previews | Browser and search-result copy/move flows share the same preview and conflict-resolution service, so bulk actions show planned renames before execution. |
+| Index hygiene | Embedding cache storage moved to SQLite with legacy JSON migration, missing-file pruning, cache compaction controls, and persisted cleanup when indexed files are removed or cleared. |
+| Rename templates | `{ext}` templates no longer produce duplicated extensions such as `report.txt.txt`. |
+| Release integrity | CI verifies generated `.sha256` release sidecars before upload, matching the updater's download integrity checks. |
+| Quality | Ruff, formatting, mypy, and the pytest suite are kept green. |
 
 ### What was new in 0.6.2
 
@@ -90,12 +104,12 @@ Scanning, indexing, tags, duplicate detection, and organization stay local by de
 - Whoosh-powered local full-text index.
 - Keyword, fuzzy, boolean, tag-filtered, saved, and semantic search.
 - Search history, CSV export, and incremental index updates.
-- Embedding cache for semantic re-ranking without adding a heavy numeric dependency.
+- SQLite embedding cache for semantic re-ranking without adding a heavy numeric dependency.
 
 ### File Management
 
 - Preview-first file browser with custom columns and archive browsing.
-- Batch copy, move, delete, tag, rename, and open-location actions.
+- Batch copy, move, delete, tag, rename, and open-location actions with shared overwrite protection.
 - Favorites, recent folders, recent files, global shortcuts, themes, tray support, and notifications.
 - 18 built-in UI languages.
 
@@ -150,7 +164,7 @@ pip install -e ".[test,dev]"
 ruff check .
 ruff format --check .
 mypy
-pytest
+python -m pytest
 ```
 
 ## CLI Examples
@@ -219,7 +233,7 @@ flowchart LR
 filepilot-ai/
 |-- filepilot/
 |   |-- ai/                  # AI providers and summarization
-|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher, cloud_sync, file_snapshot, plugin_registry
+|   |-- core/                # Scanner, indexer, organizer, duplicates, tags, watcher, cloud_sync, file_snapshot, file_operations, plugin_registry
 |   |-- extractors/          # PDF, Markdown, code, image, Office, OCR extractors
 |   |-- resources/           # Application icons
 |   |-- styles/              # Theme manager and QSS themes
@@ -248,6 +262,8 @@ For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
 | Linux | `FilePilot-AI-*.AppImage` |
 | macOS | `FilePilot AI.app` and `FilePilot-AI-*.dmg` |
 
+Release assets should be shipped with matching `.sha256` files. CI runs `scripts/verify_release_assets.py` after checksum generation so updater downloads and release uploads use the same integrity contract.
+
 ## Security and Privacy
 
 | Area | Design |
@@ -256,7 +272,18 @@ For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
 | Optional AI | Summarization can use local models or explicitly configured cloud providers. |
 | API keys | Stored with OS keyring when available, with encrypted fallback storage. |
 | Safe deletion | Duplicate cleanup uses the system recycle bin through `send2trash`. |
+| Safe file actions | Batch copy and move operations share one previewable service that auto-renames conflicting destinations instead of overwriting them. |
+| Plugin installs | Registry plugin names are constrained to safe filenames, remote registry entries require SHA-256 pins, and installs require user confirmation before code is written locally. |
+| Update integrity | Release downloads are checked against their `.sha256` sidecar before installation; CI verifies generated release sidecars before upload. |
 | Telemetry | No analytics, tracking, or background phone-home behavior. |
+
+### Security Model
+
+FilePilot treats local files as private user data and keeps ordinary browsing, scanning, indexing, tags, duplicate detection, and organization on the local machine. Optional cloud AI calls are explicit feature actions and use the provider settings you configure.
+
+Community plugins are trusted code only after user approval. The registry installer rejects unsafe plugin names, keeps plugin files inside the local plugin directory, requires SHA-256 pins for remote registry entries, and warns before installing remote Python code. A malicious plugin can still do what local Python code can do after installation, so only install plugins from sources you trust.
+
+Auto-update downloads require a matching `.sha256` sidecar from the release assets before the installer can be launched. CI also verifies the sidecar against the packaged artifact. This protects against corrupted or mismatched downloads; signed installers and platform trust checks should still be used for release publishing.
 
 ## Quality Gates
 
@@ -264,7 +291,7 @@ For full build instructions, see [docs/BUILD.md](docs/BUILD.md).
 ruff check .
 ruff format --check .
 mypy
-pytest
+python -m pytest
 ```
 
 The CI pipeline runs linting, type checking, tests, coverage upload, and packaged builds for Windows, Linux, and macOS.

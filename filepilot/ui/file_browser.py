@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
+from filepilot.core.file_operations import FileOperationPreview, FileOperationService
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.tag_manager import TagManager
 from filepilot.core.worker import Worker
@@ -125,6 +126,7 @@ class FileBrowserPanel(BasePanel):
         self.files: list[FileInfo] = []
         self.categories: dict[str, list[FileInfo]] = {}
         self.tag_manager = TagManager()
+        self.file_operations = FileOperationService()
         self._column_keys: list[str] = []
         self._col_index: dict[str, int] = {}
 
@@ -961,19 +963,28 @@ class FileBrowserPanel(BasePanel):
         if not dest:
             return
         dest_path = Path(dest)
-        import shutil
-
-        copied = 0
-        for p in paths:
-            try:
-                shutil.copy2(p, dest_path / p.name)
-                copied += 1
-            except Exception as e:
-                self.status_message.emit(f"❌ Failed to copy {p.name}: {e}")
-                return
-        self.status_message.emit(
-            f"✅ Copied {copied} file{'s' if copied != 1 else ''} to {dest_path.name}"
-        )
+        preview = self.file_operations.preview("copy", paths, dest_path)
+        if not self._confirm_file_operation(preview):
+            return
+        result = self.file_operations.copy(paths, dest_path)
+        if result.error_count:
+            first_error = next(op for op in result.operations if not op.success)
+            self.status_message.emit(
+                f"❌ {result.status_message()}; failed {first_error.source.name}: "
+                f"{first_error.error}"
+            )
+            if self.event_bus and result.success_count:
+                self.event_bus.files_copied.emit(
+                    [str(op.source) for op in result.successful_operations],
+                    str(dest_path),
+                )
+            return
+        self.status_message.emit(f"✅ {result.status_message()} to {dest_path.name}")
+        if self.event_bus and result.success_count:
+            self.event_bus.files_copied.emit(
+                [str(op.source) for op in result.successful_operations],
+                str(dest_path),
+            )
 
     @Slot()
     def _batch_move(self):
@@ -984,19 +995,30 @@ class FileBrowserPanel(BasePanel):
         if not dest:
             return
         dest_path = Path(dest)
-        import shutil
-
-        moved = 0
-        for p in paths:
-            try:
-                shutil.move(str(p), str(dest_path / p.name))
-                moved += 1
-            except Exception as e:
-                self.status_message.emit(f"❌ Failed to move {p.name}: {e}")
-                return
-        self.status_message.emit(
-            f"✅ Moved {moved} file{'s' if moved != 1 else ''} to {dest_path.name}"
-        )
+        preview = self.file_operations.preview("move", paths, dest_path)
+        if not self._confirm_file_operation(preview):
+            return
+        result = self.file_operations.move(paths, dest_path)
+        if result.error_count:
+            first_error = next(op for op in result.operations if not op.success)
+            self.status_message.emit(
+                f"❌ {result.status_message()}; failed {first_error.source.name}: "
+                f"{first_error.error}"
+            )
+            if result.success_count:
+                self.scan_directory(self.current_dir)
+                if self.event_bus:
+                    self.event_bus.files_moved.emit(
+                        [str(op.source) for op in result.successful_operations],
+                        str(dest_path),
+                    )
+            return
+        self.status_message.emit(f"✅ {result.status_message()} to {dest_path.name}")
+        if self.event_bus and result.success_count:
+            self.event_bus.files_moved.emit(
+                [str(op.source) for op in result.successful_operations],
+                str(dest_path),
+            )
         self.scan_directory(self.current_dir)
 
     @Slot()
@@ -1013,18 +1035,37 @@ class FileBrowserPanel(BasePanel):
         )
         if reply != QMessageBox.Yes:
             return
-        from send2trash import send2trash
-
-        deleted = 0
-        for p in paths:
-            try:
-                send2trash(str(p))
-                deleted += 1
-            except Exception as e:
-                self.status_message.emit(f"❌ Failed to delete {p.name}: {e}")
-                return
-        self.status_message.emit(f"🗑 Deleted {deleted} file{'s' if deleted != 1 else ''}")
+        result = self.file_operations.trash(paths)
+        if result.error_count:
+            first_error = next(op for op in result.operations if not op.success)
+            self.status_message.emit(
+                f"❌ {result.status_message()}; failed {first_error.source.name}: "
+                f"{first_error.error}"
+            )
+        else:
+            self.status_message.emit(f"🗑 {result.status_message()}")
+        if self.event_bus and result.success_count:
+            self.event_bus.files_deleted.emit(
+                [str(op.source) for op in result.successful_operations]
+            )
         self.scan_directory(self.current_dir)
+
+    def _confirm_file_operation(self, preview: FileOperationPreview) -> bool:
+        """Show a compact preview before copy or move execution."""
+        if len(preview.operations) == 1 and preview.renamed_count == 0:
+            return True
+        message = preview.summary()
+        details = preview.details()
+        if details:
+            message = f"{message}\n\n{details}"
+        reply = QMessageBox.question(
+            self,
+            "Confirm File Operation",
+            message,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        return bool(reply == QMessageBox.Yes)
 
     def _refresh_tag_column(self):
         """Refresh tags column without re-scanning."""

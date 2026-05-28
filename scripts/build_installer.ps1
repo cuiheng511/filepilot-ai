@@ -38,8 +38,8 @@ $versionLine = Select-String -Path "filepilot\__init__.py" -Pattern '__version__
 if ($versionLine) {
     $AppVersion = $versionLine.Matches.Groups[1].Value
 } else {
-    $AppVersion = "0.0.0"
-    Write-Host "  ⚠ Could not detect version from __init__.py, using 0.0.0" -ForegroundColor Yellow
+    $AppVersion = "0.6.4"
+    Write-Host "  ⚠ Could not detect version from __init__.py, using 0.6.4" -ForegroundColor Yellow
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"

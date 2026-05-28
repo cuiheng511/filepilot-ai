@@ -3,7 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QListWidgetItem, QMessageBox
 
+from filepilot.core.plugin_registry import PluginEntry
 from filepilot.ui.plugin_manager_panel import PluginManagerPanel
 
 
@@ -154,3 +157,53 @@ class TestPluginManagerPanel:
     def test_status_message_updates_label(self, panel):
         panel.status_message.emit("Test message")
         assert panel.stats_label.text() == "Test message"
+
+    def test_registry_install_requires_confirmation(self, panel):
+        entry = PluginEntry(
+            name="demo",
+            display_name="Demo",
+            description="",
+            version="1.0.0",
+            author="Tester",
+            url="https://example.test/demo.py",
+        )
+        panel._registry = MagicMock()
+        panel._registry.entries = [entry]
+        item = QListWidgetItem("Demo")
+        item.setData(Qt.UserRole, "demo")
+
+        with patch(
+            "filepilot.ui.plugin_manager_panel.QMessageBox.warning",
+            return_value=QMessageBox.No,
+        ):
+            panel._on_registry_install(item)
+
+        panel._registry.install_plugin.assert_not_called()
+
+    def test_registry_marks_unpinned_remote_as_untrusted(self, panel):
+        entry = PluginEntry(
+            name="demo",
+            display_name="Demo",
+            description="",
+            version="1.0.0",
+            author="Tester",
+            url="https://example.test/demo.py",
+        )
+
+        panel._display_registry([entry])
+
+        assert "Untrusted" in panel.registry_list.item(0).text()
+
+    def test_registry_marks_missing_url_as_built_in_sample(self, panel):
+        entry = PluginEntry(
+            name="demo",
+            display_name="Demo",
+            description="",
+            version="1.0.0",
+            author="Tester",
+            url="",
+        )
+
+        panel._display_registry([entry])
+
+        assert "Built-in sample" in panel.registry_list.item(0).text()

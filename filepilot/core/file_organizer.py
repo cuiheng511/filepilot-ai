@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from filepilot.core.file_scanner import FileInfo
-from filepilot.utils.file_utils import FileCategory, is_file_locked, safe_filename
+from filepilot.utils.file_utils import (
+    FileCategory,
+    is_file_locked,
+    resolve_path_conflict,
+    safe_filename,
+)
 
 
 @dataclass
@@ -229,24 +234,14 @@ class FileOrganizer:
         for key, value in vars_map.items():
             new_name = new_name.replace(f"{{{key}}}", safe_filename(value))
 
-        return safe_filename(new_name) + file_info.extension
+        safe_name = safe_filename(new_name)
+        if "{ext}" in pattern or Path(safe_name).suffix:
+            return safe_name
+        return safe_name + file_info.extension
 
     def _resolve_conflict(self, path: Path, reserved: set[Path] | None = None) -> Path:
         """Handle filename conflicts by adding numeric suffix"""
-        reserved = reserved or set()
-        if not path.exists() and path not in reserved:
-            return path
-
-        stem = path.stem
-        suffix = path.suffix
-        parent = path.parent
-        counter = 1
-
-        while True:
-            new_path = parent / f"{stem}_{counter}{suffix}"
-            if not new_path.exists() and new_path not in reserved:
-                return new_path
-            counter += 1
+        return resolve_path_conflict(path, reserved)
 
     @property
     def stats(self) -> dict:
@@ -282,7 +277,8 @@ class FileOrganizer:
             try:
                 if dest.exists():
                     source.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(dest), str(source))
+                    restore_path = resolve_path_conflict(source)
+                    shutil.move(str(dest), str(restore_path))
                     restored += 1
                 else:
                     errors += 1

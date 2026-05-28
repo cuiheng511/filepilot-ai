@@ -150,6 +150,28 @@ def safe_filename(name: str) -> str:
     return name or "untitled"
 
 
+def resolve_path_conflict(path: str | Path, reserved: set[Path] | None = None) -> Path:
+    """Return a non-existing path by adding a numeric suffix when needed.
+
+    ``reserved`` lets callers plan multiple operations before files exist at the
+    destination, which avoids duplicate dry-run previews and batch collisions.
+    """
+    candidate = Path(path)
+    reserved = reserved or set()
+    if not candidate.exists() and candidate not in reserved:
+        return candidate
+
+    parent = candidate.parent
+    stem = candidate.stem
+    suffix = candidate.suffix
+    counter = 1
+    while True:
+        next_candidate = parent / f"{stem}_{counter}{suffix}"
+        if not next_candidate.exists() and next_candidate not in reserved:
+            return next_candidate
+        counter += 1
+
+
 def get_file_extension(file_path: str | Path) -> str:
     """Get the file extension (lowercase, with dot)"""
     return Path(file_path).suffix.lower()

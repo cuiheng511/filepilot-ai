@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.6.4] - 2026-05-28
+
+### Added
+- **Shared file operation service** — Copy, move, and trash workflows now use one conflict-safe service with preview support and event emission.
+- **Embedding cache maintenance** — SQLite-backed embedding cache now supports stats, missing-file pruning, provider pruning, and compaction from Settings.
+- **Release asset verification** — Added `scripts/verify_release_assets.py` and CI checks to verify `.sha256` release sidecars before upload.
+
+### Changed
+- **Plugin registry trust model** — Remote registry plugins now require SHA-256 pins before installation.
+- **README and release docs** — Updated current-version docs, release integrity guidance, and security model notes for v0.6.4.
+
+### Fixed
+- **Batch file operations** — Copy/move actions avoid overwriting existing destinations and show planned renames before execution.
+- **Search result undo** — Move undo now avoids overwriting if the original path has been reused.
+- **Embedding cache cleanup** — Removing or clearing indexed files now persists embedding-cache cleanup.
+- **Rename templates** — Patterns that include `{ext}` no longer produce duplicated extensions such as `report.txt.txt`.
+- **Update downloads** — Downloaded installers are removed when SHA-256 verification fails.
+- **Index panel build/update methods** — Implemented `_build_index` and `_update_index` that were previously stubs; added content extraction pipeline with both registered extractors and plain-text fallback.
+- **Index panel `_cancelled`** — Attribute now initialized in `__init__` to prevent `AttributeError` if cancel is called before first build.
+
 ## [0.6.3] - 2026-05-26
 
 ### Added
@@ -26,12 +48,6 @@
 - **settings_dialog.py** — Fixed `from filepilot.updater import __version__` (module doesn't export it) to `from filepilot import __version__`.
 - **main_window.py** — Fixed `_on_nav_changed` names list missing "File Stats" entry causing index mismatch.
 - **CI workflow** — Fixed invalid GitHub Actions versions (v6/v7 don't exist) and repaired UTF-8 encoding corruption from PowerShell string operations.
-
-## [Unreleased]
-
-### Fixed
-- **Index panel build/update methods** — Implemented `_build_index` and `_update_index` that were previously stubs; added content extraction pipeline with both registered extractors and plain-text fallback
-- **Index panel `_cancelled`** — Attribute now initialized in `__init__` to prevent `AttributeError` if cancel is called before first build
 
 ## [0.6.2] - 2026-05-25
 

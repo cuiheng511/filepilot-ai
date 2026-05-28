@@ -1,12 +1,13 @@
 """Plugin Manager panel — manage file extractor plugins."""
 
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
@@ -171,6 +172,10 @@ class PluginManagerPanel(BasePanel):
 
         for entry in entries:
             status = "Installed" if entry.installed else "Available"
+            if not entry.url and not entry.installed:
+                status = "Built-in sample"
+            elif entry.url and not entry.sha256 and not entry.installed:
+                status = "Untrusted"
             icon = "\u2705" if entry.installed else "\U0001f4e6"
             exts = ", ".join(entry.extensions) if entry.extensions else ""
             text = f"{icon} {entry.display_name} v{entry.version} [{status}]"
@@ -183,14 +188,16 @@ class PluginManagerPanel(BasePanel):
                 f"Author: {entry.author}\n"
                 f"Description: {entry.description}\n"
                 f"Extensions: {exts}\n"
+                f"Source: {entry.url or 'built-in'}\n"
+                f"SHA256: {entry.sha256 or 'not pinned'}\n"
                 f"Status: {status}\n\n"
                 f"Double-click to install/uninstall"
             )
             item.setData(Qt.UserRole, entry.name)
             if entry.installed:
-                from PySide6.QtGui import QColor
-
                 item.setForeground(QColor("#4caf50"))
+            elif entry.url and not entry.sha256:
+                item.setForeground(QColor("#c62828"))
             self.registry_list.addItem(item)
 
         installed = sum(1 for e in entries if e.installed)
@@ -225,6 +232,25 @@ class PluginManagerPanel(BasePanel):
                 self.status_message.emit(
                     f"{entry.display_name} is a built-in plugin. Use 'Install Sample' instead."
                 )
+                return
+            if not entry.sha256:
+                self.status_message.emit(
+                    f"Refusing unpinned plugin: {entry.display_name}. Registry entry needs SHA256."
+                )
+                return
+            reply = QMessageBox.warning(
+                self,
+                "Install Plugin",
+                (
+                    f"Install {entry.display_name} from the community registry?\n\n"
+                    "Plugins are Python code and can access local files. "
+                    f"Source: {entry.url}\n"
+                    f"SHA256: {entry.sha256 or 'not pinned'}"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
                 return
             self.status_message.emit(f"Installing {entry.display_name}...")
             if self._registry.install_plugin(entry):

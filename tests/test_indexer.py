@@ -30,3 +30,29 @@ def test_file_indexer_creates_and_reopens_index(tmp_path):
 
     assert results
     assert results[0]["filename"] == "market-notes.md"
+
+
+def test_remove_from_index_removes_embedding_cache(tmp_path):
+    indexer = FileIndexer(tmp_path / "index")
+    path = str(tmp_path / "notes.md")
+    indexer._embed_cache.put(path, [0.1, 0.2])
+    indexer._embed_cache.save()
+
+    indexer.remove_from_index(path)
+    indexer._embed_cache.save()
+    fresh_cache = FileIndexer(tmp_path / "index")._embed_cache
+
+    assert indexer._embed_cache.get(path) is None
+    assert fresh_cache.get(path) is None
+
+
+def test_clear_index_persists_empty_embedding_cache(tmp_path):
+    indexer = FileIndexer(tmp_path / "index")
+    indexer._embed_cache.put(str(tmp_path / "notes.md"), [0.1, 0.2])
+    indexer._embed_cache.save()
+
+    indexer.clear_index()
+    fresh_cache = FileIndexer(tmp_path / "index")._embed_cache
+
+    assert len(indexer._embed_cache) == 0
+    assert len(fresh_cache) == 0

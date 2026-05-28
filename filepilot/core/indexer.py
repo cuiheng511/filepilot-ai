@@ -8,6 +8,7 @@ from pathlib import Path
 from whoosh import fields, index
 from whoosh.analysis import StandardAnalyzer
 from whoosh.qparser import FuzzyTermPlugin, MultifieldParser
+from whoosh.query import Every
 
 from filepilot.core.embeddings import EmbeddingCache, embed_text
 from filepilot.core.file_scanner import FileInfo
@@ -126,7 +127,17 @@ class FileIndexer:
                     if embed_text_content:
                         emb = embed_text(embed_text_content)
                         if emb:
-                            self._embed_cache.put(str(file_info.path), emb)
+                            mtime = (
+                                file_info.modified_time.timestamp()
+                                if file_info.modified_time
+                                else None
+                            )
+                            self._embed_cache.put(
+                                str(file_info.path),
+                                emb,
+                                mtime=mtime,
+                                size=file_info.size_bytes,
+                            )
 
                 indexed += 1
 
@@ -318,17 +329,22 @@ class FileIndexer:
 
     def remove_from_index(self, file_path: str | Path) -> None:
         """Remove file from index"""
-        self._meta_db.remove(str(file_path))
+        path = str(file_path)
+        self._meta_db.remove(path)
+        self._embed_cache.remove(path)
+        self._embed_cache.save()
         writer = self._ix.writer()
-        writer.delete_by_term("path", str(file_path))
+        writer.delete_by_term("path", path)
         writer.commit()
 
     def clear_index(self) -> None:
         """Clear index"""
         self._meta_db.clear()
         self._embed_cache.clear()
+        self._embed_cache.save()
         writer = self._ix.writer()
-        writer.commit(mergetype=index.CLEAR)
+        writer.delete_by_query(Every())
+        writer.commit()
 
     def search_semantic(
         self,

@@ -6,6 +6,8 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 
+from filepilot.core.file_operations import FileBatchResult, FileOperationResult
+
 
 class TestDisplayResults:
     """Test _display_results produces correct QListWidgetItems."""
@@ -243,21 +245,27 @@ class TestBatchOperations:
         assert paths[1] == str(self.src_files[2])
 
     def test_batch_delete_results(self):
+        result = FileBatchResult(
+            "trash",
+            self.src_files[0].parent,
+            [
+                FileOperationResult(self.src_files[0], None, True),
+                FileOperationResult(self.src_files[1], None, True),
+            ],
+        )
         with (
             patch("filepilot.ui.search_panel.QMessageBox.question", return_value=QMessageBox.Yes),
-            patch("filepilot.ui.search_panel.send2trash") as mock_trash,
+            patch.object(self.panel.file_operations, "trash", return_value=result) as mock_trash,
         ):
             self.panel.result_list.item(0).setSelected(True)
             self.panel.result_list.item(1).setSelected(True)
             self.panel._batch_delete_results()
-            assert mock_trash.call_count == 2
-            mock_trash.assert_any_call(str(self.src_files[0]))
-            mock_trash.assert_any_call(str(self.src_files[1]))
+            mock_trash.assert_called_once()
 
     def test_batch_delete_results_cancelled(self):
         with (
             patch("filepilot.ui.search_panel.QMessageBox.question", return_value=QMessageBox.No),
-            patch("filepilot.ui.search_panel.send2trash") as mock_trash,
+            patch.object(self.panel.file_operations, "trash") as mock_trash,
         ):
             self.panel.result_list.item(0).setSelected(True)
             self.panel._batch_delete_results()
@@ -274,6 +282,43 @@ class TestBatchOperations:
             assert (dest / "file0.txt").exists()
             assert not self.src_files[0].exists()
 
+    def test_batch_move_results_renames_on_conflict(self, tmp_path):
+        dest = tmp_path / "moved"
+        dest.mkdir()
+        (dest / "file0.txt").write_text("existing")
+        with (
+            patch(
+                "filepilot.ui.search_panel.QFileDialog.getExistingDirectory", return_value=str(dest)
+            ),
+            patch("filepilot.ui.search_panel.QMessageBox.question", return_value=QMessageBox.Yes),
+        ):
+            self.panel.result_list.item(0).setSelected(True)
+            self.panel._batch_move_results()
+            assert (dest / "file0.txt").read_text() == "existing"
+            assert (dest / "file0_1.txt").read_text() == "content 0"
+            assert self.panel._batch_undo_log[0]["from"] == str(dest / "file0_1.txt")
+
+    def test_batch_move_results_keeps_failed_items_visible(self, tmp_path):
+        dest = tmp_path / "moved"
+        dest.mkdir()
+        self.src_files[1].unlink()
+        with (
+            patch(
+                "filepilot.ui.search_panel.QFileDialog.getExistingDirectory", return_value=str(dest)
+            ),
+            patch("filepilot.ui.search_panel.QMessageBox.question", return_value=QMessageBox.Yes),
+        ):
+            self.panel.result_list.item(0).setSelected(True)
+            self.panel.result_list.item(1).setSelected(True)
+            self.panel._batch_move_results()
+
+            remaining_paths = [
+                self.panel.result_list.item(i).data(Qt.UserRole)
+                for i in range(self.panel.result_list.count())
+            ]
+            assert str(self.src_files[0]) not in remaining_paths
+            assert str(self.src_files[1]) in remaining_paths
+
     def test_batch_copy_results(self, tmp_path):
         dest = tmp_path / "copied"
         dest.mkdir()
@@ -284,6 +329,22 @@ class TestBatchOperations:
             self.panel._batch_copy_results()
             assert (dest / "file0.txt").exists()
             assert self.src_files[0].exists()  # original untouched
+
+    def test_batch_copy_results_renames_on_conflict(self, tmp_path):
+        dest = tmp_path / "copied"
+        dest.mkdir()
+        (dest / "file0.txt").write_text("existing")
+        with (
+            patch(
+                "filepilot.ui.search_panel.QFileDialog.getExistingDirectory", return_value=str(dest)
+            ),
+            patch("filepilot.ui.search_panel.QMessageBox.question", return_value=QMessageBox.Yes),
+        ):
+            self.panel.result_list.item(0).setSelected(True)
+            self.panel._batch_copy_results()
+            assert (dest / "file0.txt").read_text() == "existing"
+            assert (dest / "file0_1.txt").read_text() == "content 0"
+            assert self.src_files[0].exists()
 
     def test_batch_tag_results(self):
         with patch(
@@ -350,6 +411,23 @@ class TestBatchOperations:
             assert self.src_files[0].exists()
             assert not (dest / "file0.txt").exists()
             assert len(self.panel._batch_undo_log) == 0
+
+    def test_undo_move_renames_when_original_path_is_occupied(self, tmp_path):
+        dest = tmp_path / "moved"
+        dest.mkdir()
+        with patch(
+            "filepilot.ui.search_panel.QFileDialog.getExistingDirectory", return_value=str(dest)
+        ):
+            self.panel.result_list.item(0).setSelected(True)
+            self.panel._batch_move_results()
+            self.src_files[0].write_text("new file", encoding="utf-8")
+
+            self.panel._batch_undo_move()
+
+            assert self.src_files[0].read_text(encoding="utf-8") == "new file"
+            assert (self.src_files[0].parent / "file0_1.txt").read_text(
+                encoding="utf-8"
+            ) == "content 0"
 
     def test_undo_move_nothing_when_empty(self):
         # Should not crash when undo log is empty

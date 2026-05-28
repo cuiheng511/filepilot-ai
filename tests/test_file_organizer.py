@@ -227,6 +227,43 @@ class TestFileOrganizerLockHandling:
         assert destinations[1].name == "same_1.txt"
         assert len(set(destinations)) == 2
 
+    def test_rename_pattern_with_ext_does_not_duplicate_extension(self, organizer, tmp_path):
+        now = datetime.now()
+        file_info = FileInfo(
+            path=tmp_path / "report.txt",
+            name="report.txt",
+            extension=".txt",
+            size_bytes=10,
+            size_str="10 B",
+            category=FileCategory.DOCUMENT,
+            mime_type="text/plain",
+            modified_time=now,
+            created_time=now,
+        )
+
+        assert organizer._determine_filename(file_info, True, "{name}.{ext}") == "report.txt"
+
+    def test_undo_renames_when_original_path_is_occupied(self, organizer, tmp_path):
+        import json
+
+        moved = tmp_path / "sorted" / "report.txt"
+        original = tmp_path / "source" / "report.txt"
+        moved.parent.mkdir()
+        original.parent.mkdir()
+        moved.write_text("restored", encoding="utf-8")
+        original.write_text("new file", encoding="utf-8")
+        undo_log = tmp_path / "undo.json"
+        undo_log.write_text(
+            json.dumps([{"source": str(original), "dest": str(moved)}]),
+            encoding="utf-8",
+        )
+
+        result = organizer.undo(undo_log)
+
+        assert result == {"restored": 1, "errors": 0}
+        assert original.read_text(encoding="utf-8") == "new file"
+        assert (original.parent / "report_1.txt").read_text(encoding="utf-8") == "restored"
+
 
 class TestFileOrganizer:
     """FileOrganizer test suite"""

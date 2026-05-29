@@ -14,7 +14,7 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.4
+Version 0.6.5
 
 </div>
 

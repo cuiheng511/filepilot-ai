@@ -2,9 +2,9 @@
 
 > FilePilot AI — Cross-platform release checklist for maintainers.
 
-## Current Release: v0.6.4
+## Current Release: v0.6.5
 
-**Release date:** 2026-05-28
+**Release date:** 2026-05-29
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
@@ -12,9 +12,9 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
 | Platform | Download |
 |----------|----------|
-| Windows  | `FilePilot-AI-Setup-0.6.4.exe` |
-| Linux    | `FilePilot-0.6.4-x86_64.AppImage` |
-| macOS    | `FilePilot-0.6.4.dmg` |
+| Windows  | `FilePilot-AI-Setup-0.6.5.exe` |
+| Linux    | `FilePilot-0.6.5-x86_64.AppImage` |
+| macOS    | `FilePilot-0.6.5.dmg` |
 
 ---
 
@@ -167,8 +167,8 @@ Run the installer on each platform and confirm:
 ## 4. GitHub Release
 
 1. Go to **https://github.com/cuiheng511/filepilot-ai/releases/new**
-2. Choose the tag you just pushed (e.g., `v0.6.4`)
-3. **Release title:** `v0.6.4`
+2. Choose the tag you just pushed (e.g., `v0.6.5`)
+3. **Release title:** `v0.6.5`
 4. **Description:** Paste the CHANGELOG entry for this version.
    - Include installation instructions (replace `X.Y.Z` with the actual version):
      ```markdown

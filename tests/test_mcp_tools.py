@@ -300,3 +300,46 @@ def test_apply_organization_plan_rejects_double_apply(tmp_path: Path):
 
     with pytest.raises(ValueError, match="already applied"):
         tools.apply_organization_plan(plan["plan_id"], confirm=True)
+
+
+def test_apply_organization_plan_moves_file_larger_than_read_cap(tmp_path: Path):
+    """Files above the read-size cap must still be movable (moves don't read content)."""
+    root = tmp_path / "workspace"
+    target = tmp_path / "organized"
+    root.mkdir()
+    target.mkdir()
+    big = root / "big.bin"
+    big.write_bytes(b"x" * 5000)  # 5000 bytes
+    # Read cap of 100 bytes is far below the file size.
+    guard = PathGuard(
+        MCPSecurityConfig(
+            allowed_dirs=(root, target),
+            write_enabled=True,
+            max_file_size_bytes=100,
+        )
+    )
+    tools = FilePilotMCPTools(guard, plan_dir=tmp_path / "plans")
+    plan = tools.propose_organization_plan(str(root), str(target), rules=["extension"])
+
+    result = tools.apply_organization_plan(plan["plan_id"], confirm=True)
+
+    assert result["errors"] == 0
+    assert result["moved"] == 1
+    assert not big.exists()
+    assert (target / "BIN" / "big.bin").exists()
+
+
+def test_undo_organization_plan_rejects_double_undo(tmp_path: Path):
+    root = tmp_path / "workspace"
+    target = tmp_path / "organized"
+    root.mkdir()
+    target.mkdir()
+    (root / "alpha.txt").write_text("alpha", encoding="utf-8")
+    guard = PathGuard(MCPSecurityConfig(allowed_dirs=(root, target), write_enabled=True))
+    tools = FilePilotMCPTools(guard, plan_dir=tmp_path / "plans")
+    plan = tools.propose_organization_plan(str(root), str(target), rules=["extension"])
+    tools.apply_organization_plan(plan["plan_id"], confirm=True)
+    tools.undo_organization_plan(plan["plan_id"], confirm=True)
+
+    with pytest.raises(ValueError, match="already undone"):
+        tools.undo_organization_plan(plan["plan_id"], confirm=True)

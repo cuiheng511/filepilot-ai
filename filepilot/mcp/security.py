@@ -104,6 +104,17 @@ class PathGuard:
                 f"File is too large ({size} bytes). Limit is {self.config.max_file_size_bytes} bytes."
             )
 
+    def ensure_file_exists(self, path: Path) -> None:
+        """Validate a path is an existing file without enforcing the read-size cap.
+
+        Use this for operations that do not load file content into memory
+        (moving, renaming, or tagging), where the read-size limit does not apply.
+        """
+        if not path.exists():
+            raise MCPAccessError(f"Path does not exist: {path}")
+        if not path.is_file():
+            raise MCPAccessError(f"Path is not a file: {path}")
+
     def ensure_directory_readable(self, path: Path) -> None:
         if not path.exists():
             raise MCPAccessError(f"Path does not exist: {path}")

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-05-29
+
 ### Added
 - **FilePilot MCP server** - Added `filepilot-mcp` with directory-scoped access for MCP clients such as Claude Code, Codex, and Cursor.
 - **MCP safety layer** - Added allowed-directory validation, read limits, hidden-path blocking, and explicit write-mode checks.
@@ -24,6 +26,8 @@
 
 ### Fixed
 - **MCP organization apply** - Already applied organization plans are now rejected to prevent repeated agent calls from moving the same plan twice.
+- **MCP large-file writes** - Tagging and organization apply/undo now validate file existence without applying read-size limits to operations that do not load file content.
+- **MCP organization undo** - Already undone organization plans are now rejected with a clear error instead of producing misleading per-file failures.
 
 ## [0.6.4] - 2026-05-28
 

@@ -288,7 +288,7 @@ class FilePilotMCPTools:
         cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
         try:
             file_path = self.guard.resolve_write_path(path)
-            self.guard.ensure_file_readable(file_path)
+            self.guard.ensure_file_exists(file_path)
             manager = TagManager()
             for tag in cleaned_tags:
                 manager.add_tag(file_path, tag)
@@ -422,7 +422,7 @@ class FilePilotMCPTools:
                     destination = self.guard.resolve_write_path(destination_value)
                     source_output = str(source)
                     destination_output = str(destination)
-                    self.guard.ensure_file_readable(source)
+                    self.guard.ensure_file_exists(source)
                     if destination.exists():
                         raise FileExistsError(f"Destination already exists: {destination}")
                     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -485,6 +485,8 @@ class FilePilotMCPTools:
             if not self.guard.config.write_enabled:
                 raise ValueError("Write access is disabled. Restart with --write to allow changes.")
             plan = self._load_plan(plan_id)
+            if plan.get("undone_at"):
+                raise ValueError(f"Plan {plan_id} was already undone at {plan['undone_at']}.")
             applied_results = list(plan.get("applied_results", []))
             if not applied_results:
                 raise ValueError(f"Organization plan has no successful applied moves: {plan_id}")
@@ -504,7 +506,7 @@ class FilePilotMCPTools:
                     destination = self.guard.resolve_write_path(destination_value)
                     source_output = str(source)
                     destination_output = str(destination)
-                    self.guard.ensure_file_readable(destination)
+                    self.guard.ensure_file_exists(destination)
                     if source.exists():
                         raise FileExistsError(f"Original source already exists: {source}")
                     source.parent.mkdir(parents=True, exist_ok=True)

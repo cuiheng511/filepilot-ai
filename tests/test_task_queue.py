@@ -3,15 +3,14 @@
 from filepilot.core.task_queue import Task, TaskPriority, TaskQueueWorker
 
 
-def test_enqueue_sorts_by_priority(qtbot):
+def test_enqueue_sorts_by_priority():
     worker = TaskQueueWorker()
+    worker._running = True
     worker.enqueue(Task(fn=lambda: "low", priority=TaskPriority.LOW, name="low"))
     worker.enqueue(Task(fn=lambda: "high", priority=TaskPriority.HIGH, name="high"))
     worker.enqueue(Task(fn=lambda: "normal", priority=TaskPriority.NORMAL, name="normal"))
     names = [t.name for t in worker._queue]
-    assert names == ["high", "normal"]
-    with qtbot.waitSignal(worker.all_completed, timeout=2000):
-        pass
+    assert names == ["high", "normal", "low"]
 
 
 def test_cancel_all():

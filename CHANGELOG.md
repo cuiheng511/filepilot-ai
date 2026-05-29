@@ -7,6 +7,23 @@
 - **MCP safety layer** - Added allowed-directory validation, read limits, hidden-path blocking, and explicit write-mode checks.
 - **MCP file tools** - Added scan, filename search, indexing, indexed search, bounded file reads, text extraction, summaries, tag suggestions, duplicate detection, and dry-run organization plans.
 - **MCP documentation** - Added `docs/MCP.md` and refreshed the README around Desktop, CLI, and MCP usage.
+- **MCP index-scope tests** - Added coverage to ensure stale indexed results outside the current allowlist or requested root are not returned.
+- **MCP audit log** - Added JSONL audit records for write-like MCP operations, including denied writes.
+- **MCP CI smoke** - Added a GitHub Actions job that installs the optional MCP extra and verifies the server entry point.
+- **MCP organization apply** - Added saved organization plans and an explicit `apply_organization_plan` flow guarded by write mode, confirmation, path re-validation, and overwrite refusal.
+- **MCP organization undo** - Added `undo_organization_plan` for reversing successful moves from an applied plan, guarded by write mode and confirmation.
+- **MCP plan discovery** - Added `list_plans` so agents can rediscover saved organization plan IDs and inspect proposed/applied/undone status.
+- **MCP client docs** - Added ready-to-adapt client snippets for Claude Desktop, Claude Code, Cursor, and Codex.
+- **Optional desktop extra** - Split Qt/watchdog desktop dependencies into a `desktop` extra while keeping requirements-based desktop installs documented.
+
+### Changed
+- **Shared text extraction** - Centralized file text extraction dispatch in `filepilot.extractors.text_extraction` for MCP tools and summaries.
+- **MCP index reuse** - Reused a cached MCP `FileIndexer` instance to avoid reopening the local search index on every index/search call.
+- **MCP file reads** - Updated bounded text reads to stream only the requested slice instead of loading the whole file first.
+- **MCP duplicate stats** - Reused one `DuplicateFinder` instance for duplicate grouping and stats.
+
+### Fixed
+- **MCP organization apply** - Already applied organization plans are now rejected to prevent repeated agent calls from moving the same plan twice.
 
 ## [0.6.4] - 2026-05-28
 

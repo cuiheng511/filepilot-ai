@@ -41,6 +41,7 @@ a = Analysis(
         'filepilot.core.errors',
         'filepilot.core.index_db',
         'filepilot.extractors.pdf_extractor',
+        'filepilot.extractors.text_extraction',
         'filepilot.extractors.markdown_extractor',
         'filepilot.extractors.code_extractor',
         'filepilot.extractors.image_extractor',

@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 
+from filepilot.mcp.audit import AuditLogger
 from filepilot.mcp.security import MCPSecurityConfig, PathGuard
 from filepilot.mcp.tools import FilePilotMCPTools
 
@@ -21,7 +22,12 @@ def build_tools(args: argparse.Namespace) -> FilePilotMCPTools:
         max_read_chars=args.max_read_chars,
         allow_hidden=args.allow_hidden or env_config.allow_hidden,
     )
-    return FilePilotMCPTools(PathGuard(config), index_dir=args.index_dir)
+    return FilePilotMCPTools(
+        PathGuard(config),
+        index_dir=args.index_dir,
+        plan_dir=args.plan_dir,
+        audit_logger=AuditLogger(args.audit_log),
+    )
 
 
 def create_server(tools: FilePilotMCPTools):
@@ -136,6 +142,21 @@ def create_server(tools: FilePilotMCPTools):
             include_hidden,
         )
 
+    @mcp.tool()
+    def list_plans(limit: int = 50) -> dict:
+        """List saved organization plans and their applied/undone status."""
+        return tools.list_plans(limit)
+
+    @mcp.tool()
+    def apply_organization_plan(plan_id: str, confirm: bool = False) -> dict:
+        """Apply a saved organization plan. Requires --write and confirm=True."""
+        return tools.apply_organization_plan(plan_id, confirm)
+
+    @mcp.tool()
+    def undo_organization_plan(plan_id: str, confirm: bool = False) -> dict:
+        """Undo successful moves from an applied organization plan."""
+        return tools.undo_organization_plan(plan_id, confirm)
+
     return mcp
 
 
@@ -148,7 +169,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         metavar="DIR",
         help="Directory the MCP server may access. Repeat for multiple directories.",
     )
-    parser.add_argument("--write", action="store_true", help="Allow tag metadata writes.")
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Allow MCP tools that write tag metadata or move files.",
+    )
     parser.add_argument(
         "--allow-hidden",
         action="store_true",
@@ -168,6 +193,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "FILEPILOT_MCP_INDEX_DIR", str(Path.home() / ".filepilot" / "mcp-index")
         ),
         help="Directory for the MCP search index.",
+    )
+    parser.add_argument(
+        "--plan-dir",
+        default=os.environ.get(
+            "FILEPILOT_MCP_PLAN_DIR", str(Path.home() / ".filepilot" / "mcp-plans")
+        ),
+        help="Directory for saved MCP organization plans.",
+    )
+    parser.add_argument(
+        "--audit-log",
+        default=os.environ.get(
+            "FILEPILOT_MCP_AUDIT_LOG", str(Path.home() / ".filepilot" / "mcp-audit.jsonl")
+        ),
+        help="JSONL audit log for MCP write operations.",
     )
     return parser.parse_args(argv)
 

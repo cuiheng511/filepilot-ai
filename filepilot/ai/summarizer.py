@@ -5,7 +5,6 @@ from pathlib import Path
 
 from filepilot.ai.cloud_ai import CloudAI
 from filepilot.ai.local_ai import LocalAI
-from filepilot.core.plugin_system import get_plugin_manager
 
 
 class Summarizer:
@@ -132,61 +131,18 @@ class Summarizer:
         return results
 
     def _extract_content(self, file_path: Path) -> str:
-        """Extract text content based on file type"""
+        """Extract text content based on file type."""
+        from filepilot.extractors.text_extraction import (
+            CODE_EXTS,
+            extract_code_with_context,
+            extract_text,
+        )
+
         ext = file_path.suffix.lower()
-
-        if ext == ".pdf":
-            from filepilot.extractors.pdf_extractor import PDFExtractor
-
-            return PDFExtractor().extract_text(file_path)
-
-        if ext in (".md", ".markdown", ".mdx"):
-            from filepilot.extractors.markdown_extractor import MarkdownExtractor
-
-            return MarkdownExtractor().extract_text(file_path)
-
-        if ext == ".docx":
-            from filepilot.extractors.docx_extractor import DocxExtractor
-
-            return DocxExtractor().extract_text(file_path)
-
-        if ext in (".xlsx", ".xls"):
-            from filepilot.extractors.xlsx_extractor import XlsxExtractor
-
-            return XlsxExtractor().extract_text(file_path)
-
-        if ext in (".pptx", ".ppt"):
-            from filepilot.extractors.pptx_extractor import PptxExtractor
-
-            return PptxExtractor().extract_text(file_path)
-
-        if ext in (".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs", ".go"):
-            from filepilot.extractors.code_extractor import CodeExtractor
-
-            extractor = CodeExtractor()
-            meta = extractor.extract_metadata(file_path)
-            code = extractor.extract_text(file_path)
-            context_parts = [f"Language: {meta.get('language', 'unknown')}"]
-            defs = meta.get("definitions", [])
-            if defs:
-                def_names = [d["name"] for d in defs[:20]]
-                context_parts.append(f"Functions/Classes: {', '.join(def_names)}")
-            return f"{' | '.join(context_parts)}\n\n{code[:6000]}"
-
-        # Try plugin extractors
-        plugin_ext = get_plugin_manager().get_extractor_for(ext)
-        if plugin_ext:
-            try:
-                text = plugin_ext.extract_text(file_path)
-                if text:
-                    return text
-            except Exception:
-                pass
-
-        try:
-            return file_path.read_text(encoding="utf-8", errors="replace")
-        except Exception:
-            return ""
+        # Code files get a metadata header (language + definitions) for richer summaries
+        if ext in CODE_EXTS or ext in (".scala", ".rb", ".php", ".swift", ".kt"):
+            return extract_code_with_context(file_path)
+        return extract_text(file_path)
 
     def _generate_summary(self, content: str, max_length: int) -> str:
         """Generate content summary using AI"""

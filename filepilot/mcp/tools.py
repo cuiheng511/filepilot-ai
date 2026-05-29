@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import secrets
+import shutil
 from collections.abc import Callable, Iterable
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from filepilot.ai.summarizer import Summarizer
 from filepilot.core.duplicate_finder import DuplicateFinder
@@ -18,23 +23,39 @@ from filepilot.core.file_organizer import (
 from filepilot.core.file_scanner import FileInfo, FileScanner
 from filepilot.core.indexer import FileIndexer
 from filepilot.core.tag_manager import TagManager
-from filepilot.extractors.code_extractor import CodeExtractor
-from filepilot.extractors.docx_extractor import DocxExtractor
-from filepilot.extractors.markdown_extractor import MarkdownExtractor
-from filepilot.extractors.pdf_extractor import PDFExtractor
-from filepilot.extractors.pptx_extractor import PptxExtractor
-from filepilot.extractors.xlsx_extractor import XlsxExtractor
-from filepilot.mcp.security import PathGuard
+from filepilot.mcp.audit import AuditLogger
+from filepilot.mcp.security import MCPAccessError, PathGuard
 
 
 class FilePilotMCPTools:
     """Local-first FilePilot operations exposed through MCP."""
 
-    def __init__(self, guard: PathGuard, index_dir: str | Path | None = None):
+    def __init__(
+        self,
+        guard: PathGuard,
+        index_dir: str | Path | None = None,
+        plan_dir: str | Path | None = None,
+        audit_logger: AuditLogger | None = None,
+    ):
         self.guard = guard
         self.index_dir = (
             Path(index_dir).expanduser() if index_dir else Path.home() / ".filepilot" / "mcp-index"
         )
+        self.plan_dir = (
+            Path(plan_dir).expanduser() if plan_dir else Path.home() / ".filepilot" / "mcp-plans"
+        )
+        self.audit_logger = audit_logger
+        self._indexer: FileIndexer | None = None
+
+    def _get_indexer(self) -> FileIndexer:
+        """Return a cached FileIndexer, opening the Whoosh index only once.
+
+        Reusing the indexer avoids re-opening the index and reloading the
+        embedding cache on every index/search call.
+        """
+        if self._indexer is None:
+            self._indexer = FileIndexer(index_dir=self.index_dir)
+        return self._indexer
 
     def server_status(self) -> dict:
         """Return the server's safety posture and configured directories."""
@@ -45,6 +66,8 @@ class FilePilotMCPTools:
             "max_file_size_bytes": self.guard.config.max_file_size_bytes,
             "max_read_chars": self.guard.config.max_read_chars,
             "index_dir": str(self.index_dir),
+            "plan_dir": str(self.plan_dir),
+            "audit_log": str(self.audit_logger.path) if self.audit_logger else "",
         }
 
     def scan_files(
@@ -121,7 +144,7 @@ class FilePilotMCPTools:
 
         scanner = FileScanner()
         files = scanner.scan(root_path, recursive=recursive, include_hidden=include_hidden)
-        indexer = FileIndexer(index_dir=self.index_dir)
+        indexer = self._get_indexer()
         indexed = indexer.index_files(
             files,
             content_extractor=self._extract_for_index if include_content else None,
@@ -148,7 +171,7 @@ class FilePilotMCPTools:
             root_path = self.guard.resolve_read_path(root)
             self.guard.ensure_directory_readable(root_path)
 
-        indexer = FileIndexer(index_dir=self.index_dir)
+        indexer = self._get_indexer()
         raw_results = (
             indexer.search_semantic(query, limit=limit * 2)
             if semantic
@@ -168,21 +191,32 @@ class FilePilotMCPTools:
         return {"query": query, "count": len(results), "results": results}
 
     def read_file(self, path: str, start: int = 0, max_chars: int | None = None) -> dict:
-        """Read a slice from a text file inside an allowed directory."""
+        """Read a slice from a text file inside an allowed directory.
+
+        Reads only the bytes needed (start + read_limit) plus a small margin to
+        determine truncation, instead of loading the whole file into memory.
+        """
         file_path = self.guard.resolve_read_path(path)
         self.guard.ensure_file_readable(file_path)
         read_limit = self._read_limit(max_chars)
-
-        text = file_path.read_text(encoding="utf-8", errors="replace")
         start = max(0, start)
-        chunk = text[start : start + read_limit]
+
+        # Read only up to what we need (+1 char to detect truncation).
+        # errors="replace" keeps decoding robust for non-UTF8 bytes.
+        want = start + read_limit
+        with file_path.open(encoding="utf-8", errors="replace") as handle:
+            head = handle.read(want + 1)
+            has_more = bool(handle.read(1))
+
+        chunk = head[start : start + read_limit]
+        truncated = has_more or (len(head) > start + len(chunk))
         return {
             "path": str(file_path),
             "name": file_path.name,
             "start": start,
             "returned_chars": len(chunk),
-            "total_chars": len(text),
-            "truncated": start + len(chunk) < len(text),
+            "total_chars": None,  # not computed to avoid full-file read
+            "truncated": truncated,
             "content": chunk,
         }
 
@@ -251,14 +285,31 @@ class FilePilotMCPTools:
 
     def add_tags(self, path: str, tags: list[str]) -> dict:
         """Write FilePilot tag metadata. Requires write mode."""
-        file_path = self.guard.resolve_write_path(path)
-        self.guard.ensure_file_readable(file_path)
         cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
-        manager = TagManager()
-        for tag in cleaned_tags:
-            manager.add_tag(file_path, tag)
-        manager.flush()
-        return {"path": str(file_path), "tags": manager.get_tags(file_path)}
+        try:
+            file_path = self.guard.resolve_write_path(path)
+            self.guard.ensure_file_readable(file_path)
+            manager = TagManager()
+            for tag in cleaned_tags:
+                manager.add_tag(file_path, tag)
+            manager.flush()
+            result = {"path": str(file_path), "tags": manager.get_tags(file_path)}
+            self._audit(
+                "add_tags",
+                "success",
+                path=file_path,
+                details={"tags": cleaned_tags, "tag_count": len(result["tags"])},
+            )
+            return result
+        except Exception as e:
+            self._audit(
+                "add_tags",
+                self._audit_failure_status(e),
+                path=path,
+                details={"tags": cleaned_tags},
+                error=str(e),
+            )
+            raise
 
     def find_duplicates(
         self,
@@ -273,9 +324,10 @@ class FilePilotMCPTools:
 
         scanner = FileScanner()
         files = scanner.scan(root_path, include_hidden=include_hidden)
-        groups = DuplicateFinder().find_duplicates(files, min_size=max(1, min_size))
+        finder = DuplicateFinder()
+        groups = finder.find_duplicates(files, min_size=max(1, min_size))
         limited = groups[: max(1, min(limit_groups, 200))]
-        stats = DuplicateFinder().get_duplicate_stats(groups)
+        stats = finder.get_duplicate_stats(groups)
         return {
             "root": str(root_path),
             "groups_returned": len(limited),
@@ -305,6 +357,9 @@ class FilePilotMCPTools:
         self.guard.ensure_directory_readable(root_path)
 
         target = Path(target_root).expanduser().resolve()
+        # Note: target is intentionally NOT validated against the allowlist here.
+        # propose is a pure dry-run; apply_organization_plan re-validates every
+        # source and destination against the current allowlist before moving.
         scanner = FileScanner()
         files = scanner.scan(root_path, include_hidden=include_hidden)[: max(1, min(limit, 2000))]
         organizer = FileOrganizer()
@@ -316,13 +371,224 @@ class FilePilotMCPTools:
             rename=bool(rename_pattern),
             rename_pattern=rename_pattern,
         )
+        plan_id = self._save_plan(root_path, target, operations)
         return {
+            "plan_id": plan_id,
             "root": str(root_path),
             "target_root": str(target),
             "count": len(operations),
             "dry_run": True,
             "operations": operations,
         }
+
+    def apply_organization_plan(self, plan_id: str, confirm: bool = False) -> dict:
+        """Apply a previously generated organization plan.
+
+        Requires write mode and an explicit confirm=True flag. Sources and
+        destinations are re-validated against the current allowlist before any
+        move happens.
+        """
+        if not confirm:
+            error = "apply_organization_plan requires confirm=True"
+            self._audit(
+                "apply_organization_plan",
+                "denied",
+                details={"plan_id": plan_id},
+                error=error,
+            )
+            raise ValueError(error)
+
+        try:
+            if not self.guard.config.write_enabled:
+                raise ValueError("Write access is disabled. Restart with --write to allow changes.")
+            plan = self._load_plan(plan_id)
+            if plan.get("applied_at"):
+                raise ValueError(
+                    f"Plan {plan_id} was already applied at {plan['applied_at']}. "
+                    "Create a new plan to organize again."
+                )
+            operations = list(plan.get("operations", []))
+            results = []
+            moved = 0
+            errors = 0
+
+            for operation in operations:
+                source_value = str(operation.get("source", ""))
+                destination_value = str(operation.get("destination", ""))
+                source_output = source_value
+                destination_output = destination_value
+                try:
+                    source = self.guard.resolve_write_path(source_value)
+                    destination = self.guard.resolve_write_path(destination_value)
+                    source_output = str(source)
+                    destination_output = str(destination)
+                    self.guard.ensure_file_readable(source)
+                    if destination.exists():
+                        raise FileExistsError(f"Destination already exists: {destination}")
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(source), str(destination))
+                    moved += 1
+                    results.append(
+                        {
+                            "source": str(source),
+                            "destination": str(destination),
+                            "success": True,
+                            "error": "",
+                        }
+                    )
+                except Exception as e:
+                    errors += 1
+                    results.append(
+                        {
+                            "source": source_output,
+                            "destination": destination_output,
+                            "success": False,
+                            "error": str(e),
+                        }
+                    )
+
+            self._save_applied_plan(plan, results)
+            self._audit(
+                "apply_organization_plan",
+                "success" if errors == 0 else "partial",
+                path=plan.get("root", ""),
+                details={"plan_id": plan_id, "moved": moved, "errors": errors},
+            )
+            return {
+                "plan_id": plan_id,
+                "moved": moved,
+                "errors": errors,
+                "results": results,
+            }
+        except Exception as e:
+            self._audit(
+                "apply_organization_plan",
+                self._audit_failure_status(e),
+                details={"plan_id": plan_id},
+                error=str(e),
+            )
+            raise
+
+    def undo_organization_plan(self, plan_id: str, confirm: bool = False) -> dict:
+        """Undo successful moves from a previously applied organization plan."""
+        if not confirm:
+            error = "undo_organization_plan requires confirm=True"
+            self._audit(
+                "undo_organization_plan",
+                "denied",
+                details={"plan_id": plan_id},
+                error=error,
+            )
+            raise ValueError(error)
+
+        try:
+            if not self.guard.config.write_enabled:
+                raise ValueError("Write access is disabled. Restart with --write to allow changes.")
+            plan = self._load_plan(plan_id)
+            applied_results = list(plan.get("applied_results", []))
+            if not applied_results:
+                raise ValueError(f"Organization plan has no successful applied moves: {plan_id}")
+
+            restored = 0
+            errors = 0
+            results = []
+            for operation in reversed(applied_results):
+                if not operation.get("success"):
+                    continue
+                source_value = str(operation.get("source", ""))
+                destination_value = str(operation.get("destination", ""))
+                source_output = source_value
+                destination_output = destination_value
+                try:
+                    source = self.guard.resolve_write_path(source_value)
+                    destination = self.guard.resolve_write_path(destination_value)
+                    source_output = str(source)
+                    destination_output = str(destination)
+                    self.guard.ensure_file_readable(destination)
+                    if source.exists():
+                        raise FileExistsError(f"Original source already exists: {source}")
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(destination), str(source))
+                    restored += 1
+                    results.append(
+                        {
+                            "source": str(source),
+                            "destination": str(destination),
+                            "success": True,
+                            "error": "",
+                        }
+                    )
+                except Exception as e:
+                    errors += 1
+                    results.append(
+                        {
+                            "source": source_output,
+                            "destination": destination_output,
+                            "success": False,
+                            "error": str(e),
+                        }
+                    )
+
+            plan["undo_results"] = results
+            plan["undone_at"] = datetime.now(timezone.utc).isoformat()
+            self._write_plan(plan_id, plan)
+            self._audit(
+                "undo_organization_plan",
+                "success" if errors == 0 else "partial",
+                path=plan.get("root", ""),
+                details={"plan_id": plan_id, "restored": restored, "errors": errors},
+            )
+            return {
+                "plan_id": plan_id,
+                "restored": restored,
+                "errors": errors,
+                "results": results,
+            }
+        except Exception as e:
+            self._audit(
+                "undo_organization_plan",
+                self._audit_failure_status(e),
+                details={"plan_id": plan_id},
+                error=str(e),
+            )
+            raise
+
+    def list_plans(self, limit: int = 50) -> dict:
+        """List saved organization plans with their status.
+
+        Helps an agent discover plan IDs created by propose_organization_plan
+        and check whether each has been applied or undone.
+        """
+        plans: list[dict] = []
+        if self.plan_dir.exists():
+            plan_files = sorted(
+                self.plan_dir.glob("*.json"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            for plan_file in plan_files[: max(1, min(limit, 200))]:
+                try:
+                    data = json.loads(plan_file.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                status = "proposed"
+                if data.get("undone_at"):
+                    status = "undone"
+                elif data.get("applied_at"):
+                    status = "applied"
+                plans.append(
+                    {
+                        "plan_id": data.get("plan_id", plan_file.stem),
+                        "status": status,
+                        "root": data.get("root", ""),
+                        "target_root": data.get("target_root", ""),
+                        "operation_count": len(data.get("operations", [])),
+                        "created_at": data.get("created_at", ""),
+                        "applied_at": data.get("applied_at", ""),
+                        "undone_at": data.get("undone_at", ""),
+                    }
+                )
+        return {"count": len(plans), "plans": plans}
 
     def _extract_for_index(self, file_info: FileInfo) -> str:
         try:
@@ -336,26 +602,73 @@ class FilePilotMCPTools:
             return self.guard.config.max_read_chars
         return max(1, min(max_chars, self.guard.config.max_read_chars))
 
+    def _audit(
+        self,
+        tool: str,
+        status: str,
+        *,
+        path: str | Path | None = None,
+        details: dict | None = None,
+        error: str = "",
+    ) -> None:
+        if self.audit_logger is None:
+            return
+        self.audit_logger.record(tool, status, path=path, details=details, error=error)
+
+    def _audit_failure_status(self, error: Exception) -> str:
+        if isinstance(error, MCPAccessError) or not self.guard.config.write_enabled:
+            return "denied"
+        return "error"
+
+    def _save_plan(self, root: Path, target: Path, operations: list[dict]) -> str:
+        self.plan_dir.mkdir(parents=True, exist_ok=True)
+        plan_id = secrets.token_hex(12)
+        plan = {
+            "plan_id": plan_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "root": str(root),
+            "target_root": str(target),
+            "operations": operations,
+        }
+        self._plan_path(plan_id).write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return plan_id
+
+    def _save_applied_plan(self, plan: dict, results: list[dict]) -> None:
+        plan_id = str(plan["plan_id"])
+        plan["applied_results"] = results
+        plan["applied_at"] = datetime.now(timezone.utc).isoformat()
+        self._write_plan(plan_id, plan)
+
+    def _write_plan(self, plan_id: str, plan: dict) -> None:
+        self._plan_path(plan_id).write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+    def _load_plan(self, plan_id: str) -> dict:
+        if not _is_safe_plan_id(plan_id):
+            raise ValueError(f"Invalid plan id: {plan_id}")
+        plan_path = self._plan_path(plan_id)
+        if not plan_path.exists():
+            raise FileNotFoundError(f"Organization plan not found: {plan_id}")
+        return cast(dict, json.loads(plan_path.read_text(encoding="utf-8")))
+
+    def _plan_path(self, plan_id: str) -> Path:
+        return self.plan_dir / f"{plan_id}.json"
+
 
 def extract_text(file_path: Path) -> str:
-    """Extract text from supported files, falling back to UTF-8 text reads."""
-    ext = file_path.suffix.lower()
-    if ext == ".pdf":
-        return PDFExtractor().extract_text(file_path)
-    if ext in {".md", ".markdown", ".mdx"}:
-        return MarkdownExtractor().extract_text(file_path)
-    if ext == ".docx":
-        return DocxExtractor().extract_text(file_path)
-    if ext in {".xlsx", ".xls"}:
-        return XlsxExtractor().extract_text(file_path)
-    if ext in {".pptx", ".ppt"}:
-        return PptxExtractor().extract_text(file_path)
-    if ext in {".py", ".js", ".ts", ".java", ".cpp", ".c", ".rs", ".go"}:
-        return CodeExtractor().extract_text(file_path)
-    try:
-        return file_path.read_text(encoding="utf-8", errors="replace")
-    except Exception:
-        return ""
+    """Extract text from supported files, falling back to UTF-8 text reads.
+
+    Delegates to the shared extraction dispatch in
+    ``filepilot.extractors.text_extraction``.
+    """
+    from filepilot.extractors.text_extraction import extract_text as _shared_extract
+
+    return _shared_extract(file_path)
 
 
 def _rules_from_names(names: Iterable[str] | None) -> list[OrganizeRule]:
@@ -401,3 +714,7 @@ def _extractive_summary(text: str, max_length: int) -> str:
     if len(summary) <= max_length:
         return summary
     return summary[: max_length - 3].rstrip() + "..."
+
+
+def _is_safe_plan_id(plan_id: str) -> bool:
+    return bool(plan_id) and all(ch in "0123456789abcdef" for ch in plan_id) and len(plan_id) <= 64

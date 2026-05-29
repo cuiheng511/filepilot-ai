@@ -555,12 +555,21 @@ class FilePilotMCPTools:
             )
             raise
 
-    def list_plans(self, limit: int = 50) -> dict:
+    def list_plans(
+        self,
+        limit: int = 50,
+        root: str | None = None,
+        status: str | None = None,
+        max_age_days: int | None = None,
+    ) -> dict:
         """List saved organization plans with their status.
 
         Helps an agent discover plan IDs created by propose_organization_plan
         and check whether each has been applied or undone.
         """
+        root_path = self.guard.resolve_read_path(root) if root else None
+        normalized_status = _normalize_plan_status(status)
+        max_age_days = _normalize_max_age_days(max_age_days)
         plans: list[dict] = []
         if self.plan_dir.exists():
             plan_files = sorted(
@@ -568,29 +577,141 @@ class FilePilotMCPTools:
                 key=lambda p: p.stat().st_mtime,
                 reverse=True,
             )
-            for plan_file in plan_files[: max(1, min(limit, 200))]:
+            for plan_file in plan_files:
                 try:
                     data = json.loads(plan_file.read_text(encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     continue
-                status = "proposed"
+                if not self._plan_visible(data):
+                    continue
+                plan_status = "proposed"
                 if data.get("undone_at"):
-                    status = "undone"
+                    plan_status = "undone"
                 elif data.get("applied_at"):
-                    status = "applied"
-                plans.append(
-                    {
-                        "plan_id": data.get("plan_id", plan_file.stem),
-                        "status": status,
-                        "root": data.get("root", ""),
-                        "target_root": data.get("target_root", ""),
-                        "operation_count": len(data.get("operations", [])),
-                        "created_at": data.get("created_at", ""),
-                        "applied_at": data.get("applied_at", ""),
-                        "undone_at": data.get("undone_at", ""),
-                    }
+                    plan_status = "applied"
+                if normalized_status and plan_status != normalized_status:
+                    continue
+                if root_path and not _plan_matches_root(data, root_path):
+                    continue
+                plan = self._plan_summary(data, plan_file, plan_status, max_age_days)
+                plans.append(plan)
+                if len(plans) >= max(1, min(limit, 200)):
+                    break
+        return {
+            "count": len(plans),
+            "filters": {
+                "root": str(root_path) if root_path else "",
+                "status": normalized_status or "",
+                "max_age_days": max_age_days,
+            },
+            "plans": plans,
+        }
+
+    def cleanup_plans(
+        self,
+        max_age_days: int = 30,
+        status: str | None = None,
+        dry_run: bool = True,
+    ) -> dict:
+        """Remove old saved organization plans from the MCP plan directory.
+
+        Defaults to dry-run so agents can show exactly what would be removed
+        before mutating FilePilot's internal plan metadata.
+        """
+        normalized_max_age_days = _normalize_max_age_days(max_age_days)
+        max_age_days = 30 if normalized_max_age_days is None else normalized_max_age_days
+        normalized_status = _normalize_plan_status(status)
+        if not dry_run and not self.guard.config.write_enabled:
+            error = "Write access is disabled. Restart with --write to remove saved plans."
+            self._audit(
+                "cleanup_plans",
+                "denied",
+                details={"max_age_days": max_age_days, "status": normalized_status or ""},
+                error=error,
+            )
+            raise ValueError(error)
+        removed = 0
+        candidates = []
+        try:
+            if self.plan_dir.exists():
+                for plan_file in sorted(self.plan_dir.glob("*.json")):
+                    try:
+                        data = json.loads(plan_file.read_text(encoding="utf-8"))
+                    except (OSError, json.JSONDecodeError):
+                        continue
+                    if not self._plan_visible(data):
+                        continue
+                    plan_status = "proposed"
+                    if data.get("undone_at"):
+                        plan_status = "undone"
+                    elif data.get("applied_at"):
+                        plan_status = "applied"
+                    if normalized_status and plan_status != normalized_status:
+                        continue
+                    summary = self._plan_summary(data, plan_file, plan_status, max_age_days)
+                    if not summary["expired"]:
+                        continue
+                    candidates.append(summary)
+                    if not dry_run:
+                        plan_file.unlink()
+                        removed += 1
+            if not dry_run:
+                self._audit(
+                    "cleanup_plans",
+                    "success",
+                    path=self.plan_dir,
+                    details={
+                        "max_age_days": max_age_days,
+                        "status": normalized_status or "",
+                        "removed": removed,
+                    },
                 )
-        return {"count": len(plans), "plans": plans}
+        except Exception as e:
+            if not dry_run:
+                self._audit(
+                    "cleanup_plans",
+                    self._audit_failure_status(e),
+                    path=self.plan_dir,
+                    details={"max_age_days": max_age_days, "status": normalized_status or ""},
+                    error=str(e),
+                )
+            raise
+        return {
+            "dry_run": dry_run,
+            "max_age_days": max_age_days,
+            "status": normalized_status or "",
+            "candidates": candidates,
+            "candidate_count": len(candidates),
+            "removed": removed,
+        }
+
+    def _plan_visible(self, plan: dict) -> bool:
+        root = plan.get("root", "")
+        return bool(root and self.guard.is_allowed_path(root))
+
+    def _plan_summary(
+        self,
+        plan: dict,
+        plan_file: Path,
+        status: str,
+        max_age_days: int | None,
+    ) -> dict:
+        age_days = _plan_age_days(plan, plan_file)
+        expired = bool(
+            max_age_days is not None and age_days is not None and age_days > max_age_days
+        )
+        return {
+            "plan_id": plan.get("plan_id", plan_file.stem),
+            "status": status,
+            "root": plan.get("root", ""),
+            "target_root": plan.get("target_root", ""),
+            "operation_count": len(plan.get("operations", [])),
+            "created_at": plan.get("created_at", ""),
+            "applied_at": plan.get("applied_at", ""),
+            "undone_at": plan.get("undone_at", ""),
+            "age_days": age_days,
+            "expired": expired,
+        }
 
     def _extract_for_index(self, file_info: FileInfo) -> str:
         try:
@@ -720,3 +841,55 @@ def _extractive_summary(text: str, max_length: int) -> str:
 
 def _is_safe_plan_id(plan_id: str) -> bool:
     return bool(plan_id) and all(ch in "0123456789abcdef" for ch in plan_id) and len(plan_id) <= 64
+
+
+def _normalize_plan_status(status: str | None) -> str | None:
+    if status is None or not status.strip():
+        return None
+    normalized = status.strip().lower()
+    if normalized not in {"proposed", "applied", "undone"}:
+        raise ValueError("Plan status must be one of: proposed, applied, undone")
+    return normalized
+
+
+def _normalize_max_age_days(max_age_days: int | None) -> int | None:
+    if max_age_days is None:
+        return None
+    return max(0, min(int(max_age_days), 3650))
+
+
+def _plan_age_days(plan: dict, plan_file: Path) -> int | None:
+    raw_created = str(plan.get("created_at", ""))
+    created_at = _parse_datetime(raw_created)
+    if created_at is None:
+        try:
+            created_at = datetime.fromtimestamp(plan_file.stat().st_mtime, timezone.utc)
+        except OSError:
+            return None
+    now = datetime.now(timezone.utc)
+    return max(0, (now - created_at).days)
+
+
+def _parse_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _plan_matches_root(plan: dict, root: Path) -> bool:
+    for raw_path in (plan.get("root", ""), plan.get("target_root", "")):
+        if not raw_path:
+            continue
+        try:
+            path = Path(raw_path).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if path == root or root in path.parents:
+            return True
+    return False

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-05-29
+
+### Added
+- **MCP read-only flag** - Added `--read-only` to force read-only mode even when write mode is enabled through the environment.
+- **MCP plan cleanup** - Added `cleanup_plans` for dry-run-first cleanup of expired saved organization plan metadata.
+- **MCP workflow docs** - Added a Mermaid workflow diagram and richer agent prompt examples for scan, summarize, deduplicate, organize, and plan cleanup flows.
+
+### Changed
+- **MCP plan listing** - Extended `list_plans` with root, status, and max-age filters so agents can focus on one workspace or stale plan set.
+- **MCP client snippets** - Updated client examples to prefer explicit `--read-only` for shared agent configurations.
+
 ## [0.6.5] - 2026-05-29
 
 ### Added

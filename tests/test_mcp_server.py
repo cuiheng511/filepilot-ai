@@ -29,6 +29,21 @@ def test_create_server_registers_expected_tools(tmp_path: Path):
         "find_duplicates",
         "propose_organization_plan",
         "list_plans",
+        "cleanup_plans",
         "apply_organization_plan",
         "undo_organization_plan",
     }.issubset(tools)
+
+
+def test_read_only_flag_overrides_write_enabled_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    allowed = tmp_path / "workspace"
+    allowed.mkdir()
+    monkeypatch.setenv("FILEPILOT_MCP_WRITE_ENABLED", "true")
+    args = parse_args(["--allow", str(allowed), "--read-only"])
+
+    tools = build_tools(args)
+
+    assert tools.server_status()["write_enabled"] is False

@@ -286,6 +286,77 @@ def test_list_plans_reports_status(tmp_path: Path):
     assert listing_after["plans"][0]["status"] == "applied"
 
 
+def test_list_plans_filters_by_root_status_and_age(tmp_path: Path):
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    target = tmp_path / "organized"
+    first.mkdir()
+    second.mkdir()
+    target.mkdir()
+    (first / "alpha.txt").write_text("alpha", encoding="utf-8")
+    (second / "beta.txt").write_text("beta", encoding="utf-8")
+    plan_dir = tmp_path / "plans"
+    guard = PathGuard(MCPSecurityConfig(allowed_dirs=(first, second, target), write_enabled=True))
+    tools = FilePilotMCPTools(guard, plan_dir=plan_dir)
+    first_plan = tools.propose_organization_plan(str(first), str(target), rules=["extension"])
+    tools.propose_organization_plan(str(second), str(target), rules=["extension"])
+    first_plan_path = plan_dir / f"{first_plan['plan_id']}.json"
+    saved_plan = json.loads(first_plan_path.read_text(encoding="utf-8"))
+    saved_plan["created_at"] = "2000-01-01T00:00:00+00:00"
+    first_plan_path.write_text(json.dumps(saved_plan), encoding="utf-8")
+
+    listing = tools.list_plans(root=str(first), status="proposed", max_age_days=1)
+
+    assert listing["count"] == 1
+    assert listing["filters"]["status"] == "proposed"
+    assert listing["plans"][0]["plan_id"] == first_plan["plan_id"]
+    assert listing["plans"][0]["expired"] is True
+
+
+def test_cleanup_plans_dry_run_and_delete_old_plans(tmp_path: Path):
+    root = tmp_path / "workspace"
+    target = tmp_path / "organized"
+    root.mkdir()
+    target.mkdir()
+    (root / "alpha.txt").write_text("alpha", encoding="utf-8")
+    plan_dir = tmp_path / "plans"
+    guard = PathGuard(MCPSecurityConfig(allowed_dirs=(root, target), write_enabled=True))
+    tools = FilePilotMCPTools(guard, plan_dir=plan_dir)
+    plan = tools.propose_organization_plan(str(root), str(target), rules=["extension"])
+    plan_path = plan_dir / f"{plan['plan_id']}.json"
+    saved_plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    saved_plan["created_at"] = "2000-01-01T00:00:00+00:00"
+    plan_path.write_text(json.dumps(saved_plan), encoding="utf-8")
+
+    dry_run = tools.cleanup_plans(max_age_days=0)
+    deleted = tools.cleanup_plans(max_age_days=0, dry_run=False)
+
+    assert dry_run["dry_run"] is True
+    assert dry_run["max_age_days"] == 0
+    assert dry_run["candidate_count"] == 1
+    assert dry_run["removed"] == 0
+    assert deleted["removed"] == 1
+    assert not plan_path.exists()
+
+
+def test_cleanup_plans_requires_write_mode_for_delete(tmp_path: Path):
+    root = tmp_path / "workspace"
+    target = tmp_path / "organized"
+    root.mkdir()
+    target.mkdir()
+    (root / "alpha.txt").write_text("alpha", encoding="utf-8")
+    plan_dir = tmp_path / "plans"
+    write_guard = PathGuard(MCPSecurityConfig(allowed_dirs=(root, target), write_enabled=True))
+    FilePilotMCPTools(write_guard, plan_dir=plan_dir).propose_organization_plan(
+        str(root), str(target), rules=["extension"]
+    )
+    read_guard = PathGuard(MCPSecurityConfig(allowed_dirs=(root, target), write_enabled=False))
+    tools = FilePilotMCPTools(read_guard, plan_dir=plan_dir)
+
+    with pytest.raises(ValueError, match="Write access is disabled"):
+        tools.cleanup_plans(max_age_days=0, dry_run=False)
+
+
 def test_apply_organization_plan_rejects_double_apply(tmp_path: Path):
     root = tmp_path / "workspace"
     target = tmp_path / "organized"

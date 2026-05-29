@@ -31,13 +31,13 @@ The MCP extra is intended for agent workflows. Desktop UI installs should use th
 Allow one directory:
 
 ```bash
-filepilot-mcp --allow ~/Documents
+filepilot-mcp --allow ~/Documents --read-only
 ```
 
 Allow multiple directories:
 
 ```bash
-filepilot-mcp --allow ~/Documents --allow ~/Downloads
+filepilot-mcp --allow ~/Documents --allow ~/Downloads --read-only
 ```
 
 Enable write-like tools such as `add_tags`, `apply_organization_plan`, and `undo_organization_plan`:
@@ -58,6 +58,12 @@ Choose a custom audit log location:
 filepilot-mcp --allow ~/Documents --write --audit-log ~/.filepilot/mcp-audit.jsonl
 ```
 
+Force read-only mode even when an environment variable enables writes:
+
+```bash
+filepilot-mcp --allow ~/Documents --read-only
+```
+
 ## Environment Variables
 
 | Variable | Purpose | Default |
@@ -71,7 +77,7 @@ filepilot-mcp --allow ~/Documents --write --audit-log ~/.filepilot/mcp-audit.jso
 | `FILEPILOT_MCP_PLAN_DIR` | Directory for saved organization plans. | `~/.filepilot/mcp-plans` |
 | `FILEPILOT_MCP_AUDIT_LOG` | JSONL audit log for MCP write operations. | `~/.filepilot/mcp-audit.jsonl` |
 
-Command-line flags override defaults and are the recommended way to configure clients.
+Command-line flags override defaults and are the recommended way to configure clients. Use `--read-only` for agent sessions where you want an explicit guardrail that overrides `FILEPILOT_MCP_WRITE_ENABLED`.
 
 ## Client Configuration
 
@@ -88,7 +94,7 @@ Use this after `pip install "filepilot-ai[mcp]"` or `pip install -e ".[mcp]"`:
   "mcpServers": {
     "filepilot": {
       "command": "filepilot-mcp",
-      "args": ["--allow", "C:\\Users\\you\\Documents"]
+      "args": ["--allow", "C:\\Users\\you\\Documents", "--read-only"]
     }
   }
 }
@@ -107,7 +113,8 @@ Use Python directly if the console script is not on `PATH`:
         "-m",
         "filepilot.mcp.server",
         "--allow",
-        "C:\\Users\\you\\Documents"
+        "C:\\Users\\you\\Documents",
+        "--read-only"
       ]
     }
   }
@@ -127,7 +134,8 @@ Repeat `--allow` for every directory the agent may inspect:
         "--allow",
         "C:\\Users\\you\\Documents",
         "--allow",
-        "C:\\Users\\you\\Downloads"
+        "C:\\Users\\you\\Downloads",
+        "--read-only"
       ]
     }
   }
@@ -137,6 +145,8 @@ Repeat `--allow` for every directory the agent may inspect:
 ### Read-Only Recommended
 
 Keep the default read-only mode for Claude Code, Codex, Cursor, and other coding agents unless you specifically need FilePilot to write tag metadata or apply a reviewed organization plan.
+
+`--read-only` is optional because read-only is already the default, but it is useful in shared configs where `FILEPILOT_MCP_WRITE_ENABLED` may be set by the shell or CI environment.
 
 ## Tools
 
@@ -154,9 +164,26 @@ Keep the default read-only mode for Claude Code, Codex, Cursor, and other coding
 | `add_tags` | Adds FilePilot tag metadata. | Yes |
 | `find_duplicates` | Finds exact duplicate files under an allowed directory. | No |
 | `propose_organization_plan` | Creates and saves a dry-run organization plan. | No |
-| `list_plans` | Lists saved organization plans and reports whether each is proposed, applied, or undone. | No |
+| `list_plans` | Lists saved organization plans, with optional root, status, and age filters. | No |
+| `cleanup_plans` | Finds or removes expired saved organization plan metadata. Defaults to dry-run. | Delete requires write mode |
 | `apply_organization_plan` | Applies a saved organization plan after re-validating source and destination paths. | Yes |
 | `undo_organization_plan` | Restores successful moves from an applied organization plan. | Yes |
+
+## MCP Organization Workflow
+
+```mermaid
+flowchart TD
+    A["Start filepilot-mcp with --allow and --read-only"] --> B["Agent scans, searches, extracts, or summarizes files"]
+    B --> C["propose_organization_plan saves a dry-run plan"]
+    C --> D["Human reviews planned moves"]
+    D --> E["list_plans can rediscover plan IDs and filter by root, status, or age"]
+    E --> F{"Approved?"}
+    F -- "No" --> G["cleanup_plans dry_run=true can preview stale plan cleanup"]
+    F -- "Yes" --> H["Restart or reconfigure with --write and required --allow roots"]
+    H --> I["apply_organization_plan with confirm=true"]
+    I --> J["Audit log records success, partial result, denial, or error"]
+    J --> K["undo_organization_plan with confirm=true if rollback is needed"]
+```
 
 ## Safety Notes
 
@@ -172,9 +199,13 @@ Every path is resolved before use and must be inside one of the configured allow
 
 Write-like tools are disabled unless the server starts with `--write`. `add_tags` writes FilePilot tag metadata. `apply_organization_plan` can move files, but only from a saved plan and only when the client passes `confirm=True`. `undo_organization_plan` can restore successful moves from an applied plan and also requires `confirm=True`.
 
-Saved organization plans are not trusted blindly. `list_plans` lets an agent rediscover plan IDs and see whether plans are still proposed, already applied, or undone. Before moving each file, FilePilot resolves and re-validates the source and destination against the current allowlist, checks that the source is still readable, and refuses to overwrite an existing destination. If a later operation fails, successful and failed per-file results are saved back to the plan so `undo_organization_plan` can still restore successful moves.
+Saved organization plans are not trusted blindly. `list_plans` lets an agent rediscover plan IDs and see whether plans are still proposed, already applied, or undone. It can filter by `root`, `status` (`proposed`, `applied`, or `undone`), and `max_age_days` so agents can focus on one workspace or show stale plans.
+
+Before moving each file, FilePilot resolves and re-validates the source and destination against the current allowlist, checks that the source still exists, and refuses to overwrite an existing destination. If a later operation fails, successful and failed per-file results are saved back to the plan so `undo_organization_plan` can still restore successful moves.
 
 `apply_organization_plan` refuses to apply a plan that already has `applied_at`, so repeated agent calls cannot accidentally run the same saved move plan twice.
+
+`cleanup_plans` only removes saved plan metadata, not user files. It defaults to `dry_run=True`; actual deletion requires `dry_run=False` and write mode. Use this for old proposed/applied/undone plans after reviewing the returned candidates.
 
 ### Audit Log
 
@@ -195,21 +226,34 @@ Use this checklist when reviewing MCP changes:
 - Write-like tools call `resolve_write_path` and fail when `--write` is not set.
 - Write-like tools record success, denial, or error in the MCP audit log.
 - Organization apply and undo require a saved plan ID, `confirm=True`, write mode, and current allowlist validation.
-- Saved organization plans are discoverable through `list_plans`, and already applied plans cannot be applied a second time.
+- Saved organization plans are discoverable through `list_plans`, can be filtered by root/status/age, and already applied plans cannot be applied a second time.
+- Old saved plan metadata can be previewed with `cleanup_plans(dry_run=True)` before deletion.
 - New MCP tools have tests for allowed, denied, and bounded behavior.
 
 ## Suggested Agent Prompts
 
 ```text
-Use FilePilot to scan my Downloads folder and find likely duplicate files.
+Use FilePilot in read-only mode to scan my Downloads folder, list the largest file groups by extension, and point out anything that looks safe to archive. Do not move or tag files.
 ```
 
 ```text
-Use FilePilot to extract text from this PDF and summarize the main points.
+Use FilePilot to index my Documents folder, then search for PDFs about taxes from 2025. For the top matches, extract a bounded text sample and summarize what each file appears to contain.
 ```
 
 ```text
-Use FilePilot to propose a safe organization plan for my screenshots folder, but do not move anything.
+Use FilePilot to find exact duplicates under my Photos export folder. Group them by duplicate set, show the paths, and do not delete anything.
+```
+
+```text
+Use FilePilot to propose an organization plan for my Screenshots folder into my Sorted folder by extension and date. Save the plan, show me the operations, and do not apply it until I explicitly approve.
+```
+
+```text
+Use FilePilot to list saved organization plans for my Downloads folder. Show only proposed plans older than 14 days and explain whether cleanup_plans would remove them in dry-run mode.
+```
+
+```text
+After I approve the plan ID, restart FilePilot MCP with write mode if needed, verify both source and target folders are allowed, and apply the plan with confirm=true.
 ```
 
 ## Troubleshooting
@@ -222,6 +266,7 @@ Use FilePilot to propose a safe organization plan for my screenshots folder, but
 | Hidden path rejected | Restart with `--allow-hidden` if you intentionally need dot-prefixed paths. |
 | Index search returns nothing | Run `index_folder` on an allowed directory first. |
 | Plan apply or undo rejected | Start with `--write`, include both source and target roots in `--allow`, and pass `confirm=true` from the client. |
+| Old plan files keep appearing | Call `cleanup_plans(max_age_days=30, dry_run=true)` first, then repeat with `dry_run=false` in write mode after reviewing the candidates. |
 
 ## Roadmap
 

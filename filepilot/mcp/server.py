@@ -17,7 +17,7 @@ def build_tools(args: argparse.Namespace) -> FilePilotMCPTools:
     env_config = MCPSecurityConfig.from_env()
     config = MCPSecurityConfig(
         allowed_dirs=allowed_dirs or env_config.allowed_dirs,
-        write_enabled=args.write or env_config.write_enabled,
+        write_enabled=False if args.read_only else args.write or env_config.write_enabled,
         max_file_size_bytes=args.max_file_mb * 1024 * 1024,
         max_read_chars=args.max_read_chars,
         allow_hidden=args.allow_hidden or env_config.allow_hidden,
@@ -143,9 +143,23 @@ def create_server(tools: FilePilotMCPTools):
         )
 
     @mcp.tool()
-    def list_plans(limit: int = 50) -> dict:
+    def list_plans(
+        limit: int = 50,
+        root: str | None = None,
+        status: str | None = None,
+        max_age_days: int | None = None,
+    ) -> dict:
         """List saved organization plans and their applied/undone status."""
-        return tools.list_plans(limit)
+        return tools.list_plans(limit, root, status, max_age_days)
+
+    @mcp.tool()
+    def cleanup_plans(
+        max_age_days: int = 30,
+        status: str | None = None,
+        dry_run: bool = True,
+    ) -> dict:
+        """Clean up old saved organization plans. Defaults to dry-run."""
+        return tools.cleanup_plans(max_age_days, status, dry_run)
 
     @mcp.tool()
     def apply_organization_plan(plan_id: str, confirm: bool = False) -> dict:
@@ -173,6 +187,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--write",
         action="store_true",
         help="Allow MCP tools that write tag metadata or move files.",
+    )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Force read-only mode, overriding FILEPILOT_MCP_WRITE_ENABLED.",
     )
     parser.add_argument(
         "--allow-hidden",

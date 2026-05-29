@@ -14,7 +14,7 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.5
+Version 0.6.6
 
 </div>
 
@@ -50,7 +50,7 @@ FilePilot MCP is the most agent-ready part of the project. It exposes useful fil
 | Default permissions | The server starts read-only. Write-like tools require `--write`. |
 | Large or sensitive reads | File size and returned-character limits are enforced. |
 | Hidden paths | Dot-prefixed hidden paths are blocked unless `--allow-hidden` is set. |
-| Organization changes | Plans are dry-run first, saved by ID, then applied only with `confirm=True`. |
+| Organization changes | Plans are dry-run first, saved by ID, discoverable/filterable, then applied only with `confirm=True`. |
 | Auditability | Write-like operations are recorded as JSONL audit events. |
 
 Current MCP tools:
@@ -59,7 +59,7 @@ Current MCP tools:
 server_status, scan_files, search_files, index_folder, search_index,
 read_file, extract_file_text, summarize_file, suggest_tags, add_tags,
 find_duplicates, propose_organization_plan, list_plans,
-apply_organization_plan, undo_organization_plan
+cleanup_plans, apply_organization_plan, undo_organization_plan
 ```
 
 See [docs/MCP.md](docs/MCP.md) for the full safety model and [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets.
@@ -97,13 +97,13 @@ Install the MCP extra and allow one local folder:
 
 ```bash
 pip install -e ".[mcp]"
-filepilot-mcp --allow ~/Documents
+filepilot-mcp --allow ~/Documents --read-only
 ```
 
 Allow multiple roots when a task needs both source and target folders:
 
 ```bash
-filepilot-mcp --allow ~/Downloads --allow ~/Sorted
+filepilot-mcp --allow ~/Downloads --allow ~/Sorted --read-only
 ```
 
 Enable write-like tools only for trusted sessions:
@@ -119,7 +119,7 @@ Minimal MCP client config:
   "mcpServers": {
     "filepilot": {
       "command": "filepilot-mcp",
-      "args": ["--allow", "C:\\Users\\you\\Documents"]
+      "args": ["--allow", "C:\\Users\\you\\Documents", "--read-only"]
     }
   }
 }

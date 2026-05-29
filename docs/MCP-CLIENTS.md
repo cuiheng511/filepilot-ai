@@ -7,8 +7,10 @@ This guide shows ready-to-adapt configuration snippets for running FilePilot MCP
 Start read-only and allow only the folders the agent needs:
 
 ```bash
-filepilot-mcp --allow ~/Documents
+filepilot-mcp --allow ~/Documents --read-only
 ```
+
+Read-only is the default. The explicit `--read-only` flag is recommended for shared agent configs because it overrides `FILEPILOT_MCP_WRITE_ENABLED` if that environment variable is present.
 
 Enable writes only when you need `add_tags`, `apply_organization_plan`, or `undo_organization_plan`. For organization apply/undo, include both the source folder and target folder in `--allow`:
 
@@ -23,7 +25,7 @@ filepilot-mcp --allow ~/Documents --allow ~/Downloads --write
   "mcpServers": {
     "filepilot": {
       "command": "filepilot-mcp",
-      "args": ["--allow", "C:\\Users\\you\\Documents"]
+      "args": ["--allow", "C:\\Users\\you\\Documents", "--read-only"]
     }
   }
 }
@@ -40,7 +42,8 @@ For a source checkout:
         "-m",
         "filepilot.mcp.server",
         "--allow",
-        "C:\\Users\\you\\Documents"
+        "C:\\Users\\you\\Documents",
+        "--read-only"
       ]
     }
   }
@@ -60,7 +63,8 @@ Claude Code accepts MCP servers as local commands. Use the same command and args
         "--allow",
         "/Users/you/Documents",
         "--allow",
-        "/Users/you/Downloads"
+        "/Users/you/Downloads",
+        "--read-only"
       ]
     }
   }
@@ -80,7 +84,8 @@ Cursor MCP configuration also uses a server name with a command and args:
         "--allow",
         "C:\\Users\\you\\Projects",
         "--max-read-chars",
-        "30000"
+        "30000",
+        "--read-only"
       ]
     }
   }
@@ -99,6 +104,7 @@ Use FilePilot MCP as a local stdio MCP server:
       "args": [
         "--allow",
         "/home/you/Documents",
+        "--read-only",
         "--audit-log",
         "/home/you/.filepilot/mcp-audit.jsonl"
       ]
@@ -131,6 +137,22 @@ Use write mode only for trusted sessions:
 ```
 
 For organization workflows, ask the client to call `propose_organization_plan` first, review the returned operations, then use `list_plans` if it needs to rediscover the saved `plan_id` before applying or undoing a plan.
+
+For stale plan metadata, ask the client to call `list_plans(root=..., status=..., max_age_days=...)`, then `cleanup_plans(max_age_days=..., dry_run=true)`. Repeat cleanup with `dry_run=false` only after reviewing the candidates and only in a trusted write-mode session.
+
+## Prompt Patterns
+
+```text
+Use FilePilot in read-only mode to scan this folder, summarize file types and sizes, and do not move or tag anything.
+```
+
+```text
+Use FilePilot to propose an organization plan for this folder, then show me the saved plan ID and operations. Do not apply it yet.
+```
+
+```text
+Use FilePilot to list proposed plans for this root older than 30 days, run cleanup_plans as a dry-run, and explain what would be removed.
+```
 
 ## Smoke Test
 

@@ -98,7 +98,7 @@ Platform behavior:
 **Example:**
 ```python
 checker = UpdateChecker()
-checker.install("/tmp/FilePilot-AI-Setup-0.6.5.exe")
+checker.install("/tmp/FilePilot-AI-Setup-0.6.6.exe")
 ```
 
 #### `open_download_page()`
@@ -136,7 +136,7 @@ if result.has_update:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `version` | `str` | Version tag (e.g. `"0.6.5"`) |
+| `version` | `str` | Version tag (e.g. `"0.6.6"`) |
 | `published_at` | `str` | ISO 8601 timestamp of the release |
 | `html_url` | `str` | GitHub release page URL |
 

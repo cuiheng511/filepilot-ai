@@ -106,11 +106,18 @@ jobs:
           QT_QUICK_BACKEND: software
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
-          python -m pytest tests/ \
-            --cov=filepilot \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            -v --tb=short
+          python -m coverage erase
+          for test_file in $(find tests -maxdepth 1 -name 'test_*.py' | sort); do
+            echo "::group::${test_file}"
+            python -m pytest "${test_file}" \
+              --cov=filepilot \
+              --cov-append \
+              --cov-report= \
+              -v --tb=short
+            echo "::endgroup::"
+          done
+          python -m coverage xml -o coverage.xml
+          python -m coverage report -m
 
       - name: Run tests with coverage (Windows)
         if: runner.os == 'Windows'
@@ -118,11 +125,18 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest tests/ \
-            --cov=filepilot \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            -v --tb=short
+          python -m coverage erase
+          for test_file in $(find tests -maxdepth 1 -name 'test_*.py' | sort); do
+            echo "::group::${test_file}"
+            python -m pytest "${test_file}" \
+              --cov=filepilot \
+              --cov-append \
+              --cov-report= \
+              -v --tb=short
+            echo "::endgroup::"
+          done
+          python -m coverage xml -o coverage.xml
+          python -m coverage report -m
 
       - name: Upload coverage report as artifact
         uses: actions/upload-artifact@v4

@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-06-02
+
+### Added
+- **Pre-commit hooks** — `.pre-commit-config.yaml` with pinned ruff (`astral-sh/ruff-pre-commit` v0.8.6) plus local mypy for fast lint and type-check feedback before commit.
+- **Main entrypoint tests** — `test_main_entrypoint.py` covers `main.py` startup branches (start_minimized, missing primary screen) and `python -m filepilot` delegation. `main.py` and `__main__.py` coverage 0% → 100%.
+- **Chat assistant branch tests** — 20 new tests for `try_local_query`, `local_query_fallback`, and `ai_query` edge cases (no indexer, category counts, file extension lookup, AI provider exception, etc.). `chat_assistant.py` coverage 44% → 99%.
+- **Preview panel widget tests** — 14 new tests for image, archive, text/markdown worker paths, and PDF fallback. `preview_panel.py` coverage 34% → 77%.
+
+### Changed
+- **CI coverage split** — Per-test-file coverage runs now use `--cov-report=` (empty) so `fail_under` is only checked once on the final combined `coverage report`, never per-subprocess. Annotated in `ci.yml`.
+- **Coverage baseline** — `pyproject.toml` `fail_under` raised to `67.5` to lock in current coverage and prevent regression.
+
+### Fixed
+- **Preview panel truncation** — Text preview's "more lines" message was unreachable because the read loop was capped at `max_lines`. The loop now reads `max_lines + 1` lines and uses the extra line as a sentinel; the truncation message correctly appears for files with more than 200 lines. The visible 200-line cap is unchanged.
+
 ## [0.6.6] - 2026-05-29
 
 ### Added

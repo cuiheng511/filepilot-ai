@@ -2,9 +2,9 @@
 
 > FilePilot AI — Cross-platform release checklist for maintainers.
 
-## Current Release: v0.6.5
+## Current Release: v0.6.7
 
-**Release date:** 2026-05-29
+**Release date:** 2026-06-02
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
@@ -12,9 +12,9 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
 | Platform | Download |
 |----------|----------|
-| Windows  | `FilePilot-AI-Setup-0.6.5.exe` |
-| Linux    | `FilePilot-0.6.5-x86_64.AppImage` |
-| macOS    | `FilePilot-0.6.5.dmg` |
+| Windows  | `FilePilot-AI-Setup-0.6.7.exe` |
+| Linux    | `FilePilot-0.6.7-x86_64.AppImage` |
+| macOS    | `FilePilot-0.6.7.dmg` |
 
 ---
 

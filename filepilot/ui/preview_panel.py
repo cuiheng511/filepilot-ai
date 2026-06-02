@@ -245,12 +245,13 @@ class PreviewPanel(QWidget):
                 max_lines = 200
                 lines = []
                 with path.open(encoding="utf-8", errors="replace") as f:
-                    for _ in range(max_lines):
+                    for _ in range(max_lines + 1):
                         try:
                             lines.append(next(f).rstrip("\n\r"))
                         except StopIteration:
                             break
                 shown = lines[:max_lines]
+                truncated = len(lines) > max_lines
                 num_width = len(str(max_lines))
                 html_lines = []
                 for i, line in enumerate(shown, 1):
@@ -270,10 +271,8 @@ class PreviewPanel(QWidget):
                     "</style>"
                     f"<table>{table}</table>"
                 )
-                if len(lines) > max_lines:
-                    styled += (
-                        f"<p style='color:#888;'><i>… {len(lines) - max_lines} more lines</i></p>"
-                    )
+                if truncated:
+                    styled += "<p style='color:#888;'><i>… more lines</i></p>"
             self.preview_ready.emit(styled, str(path))
         except Exception:
             self.preview_ready.emit(

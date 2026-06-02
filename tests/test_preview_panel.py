@@ -183,9 +183,43 @@ def test_text_worker_caps_at_200_lines(qtbot, tmp_path):
     panel._preview_text_worker(text_path, is_markdown=False)
 
     plain = panel.text_preview.toPlainText()
+    html = panel.text_preview.toHtml()
     assert "line 0" in plain
     assert "line 199" in plain
     assert "line 200" not in plain
+    assert "more lines" in html
+
+
+def test_text_worker_no_truncation_message_when_exactly_200_lines(qtbot, tmp_path):
+    panel = PreviewPanel()
+    qtbot.addWidget(panel)
+    text_path = tmp_path / "exact.txt"
+    text_path.write_text("\n".join(f"line {i}" for i in range(200)))
+    panel._current_preview_path = str(text_path)
+
+    panel._preview_text_worker(text_path, is_markdown=False)
+
+    plain = panel.text_preview.toPlainText()
+    html = panel.text_preview.toHtml()
+    assert "line 0" in plain
+    assert "line 199" in plain
+    assert "more lines" not in html
+
+
+def test_text_worker_truncation_message_when_201_lines(qtbot, tmp_path):
+    panel = PreviewPanel()
+    qtbot.addWidget(panel)
+    text_path = tmp_path / "one_more.txt"
+    text_path.write_text("\n".join(f"line {i}" for i in range(201)))
+    panel._current_preview_path = str(text_path)
+
+    panel._preview_text_worker(text_path, is_markdown=False)
+
+    plain = panel.text_preview.toPlainText()
+    html = panel.text_preview.toHtml()
+    assert "line 199" in plain
+    assert "line 200" not in plain
+    assert "more lines" in html
 
 
 def test_markdown_worker_renders_heading(qtbot, tmp_path):

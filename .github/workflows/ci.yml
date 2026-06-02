@@ -107,6 +107,10 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
           python -m coverage erase
+          # Per-test-file loops use --cov-report= (empty) so each pytest subprocess
+          # does NOT emit a coverage report. fail_under from pyproject.toml is
+          # only evaluated by the final `coverage report` step below, never
+          # per-subprocess.
           for test_file in $(find tests -maxdepth 1 -name 'test_*.py' | sort); do
             echo "::group::${test_file}"
             python -m pytest "${test_file}" \
@@ -126,6 +130,10 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           python -m coverage erase
+          # Per-test-file loops use --cov-report= (empty) so each pytest subprocess
+          # does NOT emit a coverage report. fail_under from pyproject.toml is
+          # only evaluated by the final `coverage report` step below, never
+          # per-subprocess.
           for test_file in $(find tests -maxdepth 1 -name 'test_*.py' | sort); do
             echo "::group::${test_file}"
             python -m pytest "${test_file}" \

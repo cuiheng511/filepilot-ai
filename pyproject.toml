@@ -97,6 +97,7 @@ test = [
 dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "pre-commit>=3.5.0",
 ]
 mcp = [
     "mcp>=1.8.0",
@@ -172,6 +173,7 @@ omit = ["*/tests/*", "*/__init__.py", "*/.venv/*"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+fail_under = 67.5
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

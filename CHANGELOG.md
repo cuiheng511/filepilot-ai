@@ -16,6 +16,7 @@
 
 ### Fixed
 - **Preview panel truncation** — Text preview's "more lines" message was unreachable because the read loop was capped at `max_lines`. The loop now reads `max_lines + 1` lines and uses the extra line as a sentinel; the truncation message correctly appears for files with more than 200 lines. The visible 200-line cap is unchanged.
+- **CI per-test-file loop** — GitHub Actions runs `run:` blocks with `bash -e`, and pytest-cov 7.x enforces `fail_under` per subprocess. The for loop over test files was aborting on the first subprocess that failed coverage, so the final combined report ran against ~1% of files and also failed. Disabled errexit (`set +e`) and passed `--cov-fail-under=0` to each subprocess so coverage is collected across all files before the threshold is evaluated once at the end.
 
 ## [0.6.6] - 2026-05-29
 

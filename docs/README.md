@@ -19,6 +19,7 @@
 | [AUTO-UPDATE.md](AUTO-UPDATE.md) | Auto-update system API reference, background checks, cache behavior, and troubleshooting |
 | [FEATURES.md](FEATURES.md) | Feature usage notes for AI Chat, Plugin Registry, Tag Cloud, Live Regex Preview, Notification History, and embedding cache maintenance |
 | [PLUGIN_SDK.md](PLUGIN_SDK.md) | Extractor plugin SDK, BaseFileExtractor API, discovery, integration, and example plugins |
+| [PROMOTION.md](PROMOTION.md) | Project pitches, submission copy, repository topics, and launch checklist |
 
 ## Assets
 

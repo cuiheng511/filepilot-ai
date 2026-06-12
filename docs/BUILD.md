@@ -178,7 +178,7 @@ dist/FilePilot-{version}.dmg
 
 ## CI Pipeline
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) builds all three platforms automatically on every push to `main`:
+The GitHub Actions workflow (`.github/workflows/ci.yml`) builds all three platforms automatically on every push to `main` and on `v*` release tags:
 
 | Job | Platform | Runner | Artifact | Retention |
 |-----|----------|--------|----------|-----------|
@@ -191,6 +191,7 @@ Each CI run:
 2. Executes quality gates (`pip check`, `mypy`) before building
 3. Produces SHA256 checksums alongside the artifacts
 4. Uploads artifacts to the GitHub Actions run summary
+5. Publishes a GitHub Release automatically when the run was triggered by a `v*` tag
 
 ---
 

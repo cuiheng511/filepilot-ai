@@ -1,238 +1,118 @@
 # Release Process
 
-> FilePilot AI — Cross-platform release checklist for maintainers.
+> FilePilot AI cross-platform release checklist for maintainers.
 
-## Current Release: v0.6.7
+## Current Release
 
-**Release date:** 2026-06-02
+Current project version: `0.8.0`
 
-See [CHANGELOG.md](./CHANGELOG.md) for the full history.
+See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
-### Quick Links
+## What CI Builds
 
-| Platform | Download |
-|----------|----------|
-| Windows  | `FilePilot-AI-Setup-0.6.7.exe` |
-| Linux    | `FilePilot-0.6.7-x86_64.AppImage` |
-| macOS    | `FilePilot-0.6.7.dmg` |
-
----
-
-## Overview
-
-Each release produces three platform-specific artifacts via GitHub Actions CI:
+The main CI workflow builds and verifies release-ready desktop artifacts:
 
 | Platform | Artifact | Builder |
-|----------|----------|---------|
-| Windows  | `FilePilot-AI-Setup-<version>.exe` | `scripts/build_installer.ps1` + Inno Setup |
-| Linux    | `FilePilot-<version>-<arch>.AppImage` | `scripts/build_appimage.sh` |
-| macOS    | `FilePilot-<version>.dmg` | `scripts/build_macos.sh` |
+| --- | --- | --- |
+| Windows | `FilePilot-AI-Setup-<version>.exe` + `.sha256` | PyInstaller + Inno Setup |
+| Linux | `FilePilot-<version>-<arch>.AppImage` + `.sha256` | PyInstaller + AppImage |
+| macOS | `FilePilot-<version>.dmg` + `.sha256` | PyInstaller `.app` + DMG |
 
----
+On normal `main` pushes, build artifacts are uploaded to the workflow run and
+named with the commit SHA. On `v*` tag pushes, artifacts are named with the tag
+and the workflow publishes a GitHub Release automatically.
 
 ## 1. Pre-Release Checklist
 
-Run these **before** tagging. CI will also enforce them, but catching issues early saves a push cycle.
+Run these before tagging. CI will also enforce them, but local checks catch
+simple mistakes before a release tag is pushed.
 
 ```bash
-# ── Full test suite ──
-pytest tests/ -q
-
-# ── Static analysis ──
+pre-commit run --all-files
+python -m pytest tests/ -q
 ruff check .
-
-# ── Type checking ──
+ruff format --check .
 mypy
-
-# ── Syntax check on all Python files ──
-python check_syntax.py
-
-# ── Build script syntax (bash) ──
-bash -n scripts/build.sh
-bash -n scripts/build_appimage.sh
-bash -n scripts/build_macos.sh
-
-# ── Build script syntax (PowerShell) ──
-# Run on Windows only:
-powershell -NoProfile -Command "& { . .\scripts\build_installer.ps1; Write-Host 'Syntax OK' }"
-
-# ── Inno Setup script validation (Windows only) ──
-# Requires ISCC in PATH:
-iscc scripts\filepilot-installer.iss
+python scripts/verify_release_assets.py --help
 ```
 
-### Manual verification
+Manual checks:
 
-- [ ] **Version consistency** — Check all files report the same version:
-  - `filepilot/__init__.py` — `__version__`
-  - `pyproject.toml` — `project.version`
-  - `CHANGELOG.md` — version header and release date
-  - `README.md` — any version references in badges or text
-  - Fallback versions in build scripts (`build_installer.ps1`, `build_appimage.sh`, `build_macos.sh`) match the current release or auto-detect from `filepilot/__init__.py`.
-- [ ] **CHANGELOG.md** — Entry for the new version is complete and accurate. Follow the existing format:
-  ```markdown
-  ## [X.Y.Z] - YYYY-MM-DD
-
-  ### Added
-  - **Feature** — description
-
-  ### Fixed
-  - **Bug** — description
-
-  ### Changed
-  - **Change** — description
-  ```
-- [ ] **Git status is clean** — `git status` shows no uncommitted changes.
-- [ ] **Tests pass on all three platforms** (CI will confirm this, but run locally for your primary platform).
-
----
+- Confirm version consistency in `filepilot/__init__.py`, `pyproject.toml`,
+  `README.md`, and `CHANGELOG.md`.
+- Confirm `CHANGELOG.md` has a dated entry for the release version.
+- Confirm `CHANGELOG.md` does not overstate shipped behavior.
+- Confirm `git status` is clean.
+- Confirm the latest `main` CI run is green.
 
 ## 2. Tagging
 
+Create and push an annotated tag:
+
 ```bash
-# Ensure you're on main and up to date
 git checkout main
 git pull origin main
-
-# Create a signed tag (replace X.Y.Z with actual version)
 git tag -a vX.Y.Z -m "vX.Y.Z"
-
-# Push the tag (triggers CI build)
 git push origin vX.Y.Z
 ```
 
-> **Tag format:** `v<major>.<minor>.<patch>` — always lowercase `v`, no spaces.
->
-> Pushing a tag triggers the **Release** workflow in `.github/workflows/ci.yml`, which:
-> 1. Runs `build-windows` job (PyInstaller → Inno Setup → sign if available → SHA256)
-> 2. Runs `build-linux` job (PyInstaller → AppImage)
-> 3. Runs `build-macos` job (PyInstaller → .app → codesign → notarize → DMG)
-> 4. Uploads all artifacts to the workflow run
+Tag format is always `v<major>.<minor>.<patch>`, for example `v0.8.0`.
 
-### CI workflow reference
+Pushing a `v*` tag triggers `.github/workflows/ci.yml`. The workflow:
 
-| Job | Runner | Output artifact |
-|-----|--------|----------------|
-| `build-windows` | `windows-latest` | `FilePilot-AI-Setup-<version>.exe` + `.sha256` |
-| `build-linux` | `ubuntu-latest` | `FilePilot-<version>-<arch>.AppImage` |
-| `build-macos` | `macos-latest` | `FilePilot-<version>.dmg` |
+1. Runs lint and tests.
+2. Builds Windows, Linux, and macOS desktop artifacts.
+3. Generates `.sha256` checksum sidecars.
+4. Verifies packaged assets with `scripts/verify_release_assets.py`.
+5. Downloads the final installer artifacts into a release job.
+6. Creates a GitHub Release with notes extracted from `CHANGELOG.md`.
 
----
+## 3. After CI Completes
 
-## 3. Artifact Verification
+Check the tag workflow run in GitHub Actions:
 
-After CI completes (check **Actions** tab in GitHub), download the artifacts and verify:
+- All lint, test, MCP smoke, and build jobs are green.
+- The `Publish GitHub Release` job succeeded.
+- The release contains Windows installer, Linux AppImage, macOS DMG, and
+  matching `.sha256` files.
+- The release notes match the intended `CHANGELOG.md` entry.
+
+If the publish job fails after artifacts were built, download the workflow
+artifacts and create the release manually:
 
 ```bash
-# Check SHA256
-sha256sum FilePilot-AI-Setup-*.exe
-
-# Or verify all packaged assets against their sidecars
-python scripts/verify_release_assets.py \
-  "dist/FilePilot-AI-Setup-*.exe" \
-  "dist/FilePilot-*.AppImage" \
-  "dist/FilePilot-*.dmg"
-
-# Verify the .exe is a valid Inno Setup installer (Windows)
-file FilePilot-AI-Setup-*.exe
-# Expected: "PE32+ executable (GUI) ... Inno Setup"
-
-# Verify the .AppImage is executable (Linux)
-chmod +x FilePilot-*.AppImage
-./FilePilot-*.AppImage --appimage-extract  # dry-run to verify structure
-
-# Verify the .dmg mounts correctly (macOS)
-hdiutil attach FilePilot-*.dmg
-ls /Volumes/FilePilot\ AI/
-# Expected: FilePilot.app + Applications symlink
-hdiutil detach /Volumes/FilePilot\ AI/
+gh release create vX.Y.Z release-assets/* \
+  --title "FilePilot AI vX.Y.Z" \
+  --notes-file release-notes.md \
+  --verify-tag
 ```
 
-### Quick smoke test (optional but recommended)
+## 4. Optional Smoke Tests
 
-Run the installer on each platform and confirm:
-- [ ] Application launches without crash
-- [ ] Version displayed in About dialog matches the release
-- [ ] Basic search / index / organize functions work
-- [ ] Auto-update check (`python -m filepilot.updater`) reports "You're up to date!"
+Before announcing a release, test one fresh install path when possible:
 
-### Signing and notarization
-
-- Windows signing is enabled by `SIGNTOOL_PATH` and `SIGN_CERTIFICATE_SHA1` in `scripts/build_installer.ps1`.
-- macOS signing and notarization are enabled by `scripts/build_macos.sh --sign --notarize` and the Apple Developer environment variables documented in that script.
-- CI always verifies `.sha256` sidecars. For a stricter local Windows release check, run `python scripts/verify_release_assets.py "dist/FilePilot-AI-Setup-*.exe" --require-windows-signature` after signing.
-
----
-
-## 4. GitHub Release
-
-1. Go to **https://github.com/cuiheng511/filepilot-ai/releases/new**
-2. Choose the tag you just pushed (e.g., `v0.6.5`)
-3. **Release title:** `v0.6.5`
-4. **Description:** Paste the CHANGELOG entry for this version.
-   - Include installation instructions (replace `X.Y.Z` with the actual version):
-     ```markdown
-     ## Downloads
-
-     | Platform | File |
-     |----------|------|
-     | Windows  | `FilePilot-AI-Setup-X.Y.Z.exe` |
-     | Linux    | `FilePilot-X.Y.Z-x86_64.AppImage` |
-     | macOS    | `FilePilot-X.Y.Z.dmg` |
-
-     ## Installation
-
-     ### Windows
-     Run the `.exe` installer.
-
-     ### Linux
-     ```bash
-     chmod +x FilePilot-X.Y.Z-x86_64.AppImage
-     ./FilePilot-X.Y.Z-x86_64.AppImage
-     ```
-
-     ### macOS
-     Open the `.dmg` and drag `FilePilot.app` to your `Applications` folder.
-     ```
-   - Attach the `## Changelog` section from CHANGELOG.md
-5. **Attach binaries:** Drag all CI artifacts into the attachment area:
-   - `FilePilot-AI-Setup-<version>.exe`
-   - `FilePilot-AI-Setup-<version>.exe.sha256`
-   - `FilePilot-<version>-<arch>.AppImage`
-   - `FilePilot-<version>.dmg`
-6. ⚠️ **Mark as "Set as the latest release"** (default)
-7. Click **Publish release**
-
----
+- Windows: run the `.exe` installer and launch FilePilot AI.
+- Linux: mark the AppImage executable and launch it.
+- macOS: open the DMG and drag `FilePilot.app` to Applications.
+- Confirm the app reports the expected version.
+- Confirm scanning, search, and one read-only MCP command still work.
 
 ## 5. Post-Release
 
-- [ ] **Verify auto-update** — On a separate machine, run the old version and check that it detects the new release:
-  ```bash
-  python -m filepilot.updater
-  # Expected: "Update available: X.Y.Z"
-  ```
-- [ ] **Close the milestone** — If you use GitHub Milestones, close the corresponding milestone.
-- [ ] **Update `CHANGELOG.md`** — Add a new `## [Unreleased]` section at the top for the next cycle:
-  ```markdown
-  ## [Unreleased]
-
-  ### Added
-
-  ### Fixed
-
-  ### Changed
-  ```
-
----
+- Verify the release page is marked as latest.
+- Verify the auto-update checker sees the new release.
+- Close or update any release milestone.
+- Add a fresh `## [Unreleased]` section if it was consumed during release prep.
+- Start the next small version only after CI is green on the tag.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| CI job fails on `build-windows` — "ISCC.exe not found" | CI couldn't download Inno Setup | Check the Inno Setup download URL in `.github/workflows/ci.yml` still works |
-| CI job fails on `build-linux` — "appimagetool: command not found" | GitHub runner updated and removed FUSE support | Set `APPIMAGE_EXTRACT_AND_RUN=1` (already done in the script) |
-| macOS DMG contains folder contents instead of .app | `create-dmg` source path issue | Verify `$DMG_DIR` contains the `.app` bundle, not its contents |
-| Version shows wrong number in installer | Version not passed correctly | Check `build_installer.ps1` line 166 and CI step that passes `/dMyAppVersion=` |
-| `iscc` fails with "Couldn't open include file ChineseSimplified.isl" | ChineseSimplified.isl not bundled with default Inno Setup winget/choco install | Download from [jrsoftware.org](https://jrsoftware.org/download.php/ChineseSimplified.isl) to Inno Setup `Languages\` dir, or comment out `chinesesimplified` in `.iss` |
-| Release not appearing in updater | GitHub Releases API rate limit or tag mismatch | Check `filepilot/updater.py` repository URL and tag format |
+| --- | --- | --- |
+| Tag push does not start CI | Tag does not match `v*` | Push a tag like `v0.8.0`. |
+| Release job cannot find an artifact | A platform build failed or upload was skipped | Check the build job logs before retrying the release job. |
+| Release notes step fails | Missing matching `CHANGELOG.md` entry | Add `## [X.Y.Z] - YYYY-MM-DD` before tagging. |
+| Windows installer build fails | Inno Setup download or compile issue | Check the Inno Setup step and `scripts/filepilot-installer.iss`. |
+| AppImage is missing | AppImage tool or FUSE compatibility issue | Check the Linux build log and `scripts/build_appimage.sh`. |
+| DMG is missing | `.app` bundle or DMG packaging failed | Check the macOS build log and fallback `hdiutil` output. |
+| Updater does not see the release | Release is draft, prerelease, or tag is wrong | Publish the release as latest with a normal `vX.Y.Z` tag. |

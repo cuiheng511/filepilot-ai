@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    tags:
+      - "v*"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -14,6 +16,7 @@ concurrency:
 env:
   PYTHONUNBUFFERED: "1"
   FORCE_COLOR: "1"
+  RELEASE_ARTIFACT_SUFFIX: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.sha }}
 
 jobs:
   lint:
@@ -248,7 +251,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-Windows-${{ github.sha }}
+          name: FilePilot-Windows-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: dist\FilePilot\
           retention-days: 7
 
@@ -302,7 +305,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-AI-Setup-${{ github.sha }}
+          name: FilePilot-AI-Setup-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: |
             dist\FilePilot-AI-Setup-*.exe
             dist\FilePilot-AI-Setup-*.exe.sha256
@@ -423,7 +426,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-Linux-${{ github.sha }}
+          name: FilePilot-Linux-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: dist/FilePilot/
           retention-days: 7
 
@@ -449,7 +452,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-AppImage-${{ github.sha }}
+          name: FilePilot-AppImage-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: |
             dist/FilePilot-*.AppImage
             dist/FilePilot-*.AppImage.sha256
@@ -587,7 +590,7 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-macOS-app-${{ github.sha }}
+          name: FilePilot-macOS-app-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: dist/FilePilot.app
           retention-days: 7
 
@@ -644,8 +647,62 @@ jobs:
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: FilePilot-macOS-DMG-${{ github.sha }}
+          name: FilePilot-macOS-DMG-${{ env.RELEASE_ARTIFACT_SUFFIX }}
           path: |
             dist/FilePilot-*.dmg
             dist/FilePilot-*.dmg.sha256
           retention-days: 30
+
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [mcp-smoke, build-windows, build-linux, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: FilePilot-AI-Setup-${{ env.RELEASE_ARTIFACT_SUFFIX }}
+          path: release-assets
+
+      - name: Download Linux AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: FilePilot-AppImage-${{ env.RELEASE_ARTIFACT_SUFFIX }}
+          path: release-assets
+
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: FilePilot-macOS-DMG-${{ env.RELEASE_ARTIFACT_SUFFIX }}
+          path: release-assets
+
+      - name: Build release notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python - "$VERSION" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"^## \[{re.escape(version)}\].*?(?=^## \[|\Z)"
+          match = re.search(pattern, changelog, flags=re.M | re.S)
+          if not match:
+              raise SystemExit(f"CHANGELOG entry not found for {version}")
+          Path("release-notes.md").write_text(match.group(0).strip() + "\n", encoding="utf-8")
+          PY
+
+      - name: Publish release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --title "FilePilot AI ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            --verify-tag

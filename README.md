@@ -6,19 +6,38 @@
 
 **Local-first file intelligence for desktop users, scripts, and AI coding agents.**
 
-FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safely organize local files. It now includes a desktop app, a CLI, and an MCP server for Claude Code, Codex, Cursor, and other agent clients.
+FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safely organize local files. It includes a desktop app, a CLI, and a privacy-first MCP server for Claude Code, Codex, Cursor, Claude Desktop, and other agent clients.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Desktop](https://img.shields.io/badge/Desktop-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
-[![MCP](https://img.shields.io/badge/MCP-Agent%20Ready-111827?style=for-the-badge)](docs/MCP.md)
+[![MCP](https://img.shields.io/badge/MCP-Local%20Agent%20Tools-111827?style=for-the-badge)](docs/MCP.md)
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
 Version 0.8.0
 
+<img src="docs/assets/filepilot-demo.gif" alt="FilePilot AI desktop demo" width="760" />
+
 </div>
 
 ---
+
+## At A Glance
+
+| What it is | Why it matters |
+| --- | --- |
+| Local-first file manager | Search, preview, tag, deduplicate, and organize files without uploading an index to a cloud service. |
+| MCP server for agents | Let AI coding agents inspect only the folders you allow, with bounded reads and read-only defaults. |
+| Preview-first organizer | Generate dry-run organization plans before any files move. |
+| Optional AI summaries | Use local models or explicitly configured cloud providers for document summaries. |
+| Desktop + CLI + MCP | Start visually, automate with scripts, or expose scoped tools to agent clients. |
+
+## Best For
+
+- Developers who want Claude Code, Codex, Cursor, or Claude Desktop to inspect local files without broad filesystem access.
+- Desktop users with messy Downloads, exports, backups, screenshots, PDFs, and duplicate files.
+- Maintainers who want a local-first file intelligence layer with tests, docs, release checks, and a clear safety model.
+- Builders looking for a practical Python/PySide6 MCP reference project that is more than a toy demo.
 
 ## Why FilePilot Exists
 
@@ -31,6 +50,16 @@ It is built around a simple promise:
 - Cleanup starts as a preview, not a destructive action.
 - AI features are optional and use only the providers you configure.
 - Agent-facing write operations require opt-in write mode, confirmation, validation, and audit logs.
+
+## What Makes It Different
+
+Most file tools focus on either a desktop UI, a command line, or an AI demo. FilePilot deliberately connects all three:
+
+- The same core services power the desktop app, CLI, and MCP tools.
+- MCP access is directory-scoped instead of "let the agent browse everything."
+- Organization is plan-based, so agents can propose changes before anything moves.
+- Release assets include checksum sidecars and CI verification.
+- The repository includes issue forms, security policy, roadmap, architecture docs, and workflow prompts for contributors.
 
 ## Three Ways To Use It
 
@@ -269,6 +298,7 @@ The current test suite covers core services, UI behavior, CLI flows, MCP securit
 | [docs/PLUGIN_SDK.md](docs/PLUGIN_SDK.md) | Extractor plugin SDK and plugin examples. |
 | [docs/BUILD.md](docs/BUILD.md) | Cross-platform packaging guide. |
 | [docs/AUTO-UPDATE.md](docs/AUTO-UPDATE.md) | Auto-update API and troubleshooting. |
+| [docs/PROMOTION.md](docs/PROMOTION.md) | Project pitches, submission copy, repository topics, and launch checklist. |
 | [RELEASING.md](RELEASING.md) | Release process and integrity checks. |
 
 ## Contributing

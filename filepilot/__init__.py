@@ -1,4 +1,5 @@
-"""FilePilot AI — Intelligent File Manager
+"""FilePilot AI - Intelligent File Manager.
+
 Automatically organize, classify, and search your local files.
 """
 

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Release automation** - `v*` tags now trigger CI builds, version-named release artifacts, and an automatic GitHub Release publish job after lint, tests, MCP smoke, and platform builds pass.
+
+### Changed
+- **Release documentation** - Rewrote `RELEASING.md` for the current tag-driven release flow and removed stale version references.
+- **Project presentation** - Refined the README first screen with a demo, clearer audience positioning, and stronger local-first MCP messaging.
+- **Promotion materials** - Added `docs/PROMOTION.md` with project pitches, repository metadata suggestions, submission copy, and an outreach checklist.
+
 ## [0.8.0] - 2026-06-12
 
 ### Added

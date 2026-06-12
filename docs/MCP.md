@@ -153,6 +153,9 @@ Keep the default read-only mode for Claude Code, Codex, Cursor, and other coding
 | Tool | Description | Write mode required |
 | --- | --- | --- |
 | `server_status` | Shows allowed directories, limits, write mode, and index location. | No |
+| `list_workflow_templates` | Lists safe agent workflow templates and required tools. | No |
+| `get_workflow_template` | Returns one workflow template with a full prompt. | No |
+| `mcp_client_config` | Generates client JSON from the current allowed roots. | No |
 | `scan_files` | Returns metadata for files under an allowed directory. | No |
 | `search_files` | Searches file names and relative paths without building an index. | No |
 | `index_folder` | Builds or updates a local FilePilot MCP index. | No |
@@ -184,6 +187,20 @@ flowchart TD
     I --> J["Audit log records success, partial result, denial, or error"]
     J --> K["undo_organization_plan with confirm=true if rollback is needed"]
 ```
+
+## Built-In Workflow Templates
+
+Agents can call `list_workflow_templates` to discover safe operating patterns
+and `get_workflow_template` to retrieve the full prompt for one workflow.
+Templates cover read-only inventory, document briefs, duplicate review,
+dry-run organization plans, applying reviewed plans, and stale plan metadata
+cleanup.
+
+`mcp_client_config` returns copy-paste-ready MCP client JSON using the current
+allowed roots, so agents can help users move from a working server session to a
+persistent Claude Desktop, Claude Code, Cursor, Codex, or generic MCP config.
+
+See [MCP-WORKFLOWS.md](MCP-WORKFLOWS.md) for the full template list and examples.
 
 ## Safety Notes
 
@@ -228,6 +245,7 @@ Use this checklist when reviewing MCP changes:
 - Organization apply and undo require a saved plan ID, `confirm=True`, write mode, and current allowlist validation.
 - Saved organization plans are discoverable through `list_plans`, can be filtered by root/status/age, and already applied plans cannot be applied a second time.
 - Old saved plan metadata can be previewed with `cleanup_plans(dry_run=True)` before deletion.
+- Workflow templates are informational only; they do not read or mutate files.
 - New MCP tools have tests for allowed, denied, and bounded behavior.
 
 ## Suggested Agent Prompts
@@ -272,4 +290,6 @@ After I approve the plan ID, restart FilePilot MCP with write mode if needed, ve
 
 | Milestone | Notes |
 | --- | --- |
-| Client-specific docs | Add exact setup pages for Claude Code, Codex, Cursor, and Claude Desktop as their MCP configuration formats settle. |
+| End-to-end client smoke tests | Exercise a real MCP client/server call path beyond tool registration. |
+| Workflow transcripts | Add examples showing agents using built-in templates correctly. |
+| Audit log views | Make plan and write-action audit review easier for desktop users. |

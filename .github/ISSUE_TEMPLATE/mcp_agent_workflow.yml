@@ -1,0 +1,55 @@
+name: MCP agent workflow issue
+description: Report a FilePilot MCP setup, safety, or agent workflow problem.
+title: "[MCP] "
+labels: ["mcp"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing FilePilot MCP. Please avoid sharing private file contents or secrets.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What were you trying to do with the MCP server?
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP client
+      options:
+        - Claude Desktop
+        - Claude Code
+        - Codex
+        - Cursor
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Server command
+      description: Redact private paths if needed, but keep flags such as --allow, --read-only, and --write.
+      render: shell
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include errors, denied-path messages, or unexpected tool results.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety context
+      options:
+        - label: I used explicit --allow roots.
+        - label: I started in --read-only mode or understand why --write was needed.
+        - label: I redacted sensitive paths, filenames, and document contents.

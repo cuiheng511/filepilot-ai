@@ -1,0 +1,51 @@
+name: Desktop app bug
+description: Report a desktop UI, preview, scan, indexing, or packaging bug.
+title: "[Desktop] "
+labels: ["bug", "desktop"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: FilePilot version
+      placeholder: "0.8.0 or commit SHA"
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open FilePilot
+        2. Choose a folder
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Attach screenshots or relevant lines from ~/.filepilot/logs/filepilot.log.

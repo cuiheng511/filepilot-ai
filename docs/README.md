@@ -10,8 +10,9 @@
 | -------- | ----------- |
 | [MCP.md](MCP.md) | MCP server setup, safety model, tools, and client configuration examples |
 | [MCP-CLIENTS.md](MCP-CLIENTS.md) | Ready-to-adapt MCP client snippets for Claude Desktop, Claude Code, Cursor, and Codex |
+| [MCP-WORKFLOWS.md](MCP-WORKFLOWS.md) | Built-in MCP workflow templates, prompt patterns, and client config helper notes |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-level architecture, data flow, core services, MCP safety boundary, and extension points |
-| [ROADMAP.md](ROADMAP.md) | Project roadmap for 0.7.x polish, 0.8 MCP productization, larger refactors, and contribution ideas |
+| [ROADMAP.md](ROADMAP.md) | Project roadmap for 0.8.x MCP verification, 0.9 desktop confidence work, larger refactors, and contribution ideas |
 | [USE-CASES.md](USE-CASES.md) | Practical workflows for Downloads triage, duplicates, summaries, MCP agent access, maintenance, and plugins |
 | [BUILD.md](BUILD.md) | Cross-platform packaging guide for Windows, Linux, macOS, CI, and troubleshooting |
 | [AI-PROVIDERS.md](AI-PROVIDERS.md) | AI provider setup for Ollama, llama.cpp, LM Studio, OpenAI, Anthropic, and custom endpoints |

@@ -46,6 +46,21 @@ def create_server(tools: FilePilotMCPTools):
         return tools.server_status()
 
     @mcp.tool()
+    def list_workflow_templates(include_write: bool = True) -> dict:
+        """List copy-paste-ready MCP workflow templates for agents."""
+        return tools.list_workflow_templates(include_write)
+
+    @mcp.tool()
+    def get_workflow_template(template_id: str) -> dict:
+        """Return one MCP workflow template with a full agent prompt."""
+        return tools.get_workflow_template(template_id)
+
+    @mcp.tool()
+    def mcp_client_config(client: str = "generic", include_write: bool = False) -> dict:
+        """Generate MCP client JSON using the current allowed roots."""
+        return tools.mcp_client_config(client, include_write)
+
+    @mcp.tool()
     def scan_files(
         root: str,
         recursive: bool = True,

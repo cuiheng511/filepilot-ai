@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filepilot-ai"
-version = "0.7.0"
+version = "0.8.0"
 description = "Local-first AI file manager for scanning, searching, deduplicating, summarizing, and organizing files"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,6 +39,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Desktop Environment :: File Managers",
     "Topic :: Utilities",
 ]
@@ -95,7 +96,7 @@ test = [
     "watchdog>=6.0.0",
 ]
 dev = [
-    "ruff>=0.8.0",
+    "ruff>=0.15.12",
     "mypy>=1.13.0",
     "pre-commit>=3.5.0",
 ]

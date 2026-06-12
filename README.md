@@ -14,7 +14,7 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.7.0
+Version 0.8.0
 
 </div>
 
@@ -59,10 +59,11 @@ Current MCP tools:
 server_status, scan_files, search_files, index_folder, search_index,
 read_file, extract_file_text, summarize_file, suggest_tags, add_tags,
 find_duplicates, propose_organization_plan, list_plans,
-cleanup_plans, apply_organization_plan, undo_organization_plan
+cleanup_plans, apply_organization_plan, undo_organization_plan,
+list_workflow_templates, get_workflow_template, mcp_client_config
 ```
 
-See [docs/MCP.md](docs/MCP.md) for the full safety model, [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project architecture.
+See [docs/MCP.md](docs/MCP.md) for the full safety model, [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets, [docs/MCP-WORKFLOWS.md](docs/MCP-WORKFLOWS.md) for built-in agent workflow templates, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project architecture.
 
 ## Quick Start
 
@@ -259,8 +260,9 @@ The current test suite covers core services, UI behavior, CLI flows, MCP securit
 | --- | --- |
 | [docs/MCP.md](docs/MCP.md) | MCP server setup, safety model, tools, and troubleshooting. |
 | [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) | Client snippets for Claude Desktop, Claude Code, Cursor, and Codex. |
+| [docs/MCP-WORKFLOWS.md](docs/MCP-WORKFLOWS.md) | Built-in agent workflow templates and MCP client config helper notes. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System map, data flow, core services, MCP safety boundary, and extension points. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Near-term quality track, 0.7.x polish, 0.8 MCP productization, larger refactors, and contribution ideas. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Near-term quality track, 0.8.x MCP verification, 0.9 desktop confidence work, larger refactors, and contribution ideas. |
 | [docs/USE-CASES.md](docs/USE-CASES.md) | Practical workflows for Downloads triage, duplicates, summaries, MCP agents, maintenance, and plugins. |
 | [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) | Local and cloud AI provider configuration. |
 | [docs/FEATURES.md](docs/FEATURES.md) | Practical notes for newer desktop workflows. |
@@ -271,7 +273,7 @@ The current test suite covers core services, UI behavior, CLI flows, MCP securit
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), keep changes focused, and include tests for behavior changes.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), keep changes focused, and include tests for behavior changes. For security-sensitive behavior, use [SECURITY.md](SECURITY.md). For general help and issue context, see [SUPPORT.md](SUPPORT.md).
 
 ## License
 

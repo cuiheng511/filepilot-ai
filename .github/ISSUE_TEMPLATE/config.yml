@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: MCP setup and troubleshooting
+    url: https://github.com/cuiheng511/filepilot-ai/blob/main/docs/MCP.md
+    about: Check the MCP guide before filing setup issues.
+  - name: Release and build notes
+    url: https://github.com/cuiheng511/filepilot-ai/blob/main/RELEASING.md
+    about: Packaging, checksums, and release process notes.

@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-12
+
+### Added
+- **MCP workflow templates** - Added built-in agent workflow templates for safe inventory, document briefs, duplicate review, dry-run organization plans, reviewed plan apply, and plan metadata cleanup.
+- **MCP template tools** - Added `list_workflow_templates`, `get_workflow_template`, and `mcp_client_config` so agents can discover safe workflows and generate client JSON from the current allowed roots.
+- **MCP workflow documentation** - Added `docs/MCP-WORKFLOWS.md` and linked it from README, MCP docs, MCP client docs, and the docs index.
+- **GitHub project facade** - Added a pull request template, structured desktop/MCP issue forms, issue contact links, a label taxonomy, `SECURITY.md`, and `SUPPORT.md`.
+
+### Changed
+- **MCP productization** - Expanded MCP docs from tool reference into reusable workflow guidance for Claude Desktop, Claude Code, Cursor, Codex, and generic MCP clients.
+- **Package metadata** - Added Python 3.13 classifier and aligned the development ruff requirement with the pinned CI/pre-commit formatter version.
+
+## [0.7.1] - 2026-06-12
+
+### Changed
+- **Ruff version alignment** - Pinned GitHub Actions and pre-commit to the same ruff formatter version to prevent local/CI formatting drift.
+- **Codecov action** - Merged Dependabot's `codecov/codecov-action` v4 to v7 update after checks passed.
+
+### Fixed
+- **CI formatting failure** - Reformatted `tests/test_file_organizer.py` to match the ruff formatter used by CI.
+
 ## [0.7.0] - 2026-06-12
 
 ### Added

@@ -25,6 +25,7 @@ from filepilot.core.indexer import FileIndexer
 from filepilot.core.tag_manager import TagManager
 from filepilot.mcp.audit import AuditLogger
 from filepilot.mcp.security import MCPAccessError, PathGuard
+from filepilot.mcp.workflows import build_client_config, get_template, list_templates
 
 
 class FilePilotMCPTools:
@@ -69,6 +70,25 @@ class FilePilotMCPTools:
             "plan_dir": str(self.plan_dir),
             "audit_log": str(self.audit_logger.path) if self.audit_logger else "",
         }
+
+    def list_workflow_templates(self, include_write: bool = True) -> dict:
+        """List ready-to-use agent workflow templates."""
+        templates = list_templates(include_write=include_write)
+        return {"count": len(templates), "templates": templates}
+
+    def get_workflow_template(self, template_id: str) -> dict:
+        """Return one agent workflow template with the full prompt."""
+        return get_template(template_id)
+
+    def mcp_client_config(self, client: str = "generic", include_write: bool = False) -> dict:
+        """Generate a copy-paste-ready client config from the current allowed roots."""
+        allowed_dirs = self.guard.list_allowed_dirs()
+        return build_client_config(
+            client,
+            allowed_dirs,
+            read_only=not include_write,
+            include_write=include_write,
+        )
 
     def scan_files(
         self,

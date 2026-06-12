@@ -17,6 +17,9 @@ def test_create_server_registers_expected_tools(tmp_path: Path):
     tools = set(server._tool_manager._tools)
     assert {
         "server_status",
+        "list_workflow_templates",
+        "get_workflow_template",
+        "mcp_client_config",
         "scan_files",
         "search_files",
         "index_folder",

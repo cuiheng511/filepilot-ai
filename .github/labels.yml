@@ -1,0 +1,30 @@
+- name: bug
+  color: d73a4a
+  description: Something is not working.
+- name: desktop
+  color: 0e8a16
+  description: Desktop UI, packaging, preview, or tray behavior.
+- name: mcp
+  color: 5319e7
+  description: MCP server, safety boundary, client config, or agent workflow.
+- name: cli
+  color: 1d76db
+  description: Command-line interface behavior.
+- name: documentation
+  color: 0075ca
+  description: README, docs, examples, or release notes.
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates.
+- name: github-actions
+  color: 2088ff
+  description: GitHub Actions and CI workflow updates.
+- name: good first issue
+  color: 7057ff
+  description: A focused contribution suitable for first-time contributors.
+- name: help wanted
+  color: 008672
+  description: Maintainer welcomes external help.
+- name: security
+  color: b60205
+  description: Security boundary, disclosure, or safety-sensitive behavior.

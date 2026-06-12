@@ -140,6 +140,22 @@ For organization workflows, ask the client to call `propose_organization_plan` f
 
 For stale plan metadata, ask the client to call `list_plans(root=..., status=..., max_age_days=...)`, then `cleanup_plans(max_age_days=..., dry_run=true)`. Repeat cleanup with `dry_run=false` only after reviewing the candidates and only in a trusted write-mode session.
 
+## Built-In Template Discovery
+
+Once connected, agents can ask FilePilot for safe workflow prompts instead of
+guessing the right tool order:
+
+```text
+Call list_workflow_templates, choose the workflow that matches my task, then call
+get_workflow_template for the full prompt and follow it.
+```
+
+To generate config from the current allowed roots:
+
+```text
+Call mcp_client_config(client="claude-code") and show me the JSON.
+```
+
 ## Prompt Patterns
 
 ```text

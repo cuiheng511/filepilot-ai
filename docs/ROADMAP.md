@@ -13,9 +13,9 @@ FilePilot AI is in a beta-quality phase with three stable surfaces:
 - MCP server for Claude Code, Codex, Cursor, and other AI coding agents.
 
 Recent releases focused on MCP safety, release quality, coverage guardrails, CI
-stability, and a stronger first-run desktop experience. The next work should
-continue improving reliability and developer confidence before adding large new
-product areas.
+stability, a stronger first-run desktop experience, and built-in MCP workflow
+templates. The next work should continue improving reliability and developer
+confidence before adding large new product areas.
 
 ## Near-Term Priorities
 
@@ -60,14 +60,25 @@ Potential themes:
 - A more structured plugin registry workflow.
 - Improved release packaging and updater verification.
 
-## 0.8 Direction
+## 0.8.x Direction
 
-Version 0.8 should focus on MCP productization:
+Version 0.8 started MCP productization with built-in workflow templates, a
+client config helper, and stronger GitHub contributor surfaces. The remaining
+0.8.x work should make those flows easier to verify end to end.
 
 - End-to-end MCP client/server integration tests.
-- More copy-paste-ready agent prompts and client configs.
-- Safer workflow templates for summarize, deduplicate, organize, and cleanup.
+- More example transcripts showing agents using workflow templates correctly.
 - Better observability for plan metadata, audit logs, and scoped roots.
+- Label synchronization and curated good-first-issue triage.
+
+## 0.9 Direction
+
+Version 0.9 should focus on desktop confidence:
+
+- More polished empty states after onboarding.
+- File stats and search panel coverage lift.
+- Better release artifact verification summaries.
+- Optional screenshots or short demo capture for the README.
 
 ## Larger Refactors
 

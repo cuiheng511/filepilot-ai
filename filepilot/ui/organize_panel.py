@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
@@ -804,7 +804,7 @@ class OrganizePanel(BasePanel):
     def _record_history(self, operations: list[dict], undo_path: Path) -> None:
         moved_count = sum(1 for op in operations if not op.get("dry_run", False))
         record = {
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "source_dir": str(self.source_dir) if self.source_dir else None,
             "target_dir": str(self.target_dir or self.source_dir / "_organized")
             if self.source_dir

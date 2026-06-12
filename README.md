@@ -14,7 +14,7 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.6.7
+Version 0.7.0
 
 </div>
 
@@ -62,7 +62,7 @@ find_duplicates, propose_organization_plan, list_plans,
 cleanup_plans, apply_organization_plan, undo_organization_plan
 ```
 
-See [docs/MCP.md](docs/MCP.md) for the full safety model and [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets.
+See [docs/MCP.md](docs/MCP.md) for the full safety model, [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project architecture.
 
 ## Quick Start
 
@@ -154,6 +154,7 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 | Duplicate cleanup | Duplicate grouping with size checks, partial hashing, and full SHA-256 verification. |
 | Tags and memory | File tags, saved searches, favorites, tag cloud, and tag automation rules. |
 | Desktop workflows | File browser, previews, AI chat panel, notifications, tray support, themes, and accessibility labels. |
+| Product guidance | First-run onboarding, dashboard workspace status, and a settings view for security and privacy boundaries. |
 | Extensibility | Extractor plugin SDK and plugin registry with safer remote-plugin checks. |
 | Agent workflows | Directory-scoped MCP tools with read limits, discoverable saved plans, write opt-in, apply/undo planning, and audit logs. |
 
@@ -258,6 +259,9 @@ The current test suite covers core services, UI behavior, CLI flows, MCP securit
 | --- | --- |
 | [docs/MCP.md](docs/MCP.md) | MCP server setup, safety model, tools, and troubleshooting. |
 | [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) | Client snippets for Claude Desktop, Claude Code, Cursor, and Codex. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System map, data flow, core services, MCP safety boundary, and extension points. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Near-term quality track, 0.7.x polish, 0.8 MCP productization, larger refactors, and contribution ideas. |
+| [docs/USE-CASES.md](docs/USE-CASES.md) | Practical workflows for Downloads triage, duplicates, summaries, MCP agents, maintenance, and plugins. |
 | [docs/AI-PROVIDERS.md](docs/AI-PROVIDERS.md) | Local and cloud AI provider configuration. |
 | [docs/FEATURES.md](docs/FEATURES.md) | Practical notes for newer desktop workflows. |
 | [docs/PLUGIN_SDK.md](docs/PLUGIN_SDK.md) | Extractor plugin SDK and plugin examples. |

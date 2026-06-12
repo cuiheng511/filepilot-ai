@@ -84,6 +84,10 @@ class SettingsDialog(QDialog):
         shortcuts_tab = self._create_shortcuts_tab()
         tabs.addTab(shortcuts_tab, t("settings_shortcuts"))
 
+        # Security and privacy tab
+        privacy_tab = self._create_privacy_tab()
+        tabs.addTab(privacy_tab, "Security & Privacy")
+
         # Scheduled tasks tab
         tasks_tab = self._create_tasks_tab()
         tabs.addTab(tasks_tab, t("settings_scheduled"))
@@ -219,6 +223,84 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         scroll.setWidget(widget)
         return scroll
+
+    def _create_privacy_tab(self) -> QWidget:
+        """Create local-first security and privacy status tab."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(4, 4, 12, 4)
+        layout.setSpacing(16)
+
+        overview = QLabel(
+            "FilePilot is designed for local-first file work: folders stay on this machine, "
+            "cloud AI is opt-in, and MCP write access must be enabled explicitly."
+        )
+        overview.setWordWrap(True)
+        overview.setObjectName("privacyOverview")
+        layout.addWidget(overview)
+
+        layout.addWidget(self._create_data_boundary_group())
+        layout.addWidget(self._create_ai_privacy_group())
+        layout.addWidget(self._create_mcp_privacy_group())
+        layout.addWidget(self._create_plugin_privacy_group())
+
+        layout.addStretch()
+        scroll.setWidget(widget)
+        return scroll
+
+    def _create_data_boundary_group(self) -> QGroupBox:
+        group = QGroupBox("Local Data Boundary")
+        form = QFormLayout(group)
+        form.addRow("Telemetry", QLabel("No product telemetry is sent by FilePilot."))
+        form.addRow("Settings", QLabel("Stored under ~/.filepilot/settings.json."))
+        form.addRow("Index", QLabel(str(self._settings.get("index_dir", "~/.filepilot/index"))))
+        form.addRow(
+            "Recent files",
+            QLabel("Stored locally so the desktop app can restore recent work."),
+        )
+        return group
+
+    def _create_ai_privacy_group(self) -> QGroupBox:
+        provider = str(self._settings.get("ai_provider", "ollama"))
+        mode = "Local" if provider in ("ollama", "llamacpp") else "Cloud"
+        api_key_status = "Configured" if self._settings.get("ai_api_key") else "Not configured"
+
+        group = QGroupBox("AI Provider")
+        form = QFormLayout(group)
+        form.addRow("Mode", QLabel(mode))
+        form.addRow("Provider", QLabel(provider))
+        form.addRow("Model", QLabel(str(self._settings.get("ai_model", ""))))
+        form.addRow("Endpoint", QLabel(str(self._settings.get("ai_api_base", ""))))
+        form.addRow(
+            "API key", QLabel(f"{api_key_status}; saved in OS keyring or encrypted fallback.")
+        )
+        return group
+
+    def _create_mcp_privacy_group(self) -> QGroupBox:
+        group = QGroupBox("MCP Agent Access")
+        form = QFormLayout(group)
+        form.addRow(
+            "Default mode", QLabel("Read-only unless the MCP server is started with --write.")
+        )
+        form.addRow(
+            "Folder scope", QLabel("Agents can only use paths inside explicit --allow roots.")
+        )
+        form.addRow("Hidden files", QLabel("Blocked by default unless explicitly enabled."))
+        form.addRow("Plan cleanup", QLabel("Plan metadata cleanup never deletes user files."))
+        return group
+
+    def _create_plugin_privacy_group(self) -> QGroupBox:
+        group = QGroupBox("Plugins")
+        form = QFormLayout(group)
+        form.addRow(
+            "Install safety", QLabel("Plugins require manifest checks and user confirmation.")
+        )
+        form.addRow("Integrity", QLabel("SHA-256 pins and source constraints are supported."))
+        form.addRow("Execution", QLabel("Review plugin permissions before enabling file actions."))
+        return group
 
     def _create_shortcuts_tab(self) -> QWidget:
         """Create shortcuts customization tab"""
@@ -472,7 +554,6 @@ class SettingsDialog(QDialog):
             self.embedding_cache_status.setText(f"Failed to compact embedding cache: {e}")
 
     def _on_check_updates(self):
-
         self.update_status_label.setText("Checking for updates...")
         self.check_update_btn.setEnabled(False)
         self.download_update_btn.setVisible(False)

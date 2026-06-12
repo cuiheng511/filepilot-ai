@@ -37,6 +37,7 @@ class DashboardPanel(BasePanel):
         self.state = app_state
         self.event_bus = event_bus
         self._setup_ui()
+        self.update_workspace_status()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -86,6 +87,27 @@ class DashboardPanel(BasePanel):
         actions_layout.addStretch()
         actions_section.layout().addLayout(actions_layout)
         content_layout.addWidget(actions_section)
+
+        # Current workspace status
+        workspace_section = self._create_section("Current Workspace")
+        workspace_grid = QGridLayout()
+        self.workspace_folder_label = QLabel("No folder open")
+        self.workspace_ai_label = QLabel("Local AI: ollama")
+        self.workspace_index_label = QLabel("Index: ~/.filepilot/index")
+        self.workspace_activity_label = QLabel("Recent folders: 0 | Recent files: 0")
+        workspace_rows = [
+            ("Folder", self.workspace_folder_label),
+            ("AI", self.workspace_ai_label),
+            ("Index", self.workspace_index_label),
+            ("Activity", self.workspace_activity_label),
+        ]
+        for row, (label, value) in enumerate(workspace_rows):
+            key = QLabel(f"<b>{label}</b>")
+            value.setWordWrap(True)
+            workspace_grid.addWidget(key, row, 0)
+            workspace_grid.addWidget(value, row, 1)
+        workspace_section.layout().addLayout(workspace_grid)
+        content_layout.addWidget(workspace_section)
 
         # Recent folders
         self.recent_folders_section = self._create_section("📁 Recent Folders")
@@ -156,9 +178,27 @@ class DashboardPanel(BasePanel):
         self._update_stat(t("dashboard_categories"), str(categories))
         self._update_stat(t("dashboard_tags"), str(tags))
 
+    def update_workspace_status(self, current_dir: str | None = None) -> None:
+        """Update the dashboard's current workspace summary."""
+        settings = self.state.raw if self.state else {}
+        folder = current_dir or settings.get("_current_dir") or "No folder open"
+        provider = str(settings.get("ai_provider", "ollama"))
+        mode = "Local" if provider in ("ollama", "llamacpp") else "Cloud"
+        index_dir = str(settings.get("index_dir", "~/.filepilot/index"))
+        recent_dirs = len(settings.get("recent_dirs") or [])
+        recent_files = len(settings.get("recent_files") or [])
+
+        self.workspace_folder_label.setText(str(folder))
+        self.workspace_ai_label.setText(f"{mode} AI: {provider}")
+        self.workspace_index_label.setText(f"Index: {index_dir}")
+        self.workspace_activity_label.setText(
+            f"Recent folders: {recent_dirs} | Recent files: {recent_files}"
+        )
+
     def update_recent_folders(self, folders: list[str]):
         """Update recent folders list"""
         self.recent_folders_list.clear()
+        self.update_workspace_status()
         if not folders:
             item = QListWidgetItem(t("dashboard_no_recent_folders"))
             item.setForeground(Qt.gray)
@@ -174,6 +214,7 @@ class DashboardPanel(BasePanel):
     def update_recent_files(self, files: list[str]):
         """Update recent files list"""
         self.recent_files_list.clear()
+        self.update_workspace_status()
         if not files:
             item = QListWidgetItem(t("dashboard_no_recent_files"))
             item.setForeground(Qt.gray)
@@ -212,6 +253,7 @@ class DashboardPanel(BasePanel):
             return
         if self.state:
             self.state.add_recent_dir(dir_path)
+        self.update_workspace_status(dir_path)
         # Quick file count in the directory
         try:
             p = Path(dir_path)

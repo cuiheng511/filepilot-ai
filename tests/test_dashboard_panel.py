@@ -6,6 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QListWidgetItem
 
+from filepilot.core.app_state import AppState
 from filepilot.core.event_bus import EventBus
 from filepilot.i18n import t
 from filepilot.ui.dashboard_panel import DashboardPanel
@@ -206,5 +207,26 @@ def test_recent_files_shows_modified_time():
         assert panel.recent_files_list.count() == 1
         tip = panel.recent_files_list.item(0).toolTip()
         assert "Modified:" in tip
+    finally:
+        panel.close()
+
+
+def test_workspace_status_reflects_state_settings():
+    QApplication.instance() or QApplication([])
+    state = AppState(
+        {
+            "ai_provider": "openai",
+            "index_dir": "C:/indexes/filepilot",
+            "recent_dirs": ["C:/Docs"],
+            "recent_files": [],
+        }
+    )
+    panel = DashboardPanel(app_state=state)
+    try:
+        panel.update_workspace_status("C:/Docs")
+        assert panel.workspace_folder_label.text() == "C:/Docs"
+        assert panel.workspace_ai_label.text() == "Cloud AI: openai"
+        assert panel.workspace_index_label.text() == "Index: C:/indexes/filepilot"
+        assert panel.workspace_activity_label.text() == "Recent folders: 1 | Recent files: 0"
     finally:
         panel.close()

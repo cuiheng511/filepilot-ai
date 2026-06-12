@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QSize, Qt, Slot
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -48,6 +48,7 @@ from filepilot.ui.file_stats_panel import FileStatsPanel
 from filepilot.ui.index_panel import IndexPanel
 from filepilot.ui.notification import NotificationToast
 from filepilot.ui.notification_history import NotificationHistory
+from filepilot.ui.onboarding_dialog import OnboardingDialog
 from filepilot.ui.organize_panel import OrganizePanel
 from filepilot.ui.plugin_manager_panel import PluginManagerPanel
 from filepilot.ui.search_panel import SearchPanel
@@ -102,6 +103,8 @@ class MainWindow(QMainWindow):
 
         # Keyboard shortcuts
         self._setup_shortcuts()
+
+        QTimer.singleShot(0, self._show_onboarding_if_needed)
 
     def _setup_ui(self) -> None:
         """Build the main interface"""
@@ -590,6 +593,20 @@ class MainWindow(QMainWindow):
 
         return _load()
 
+    def _show_onboarding_if_needed(self) -> None:
+        """Show first-run guidance without blocking app startup."""
+        if self.state.get("onboarding_completed", False):
+            return
+        self._onboarding_dialog = OnboardingDialog(self)
+        self._onboarding_dialog.completed.connect(self._mark_onboarding_completed)
+        self._onboarding_dialog.open_folder_requested.connect(self._on_open_folder)
+        self._onboarding_dialog.open_settings_requested.connect(self._on_settings)
+        self._onboarding_dialog.open()
+
+    def _mark_onboarding_completed(self) -> None:
+        self.state.set("onboarding_completed", True)
+        self.state.save()
+
     @Slot()
     def _on_nav_changed(self, index: int):
         """Navigation changed"""
@@ -644,6 +661,7 @@ class MainWindow(QMainWindow):
 
         # Update dashboard with recent folders
         self.dashboard_panel.update_recent_folders(self.state.recent_dirs)
+        self.dashboard_panel.update_workspace_status(dir_path)
 
         # Update dashboard stats from browse panel
         if hasattr(self.browse_panel, "files"):
@@ -925,5 +943,6 @@ class MainWindow(QMainWindow):
         # Refresh dashboard with recent data
         self.dashboard_panel.update_recent_folders(self.state.recent_dirs)
         self.dashboard_panel.update_recent_files(self.state.recent_files)
+        self.dashboard_panel.update_workspace_status(self.current_dir and str(self.current_dir))
 
     # ===== Placeholder panels =====

@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QTabWidget
+from PySide6.QtWidgets import QLabel, QTabWidget
 
 from filepilot.i18n import SUPPORTED_LANGUAGES
 from filepilot.ui.settings_dialog import THEME_OPTIONS, SettingsDialog
@@ -205,9 +205,19 @@ class TestSettingsLayout:
         tabs = dialog.findChild(QTabWidget)
         tab_names = [tabs.tabText(i) for i in range(tabs.count())]
 
-        assert tabs.count() == 4
+        assert tabs.count() == 5
         assert "Updates" not in tab_names
         assert dialog.check_update_btn.text() == "Check for Updates"
+
+    def test_security_privacy_tab_explains_local_first_boundary(self, qtbot):
+        dialog = SettingsDialog(settings=_make_settings())
+        qtbot.addWidget(dialog)
+
+        tabs = dialog.findChild(QTabWidget)
+        tab_names = [tabs.tabText(i) for i in range(tabs.count())]
+
+        assert "Security & Privacy" in tab_names
+        assert "local-first" in dialog.findChild(QLabel, "privacyOverview").text()
 
 
 # ── File size parsing (pure logic) ──────────────────────────────────

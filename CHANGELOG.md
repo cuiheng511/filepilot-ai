@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-12
+
+### Added
+- **First-run onboarding** - Added a welcome dialog that explains FilePilot's local-first workflow, safe agent access model, AI configuration path, and first folder action.
+- **Dashboard workspace status** - Added a Current Workspace section that shows the active folder, AI mode/provider, index path, and recent activity counts.
+- **Settings security and privacy page** - Added a Security & Privacy settings tab covering local data boundaries, AI provider mode, MCP access rules, plugin safety, and telemetry expectations.
+- **Architecture documentation** - Added `docs/ARCHITECTURE.md` with the desktop/CLI/MCP system map, core service boundaries, MCP safety model, storage layout, and extension points.
+- **Project roadmap** - Added `docs/ROADMAP.md` with the 0.7.x polish track, 0.8 MCP productization direction, larger refactor guidance, non-goals, and contribution ideas.
+- **Use-case guide** - Added `docs/USE-CASES.md` with practical workflows for Downloads triage, duplicate review, local document summaries, scoped MCP agent access, open-source maintenance, and extractor plugins.
+
+### Changed
+- **Desktop first impression** - The desktop app now makes the next useful action clearer before a user has opened or indexed any folder.
+
 ## [0.6.7] - 2026-06-02
 
 ### Added

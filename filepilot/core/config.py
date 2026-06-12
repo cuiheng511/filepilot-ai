@@ -47,6 +47,7 @@ DEFAULTS = {
     "close_to_tray": True,
     "auto_start": False,
     "start_minimized": False,
+    "onboarding_completed": False,
 }
 
 

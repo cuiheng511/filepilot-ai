@@ -14,7 +14,7 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.8.0
+Version 0.8.1
 
 <img src="docs/assets/filepilot-demo.gif" alt="FilePilot AI desktop demo" width="760" />
 
@@ -180,11 +180,11 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 | --- | --- |
 | Search and indexing | Local full-text search with Whoosh, SQLite metadata filtering, incremental indexing, and optional semantic re-ranking. |
 | File understanding | Text extraction for PDF, DOCX, XLSX, PPTX, Markdown, code, and plain text, with optional summaries. |
-| Organization | Preview-first organization by category, date, extension, or size, plus safer move/undo flows. |
+| Organization | Preview-first organization by category, date, extension, or size, with workflow stages, safety precheck, Review routing, recent history, and undo. |
 | Duplicate cleanup | Duplicate grouping with size checks, partial hashing, and full SHA-256 verification. |
 | Tags and memory | File tags, saved searches, favorites, tag cloud, and tag automation rules. |
 | Desktop workflows | File browser, previews, AI chat panel, notifications, tray support, themes, and accessibility labels. |
-| Product guidance | First-run onboarding, dashboard workspace status, and a settings view for security and privacy boundaries. |
+| Product guidance | First-run onboarding, dashboard workspace status, organize workflow guidance, and a settings view for security and privacy boundaries. |
 | Extensibility | Extractor plugin SDK and plugin registry with safer remote-plugin checks. |
 | Agent workflows | Directory-scoped MCP tools with read limits, discoverable saved plans, write opt-in, apply/undo planning, and audit logs. |
 

@@ -111,6 +111,8 @@ class FileOrganizer:
         preview: bool = True,
         rename: bool = False,
         rename_pattern: str | None = None,
+        review_unknown: bool = False,
+        review_dir: str = "Review",
         dry_run: bool = True,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> list[dict]:
@@ -123,6 +125,8 @@ class FileOrganizer:
             preview: Preview mode (don't actually move)
             rename: Whether to rename files
             rename_pattern: Rename template
+            review_unknown: Route unknown-category files into a review directory
+            review_dir: Review directory name used when review_unknown is enabled
             dry_run: Whether to preview only (no execution)
             progress_callback: Progress callback
 
@@ -136,11 +140,17 @@ class FileOrganizer:
         reserved_destinations: set[Path] = set()
         self._organized_count = 0
         self._errors = []
+        self._undo_log = []
 
         for i, file_info in enumerate(files):
             try:
                 # Determine target subdirectory
-                sub_dir = self._determine_target(file_info, rules)
+                sub_dir = self._determine_target(
+                    file_info,
+                    rules,
+                    review_unknown=review_unknown,
+                    review_dir=review_dir,
+                )
                 dest_dir = target / sub_dir if sub_dir else target
 
                 # Determine target filename
@@ -194,8 +204,17 @@ class FileOrganizer:
 
         return operations
 
-    def _determine_target(self, file_info: FileInfo, rules: list[OrganizeRule]) -> str:
+    def _determine_target(
+        self,
+        file_info: FileInfo,
+        rules: list[OrganizeRule],
+        review_unknown: bool = False,
+        review_dir: str = "Review",
+    ) -> str:
         """Determine target subdirectory based on rules"""
+        if review_unknown and file_info.category == FileCategory.UNKNOWN:
+            return safe_filename(review_dir) or "Review"
+
         parts = []
         for rule in rules:
             if rule.enabled:

@@ -123,6 +123,29 @@ class TestFileOrganizerLockHandling:
         assert ops[0]["dry_run"] is False
         assert len(organizer._errors) == 0
 
+    def test_undo_log_resets_between_runs(self, scanner, organizer, tmp_path):
+        """Each organize execution should save undo data for only that run."""
+        src = tmp_path / "src"
+        dst = tmp_path / "dst"
+        src.mkdir()
+        dst.mkdir()
+        first = src / "first.txt"
+        second = src / "second.txt"
+        first.write_text("first")
+        second.write_text("second")
+
+        files = scanner.scan(src)
+        first_info = next(f for f in files if f.name == "first.txt")
+        second_info = next(f for f in files if f.name == "second.txt")
+
+        with patch("filepilot.core.file_organizer.is_file_locked", return_value=(False, "")):
+            organizer.organize([first_info], dst, dry_run=False)
+            assert len(organizer._undo_log) == 1
+            organizer.organize([second_info], dst, dry_run=False)
+
+        assert len(organizer._undo_log) == 1
+        assert organizer._undo_log[0]["source"].endswith("second.txt")
+
     def test_locked_file_skipped_others_moved(self, scanner, organizer, tmp_path):
         """Locked file is skipped, other files are still moved"""
         src = tmp_path / "src"
@@ -226,6 +249,30 @@ class TestFileOrganizerLockHandling:
         assert destinations[0].name == "same.txt"
         assert destinations[1].name == "same_1.txt"
         assert len(set(destinations)) == 2
+
+    def test_review_unknown_routes_unknown_category_to_review(self, organizer, tmp_path):
+        """Unknown files can be routed to a review directory before execution."""
+        now = datetime.now()
+        file_info = FileInfo(
+            path=tmp_path / "mystery.bin",
+            name="mystery.bin",
+            extension=".bin",
+            size_bytes=10,
+            size_str="10 B",
+            category=FileCategory.UNKNOWN,
+            mime_type="application/octet-stream",
+            modified_time=now,
+            created_time=now,
+        )
+
+        operations = organizer.organize(
+            [file_info],
+            tmp_path / "dst",
+            dry_run=True,
+            review_unknown=True,
+        )
+
+        assert Path(operations[0]["destination"]).parent.name == "Review"
 
     def test_rename_pattern_with_ext_does_not_duplicate_extension(self, organizer, tmp_path):
         now = datetime.now()

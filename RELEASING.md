@@ -4,7 +4,7 @@
 
 ## Current Release
 
-Current project version: `0.8.0`
+Current project version: `0.8.1`
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 

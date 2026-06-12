@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-06-12
+
+### Added
+- **Desktop organize workflow** - Added a visible Select -> Scan -> Precheck -> Execute -> Done pipeline to the Organize panel.
+- **Safety precheck** - Organize previews now check for missing absolute sources, existing targets, duplicate target paths, cross-drive moves, and Review-routed files before execution.
+- **Review routing** - Unknown-category files can be routed into a `Review` folder during preview and execution.
+- **Organize history summary** - Successful organize runs append a local JSONL history record and show the most recent moved/error/review counts in the panel.
+
 ### Fixed
 - **Release automation** - `v*` tags now trigger CI builds, version-named release artifacts, and an automatic GitHub Release publish job after lint, tests, MCP smoke, and platform builds pass.
 

@@ -1,6 +1,8 @@
 """Organize Panel — Auto-classify, smart rename, batch regex rename"""
 
+import json
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThreadPool, Signal, Slot
@@ -69,6 +71,8 @@ class OrganizePanel(BasePanel):
         self.event_bus = event_bus
 
         self._regex_undo: list[dict] = []
+        self._last_preview_operations: list[dict] = []
+        self._last_precheck: dict | None = None
         self._pool = QThreadPool.globalInstance()
 
         self._setup_ui()
@@ -97,9 +101,11 @@ class OrganizePanel(BasePanel):
         layout.setSpacing(12)
 
         self._create_title_section(layout)
+        self._create_pipeline_section(layout)
         self._create_folder_selection(layout)
         self._create_organize_rules(layout)
         self._create_rename_settings(layout)
+        self._create_safety_section(layout)
         self._create_regex_rename(layout)
         self._create_action_buttons(layout)
         self._create_progress_bar(layout)
@@ -117,6 +123,26 @@ class OrganizePanel(BasePanel):
         desc.setObjectName("sectionDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
+
+    def _create_pipeline_section(self, layout):
+        pipeline_group = QGroupBox("Workflow")
+        pipeline_layout = QVBoxLayout()
+        self.pipeline_label = QLabel("")
+        self.pipeline_label.setObjectName("workflowPipeline")
+        self.pipeline_label.setWordWrap(True)
+        self.pipeline_label.setStyleSheet(
+            "QLabel#workflowPipeline { color: #666; font-size: 12px; "
+            "background: rgba(255,255,255,0.03); padding: 8px; border-radius: 4px; }"
+        )
+        self.history_label = QLabel("Recent organize history: no local runs yet")
+        self.history_label.setObjectName("organizeHistory")
+        self.history_label.setWordWrap(True)
+        pipeline_layout.addWidget(self.pipeline_label)
+        pipeline_layout.addWidget(self.history_label)
+        pipeline_group.setLayout(pipeline_layout)
+        layout.addWidget(pipeline_group)
+        self._set_stage("select")
+        self._refresh_history_summary()
 
     def _create_folder_selection(self, layout):
         dir_group = QGroupBox("Folders")
@@ -154,13 +180,30 @@ class OrganizePanel(BasePanel):
         self.cb_date = QCheckBox("\U0001f4c5 By Date (Year/Month)")
         self.cb_extension = QCheckBox("\U0001f4ce By Extension")
         self.cb_size = QCheckBox("\U0001f4cf By File Size")
+        self.cb_review_unknown = QCheckBox("Route unknown files to Review")
+        self.cb_review_unknown.setChecked(True)
         rule_layout.addWidget(self.cb_category)
         rule_layout.addWidget(self.cb_date)
         rule_layout.addWidget(self.cb_extension)
         rule_layout.addWidget(self.cb_size)
+        rule_layout.addWidget(self.cb_review_unknown)
         rule_layout.addStretch()
         rule_group.setLayout(rule_layout)
         layout.addWidget(rule_group)
+
+    def _create_safety_section(self, layout):
+        safety_group = QGroupBox("Safety Precheck")
+        safety_layout = QVBoxLayout()
+        self.precheck_label = QLabel("Generate a preview to run the safety precheck.")
+        self.precheck_label.setObjectName("safetyPrecheck")
+        self.precheck_label.setWordWrap(True)
+        self.precheck_label.setStyleSheet(
+            "QLabel#safetyPrecheck { color: #666; font-size: 12px; "
+            "background: rgba(255,255,255,0.03); padding: 8px; border-radius: 4px; }"
+        )
+        safety_layout.addWidget(self.precheck_label)
+        safety_group.setLayout(safety_layout)
+        layout.addWidget(safety_group)
 
     def _create_rename_settings(self, layout):
         rename_layout = QHBoxLayout()
@@ -323,6 +366,7 @@ class OrganizePanel(BasePanel):
                 self.dst_path_label.style().polish(self.dst_path_label)
 
             self.btn_preview.setEnabled(True)
+            self._set_stage("select")
 
     @Slot()
     def _on_select_target(self):
@@ -335,6 +379,7 @@ class OrganizePanel(BasePanel):
             self.dst_path_label.setProperty("selected", True)
             self.dst_path_label.style().unpolish(self.dst_path_label)
             self.dst_path_label.style().polish(self.dst_path_label)
+            self._set_stage("select")
 
     @Slot()
     def _on_template_help(self):
@@ -398,6 +443,9 @@ class OrganizePanel(BasePanel):
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
         self.result_table.setRowCount(0)
+        self._last_preview_operations = []
+        self._last_precheck = None
+        self._set_stage("scan")
         self.status_message.emit("Scanning files...")
 
         def preview_worker():
@@ -425,6 +473,7 @@ class OrganizePanel(BasePanel):
                 dry_run=True,
                 rename=rename,
                 rename_pattern=pattern or None,
+                review_unknown=self.cb_review_unknown.isChecked(),
             )
 
             self.preview_ready.emit(operations, files)
@@ -438,6 +487,8 @@ class OrganizePanel(BasePanel):
         """Display preview results"""
         if files is not None:
             self.files = files
+        self._last_preview_operations = list(operations)
+        self._last_precheck = self._run_precheck(operations)
         self.result_table.setSortingEnabled(False)
         self.result_table.setRowCount(len(operations))
 
@@ -447,15 +498,19 @@ class OrganizePanel(BasePanel):
             self.result_table.setItem(row, 2, QTableWidgetItem(op["category"]))
             self.result_table.setItem(row, 3, QTableWidgetItem(op["size"]))
 
-            status = QTableWidgetItem("\U0001f4cb Preview")
+            risk = op.get("precheck_status", "")
+            status = QTableWidgetItem(risk or "\U0001f4cb Preview")
             status.setTextAlignment(Qt.AlignCenter)
-            status.setForeground(Qt.gray)
+            status.setForeground(Qt.red if risk else Qt.gray)
             self.result_table.setItem(row, 4, status)
 
         self.result_table.setSortingEnabled(True)
         self.btn_preview.setEnabled(True)
-        self.btn_execute.setEnabled(len(operations) > 0)
+        self.btn_execute.setEnabled(len(operations) > 0 and self._last_precheck["safe_to_execute"])
         self.progress_bar.setVisible(False)
+        self.btn_cancel.setVisible(False)
+        self._display_precheck(self._last_precheck)
+        self._set_stage("precheck" if self._last_precheck["safe_to_execute"] else "blocked")
 
         target_root = self.target_dir or (
             (self.source_dir / "_organized") if self.source_dir else Path()
@@ -485,11 +540,24 @@ class OrganizePanel(BasePanel):
 
         from PySide6.QtWidgets import QMessageBox
 
+        precheck = self._run_precheck(self._last_preview_operations)
+        self._last_precheck = precheck
+        self._display_precheck(precheck)
+        if not precheck["safe_to_execute"]:
+            self._set_stage("blocked")
+            QMessageBox.warning(
+                self,
+                "Safety precheck blocked execution",
+                "Resolve the listed precheck issue(s), then preview again before executing.",
+            )
+            return
+
         reply = QMessageBox.question(
             self,
             t("organize_confirm"),
             f"Organize {len(self.files)} files into\n"
             f"{self.target_dir or self.source_dir / '_organized'}?\n\n"
+            f"{precheck['summary']}\n\n"
             "This will move files. Backup recommended.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -504,6 +572,7 @@ class OrganizePanel(BasePanel):
         self.progress_bar.setVisible(True)
         self.btn_cancel.setVisible(True)
         self.progress_bar.setValue(0)
+        self._set_stage("execute")
         self.status_message.emit("Organizing files...")
 
         def execute_worker():
@@ -522,6 +591,7 @@ class OrganizePanel(BasePanel):
                 dry_run=False,
                 rename=rename,
                 rename_pattern=pattern or None,
+                review_unknown=self.cb_review_unknown.isChecked(),
                 progress_callback=lambda i, name: self.progress_updated.emit(
                     int(i / len(self.files) * 100) if self.files else 0,
                 ),
@@ -561,12 +631,16 @@ class OrganizePanel(BasePanel):
         self.btn_preview.setEnabled(True)
         self.btn_undo.setEnabled(done > 0)
         self.progress_bar.setVisible(False)
+        self.btn_cancel.setVisible(False)
+        self._set_stage("done")
 
         # Save undo log
         if done > 0:
             undo_path = Path.home() / ".filepilot" / "last_undo.json"
             undo_path.parent.mkdir(parents=True, exist_ok=True)
             self.organizer.save_undo_log(undo_path)
+            self._record_history(operations, undo_path)
+            self._refresh_history_summary()
 
         stats = self.organizer.stats
         self.stats_label.setText(
@@ -602,13 +676,171 @@ class OrganizePanel(BasePanel):
         )
         self.btn_undo.setEnabled(False)
         self.result_table.setRowCount(0)
+        self._set_stage("select")
+        self._refresh_history_summary()
 
     @Slot()
     def _clear_results(self):
         """Clear results"""
         self.result_table.setRowCount(0)
         self.btn_execute.setEnabled(False)
+        self._last_preview_operations = []
+        self._last_precheck = None
+        self.precheck_label.setText("Generate a preview to run the safety precheck.")
+        self._set_stage("select")
         self.stats_label.setText(t("ready"))
+
+    def _set_stage(self, stage: str) -> None:
+        stages = [
+            ("select", "Select"),
+            ("scan", "Scan"),
+            ("precheck", "Precheck"),
+            ("execute", "Execute"),
+            ("done", "Done"),
+        ]
+        if stage == "blocked":
+            self.pipeline_label.setText(
+                "Select -> Scan -> Precheck -> Execute -> Done\n"
+                "Blocked: review the safety precheck."
+            )
+            return
+
+        parts = []
+        passed = True
+        for key, name in stages:
+            if key == stage:
+                parts.append(f"[{name}]")
+                passed = False
+            elif passed:
+                parts.append(f"✓ {name}")
+            else:
+                parts.append(name)
+        self.pipeline_label.setText(" -> ".join(parts))
+
+    def _run_precheck(self, operations: list[dict]) -> dict:
+        destination_counts: dict[str, int] = {}
+        blockers: list[str] = []
+        warnings: list[str] = []
+        review_count = 0
+        cross_drive_count = 0
+        missing_count = 0
+        existing_count = 0
+
+        for op in operations:
+            destination_key = str(Path(op["destination"]).resolve())
+            destination_counts[destination_key] = destination_counts.get(destination_key, 0) + 1
+
+        duplicates = {path for path, count in destination_counts.items() if count > 1}
+
+        for op in operations:
+            source = Path(op["source"])
+            destination = Path(op["destination"])
+            status: list[str] = []
+
+            if source.is_absolute() and not source.exists():
+                missing_count += 1
+                status.append("missing source")
+            if destination.exists():
+                existing_count += 1
+                status.append("target exists")
+            if str(destination.resolve()) in duplicates:
+                status.append("duplicate target")
+            if (
+                destination.drive
+                and source.drive
+                and destination.drive.lower() != source.drive.lower()
+            ):
+                cross_drive_count += 1
+                status.append("cross-drive")
+            if any(part.lower() == "review" for part in destination.parts):
+                review_count += 1
+                status.append("review")
+
+            if status:
+                op["precheck_status"] = ", ".join(status)
+            else:
+                op.pop("precheck_status", None)
+
+        if missing_count:
+            blockers.append(f"{missing_count} source file(s) are missing.")
+        if existing_count:
+            blockers.append(f"{existing_count} target path(s) already exist.")
+        if duplicates:
+            blockers.append(f"{len(duplicates)} duplicate target path(s) were found.")
+        if cross_drive_count:
+            warnings.append(f"{cross_drive_count} file(s) will move across drives.")
+        if review_count:
+            warnings.append(f"{review_count} unknown file(s) are routed to Review.")
+
+        safe_to_execute = bool(operations) and not blockers
+        summary = (
+            f"Precheck {'passed' if safe_to_execute else 'needs attention'}: "
+            f"{len(operations)} planned move(s), {len(blockers)} blocker(s), "
+            f"{len(warnings)} warning(s)."
+        )
+        return {
+            "safe_to_execute": safe_to_execute,
+            "summary": summary,
+            "blockers": blockers,
+            "warnings": warnings,
+            "review_count": review_count,
+            "missing_count": missing_count,
+            "existing_count": existing_count,
+            "cross_drive_count": cross_drive_count,
+            "duplicate_target_count": len(duplicates),
+        }
+
+    def _display_precheck(self, precheck: dict) -> None:
+        lines = [precheck["summary"]]
+        lines.extend(f"Blocker: {item}" for item in precheck["blockers"])
+        lines.extend(f"Warning: {item}" for item in precheck["warnings"])
+        if precheck["safe_to_execute"] and not precheck["warnings"]:
+            lines.append("Ready to execute after user confirmation.")
+        self.precheck_label.setText("\n".join(lines))
+
+    def _history_path(self) -> Path:
+        return Path.home() / ".filepilot" / "organize-history.jsonl"
+
+    def _record_history(self, operations: list[dict], undo_path: Path) -> None:
+        moved_count = sum(1 for op in operations if not op.get("dry_run", False))
+        record = {
+            "created_at": datetime.now(UTC).isoformat(),
+            "source_dir": str(self.source_dir) if self.source_dir else None,
+            "target_dir": str(self.target_dir or self.source_dir / "_organized")
+            if self.source_dir
+            else None,
+            "moved_count": moved_count,
+            "error_count": self.organizer.stats.get("errors", 0),
+            "review_count": self._last_precheck.get("review_count", 0)
+            if self._last_precheck
+            else 0,
+            "undo_log": str(undo_path),
+        }
+        history_path = self._history_path()
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        with history_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _refresh_history_summary(self) -> None:
+        history_path = self._history_path()
+        if not history_path.exists():
+            self.history_label.setText("Recent organize history: no local runs yet")
+            return
+        try:
+            lines = [line for line in history_path.read_text(encoding="utf-8").splitlines() if line]
+            if not lines:
+                self.history_label.setText("Recent organize history: no local runs yet")
+                return
+            record = json.loads(lines[-1])
+        except (OSError, json.JSONDecodeError):
+            self.history_label.setText("Recent organize history: unavailable")
+            return
+        self.history_label.setText(
+            "Recent organize history: "
+            f"{record.get('moved_count', 0)} moved, "
+            f"{record.get('error_count', 0)} errors, "
+            f"{record.get('review_count', 0)} review item(s)"
+        )
 
     # ── Batch Regex Rename ──
 

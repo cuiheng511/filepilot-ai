@@ -19,6 +19,26 @@ The Plugin Manager can browse registry entries and install extractor plugins.
 - Installed plugins are local Python code, so only install plugins from trusted sources.
 - Custom plugins can still be placed in the local plugin directory for development.
 
+## Organize Workflow Precheck
+
+The Organize panel presents file organization as a visible workflow:
+
+1. Select a source and target.
+2. Scan and preview planned moves.
+3. Review the safety precheck.
+4. Execute only after the precheck passes and the user confirms.
+5. Use the undo entry when the latest move needs to be restored.
+
+The precheck flags missing absolute source paths, existing target paths,
+duplicate target destinations, cross-drive moves, and files routed into the
+`Review` folder.
+
+Unknown-category files can be routed into `Review` so the main organization run
+can still proceed while ambiguous files remain easy to inspect.
+
+Successful runs append a local JSONL history record under `~/.filepilot/`, and
+the panel shows the latest moved/error/review counts.
+
 ## Tag Cloud
 
 The Tags panel includes a Tag Cloud view.

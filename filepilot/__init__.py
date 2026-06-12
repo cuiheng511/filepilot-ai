@@ -3,4 +3,4 @@
 Automatically organize, classify, and search your local files.
 """
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"

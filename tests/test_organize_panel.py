@@ -54,6 +54,14 @@ class TestOrganizePanelInitialState:
         """Test initial category rule is checked"""
         assert self.panel.cb_category.isChecked()
 
+    def test_review_unknown_enabled_by_default(self):
+        """Unknown files are routed to Review by default in desktop organize."""
+        assert self.panel.cb_review_unknown.isChecked()
+
+    def test_initial_pipeline_stage(self):
+        """Workflow starts at the selection stage."""
+        assert "[Select]" in self.panel.pipeline_label.text()
+
     def test_initial_progress_hidden(self):
         """Test initial progress bar is hidden"""
         assert not self.panel.progress_bar.isVisible()
@@ -250,6 +258,7 @@ class TestOrganizePanelPreviewAndExecute:
         assert self.panel.result_table.item(0, 2).text() == "PDF"
         assert self.panel.btn_execute.isEnabled()
         assert "2 files will be organized" in self.panel.stats_label.text()
+        assert "Precheck passed" in self.panel.precheck_label.text()
 
     def test_display_preview_empty_operations(self):
         """Test empty preview result"""
@@ -257,6 +266,7 @@ class TestOrganizePanelPreviewAndExecute:
 
         assert self.panel.result_table.rowCount() == 0
         assert not self.panel.btn_execute.isEnabled()
+        assert "needs attention" in self.panel.precheck_label.text()
 
     def test_display_preview_sets_files(self):
         """Test preview sets file list"""
@@ -275,6 +285,49 @@ class TestOrganizePanelPreviewAndExecute:
 
         assert f"target: {custom_target}" in self.panel.stats_label.text()
 
+    def test_precheck_blocks_existing_target(self, tmp_path):
+        """Execution should be blocked when a planned destination already exists."""
+        source = tmp_path / "source.txt"
+        dest = tmp_path / "dest.txt"
+        source.write_text("source")
+        dest.write_text("dest")
+
+        self.panel._display_preview(
+            [
+                {
+                    "source": str(source),
+                    "destination": str(dest),
+                    "category": "Document",
+                    "size": "1 B",
+                }
+            ],
+            files=[MagicMock()],
+        )
+
+        assert not self.panel.btn_execute.isEnabled()
+        assert "target path" in self.panel.precheck_label.text()
+        assert "target exists" in self.panel.result_table.item(0, 4).text()
+
+    def test_precheck_marks_review_destinations(self, tmp_path):
+        """Review-routed files should be visible in the precheck warning strip."""
+        source = tmp_path / "unknown.bin"
+        source.write_text("source")
+
+        self.panel._display_preview(
+            [
+                {
+                    "source": str(source),
+                    "destination": str(tmp_path / "Review" / "unknown.bin"),
+                    "category": "Other",
+                    "size": "1 B",
+                }
+            ],
+            files=[MagicMock()],
+        )
+
+        assert self.panel.btn_execute.isEnabled()
+        assert "routed to Review" in self.panel.precheck_label.text()
+
     def test_display_execution_shows_results(self):
         """Test execution result display"""
         operations = [
@@ -292,6 +345,7 @@ class TestOrganizePanelPreviewAndExecute:
 
         assert self.panel.result_table.rowCount() == 1
         assert "Moved" in self.panel.result_table.item(0, 4).text()
+        assert "[Done]" in self.panel.pipeline_label.text()
 
     def test_display_execution_with_errors(self):
         """Test execution result display (with errors)"""

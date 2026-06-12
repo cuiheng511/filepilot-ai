@@ -24,7 +24,7 @@ Use one of these depending on the submission context:
 - FilePilot AI is a local-first file manager with a desktop app, CLI, and safe MCP server for AI coding agents.
 - Local-first MCP tools for searching, summarizing, tagging, deduplicating, and organizing your own files.
 - A privacy-first Python/PySide6 file intelligence app that gives Claude Code, Codex, Cursor, and other agents scoped access to local files.
-- A desktop + CLI + MCP project for preview-first file organization, duplicate review, and bounded local document understanding.
+- A desktop + CLI + MCP project for prechecked file organization, duplicate review, and bounded local document understanding.
 
 ## Short Pitch
 
@@ -47,8 +47,10 @@ Desktop, and other agent clients.
 The project is designed around conservative defaults: files stay local, AI is
 optional, MCP tools only see explicitly allowed directories, write-like actions
 require `--write`, and organization changes are saved as reviewable plans before
-they can be applied. This makes it useful both as an end-user file tool and as a
-practical open-source reference for building safer local agent integrations.
+they can be applied. The desktop organizer also uses a visible workflow,
+execution precheck, Review routing for unknown files, and local organize history.
+This makes it useful both as an end-user file tool and as a practical
+open-source reference for building safer local agent integrations.
 
 ## Suggested GitHub Repository Metadata
 
@@ -140,7 +142,7 @@ It combines:
 - CLI scanning/search/duplicates/organization
 - MCP tools for Claude Code, Codex, Cursor, and Claude Desktop
 
-The MCP server is scoped to explicit folders, read-only by default, and uses bounded reads, dry-run organization plans, confirmation gates, and audit logs for write-like actions.
+The desktop organizer has a preview -> safety precheck -> execute -> undo flow, and the MCP server is scoped to explicit folders, read-only by default, and uses bounded reads, dry-run organization plans, confirmation gates, and audit logs for write-like actions.
 
 Repo: https://github.com/cuiheng511/filepilot-ai
 ```

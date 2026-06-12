@@ -17,6 +17,10 @@ stability, a stronger first-run desktop experience, and built-in MCP workflow
 templates. The next work should continue improving reliability and developer
 confidence before adding large new product areas.
 
+Version 0.8.1 started the desktop organization polish pass: the Organize panel
+now has a visible workflow pipeline, execution precheck, Review routing for
+unknown files, and a recent local history summary.
+
 ## Near-Term Priorities
 
 | Priority | Goal | Why it matters |
@@ -69,6 +73,7 @@ client config helper, and stronger GitHub contributor surfaces. The remaining
 - End-to-end MCP client/server integration tests.
 - More example transcripts showing agents using workflow templates correctly.
 - Better observability for plan metadata, audit logs, and scoped roots.
+- Better desktop visibility for organize plans, precheck results, history, and undo.
 - Label synchronization and curated good-first-issue triage.
 
 ## 0.9 Direction
@@ -79,6 +84,7 @@ Version 0.9 should focus on desktop confidence:
 - File stats and search panel coverage lift.
 - Better release artifact verification summaries.
 - Optional screenshots or short demo capture for the README.
+- Optional folder icon workbench or folder-label polish after core organize safety is stable.
 
 ## Larger Refactors
 

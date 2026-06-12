@@ -391,13 +391,15 @@ class FilePilotMCPTools:
             rename=bool(rename_pattern),
             rename_pattern=rename_pattern,
         )
-        plan_id = self._save_plan(root_path, target, operations)
+        target_slots = _target_slots_from_operations(operations)
+        plan_id = self._save_plan(root_path, target, operations, target_slots=target_slots)
         return {
             "plan_id": plan_id,
             "root": str(root_path),
             "target_root": str(target),
             "count": len(operations),
             "dry_run": True,
+            "target_slots": target_slots,
             "operations": operations,
         }
 
@@ -726,6 +728,8 @@ class FilePilotMCPTools:
             "root": plan.get("root", ""),
             "target_root": plan.get("target_root", ""),
             "operation_count": len(plan.get("operations", [])),
+            "target_slot_count": len(plan.get("target_slots", [])),
+            "target_slots": list(plan.get("target_slots", []))[:10],
             "created_at": plan.get("created_at", ""),
             "applied_at": plan.get("applied_at", ""),
             "undone_at": plan.get("undone_at", ""),
@@ -763,7 +767,14 @@ class FilePilotMCPTools:
             return "denied"
         return "error"
 
-    def _save_plan(self, root: Path, target: Path, operations: list[dict]) -> str:
+    def _save_plan(
+        self,
+        root: Path,
+        target: Path,
+        operations: list[dict],
+        *,
+        target_slots: list[dict] | None = None,
+    ) -> str:
         self.plan_dir.mkdir(parents=True, exist_ok=True)
         plan_id = secrets.token_hex(12)
         plan = {
@@ -771,6 +782,7 @@ class FilePilotMCPTools:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "root": str(root),
             "target_root": str(target),
+            "target_slots": target_slots or _target_slots_from_operations(operations),
             "operations": operations,
         }
         self._plan_path(plan_id).write_text(
@@ -828,6 +840,25 @@ def _rules_from_names(names: Iterable[str] | None) -> list[OrganizeRule]:
         if rule_class:
             selected.append(rule_class())
     return selected or [CategoryRule()]
+
+
+def _target_slots_from_operations(operations: list[dict]) -> list[dict]:
+    slots: dict[str, dict] = {}
+    for operation in operations:
+        slot_id = str(operation.get("target_slot") or "").strip()
+        if not slot_id:
+            continue
+        slot = slots.setdefault(
+            slot_id,
+            {
+                "slot_id": slot_id,
+                "target_dir": str(operation.get("target_dir") or ""),
+                "target_subdir": str(operation.get("target_subdir") or "."),
+                "operation_count": 0,
+            },
+        )
+        slot["operation_count"] += 1
+    return sorted(slots.values(), key=lambda item: item["slot_id"])
 
 
 def _file_info_to_dict(file_info: FileInfo, root: Path | None = None) -> dict:

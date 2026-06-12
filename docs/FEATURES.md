@@ -29,9 +29,17 @@ The Organize panel presents file organization as a visible workflow:
 4. Execute only after the precheck passes and the user confirms.
 5. Use the undo entry when the latest move needs to be restored.
 
+Use **Add Source** to merge more than one source folder into a single organize
+run. FilePilot scans the selected roots together, then applies one shared
+preview, precheck, execute, history, and undo flow.
+
 The precheck flags missing absolute source paths, existing target paths,
 duplicate target destinations, cross-drive moves, and files routed into the
 `Review` folder.
+
+Preview rows include stable target slots such as `D001` for destination
+directories, so users and agents can discuss a plan without copying long paths.
+The precheck summary and organize history also include target slot counts.
 
 Unknown-category files can be routed into `Review` so the main organization run
 can still proceed while ambiguous files remain easy to inspect.

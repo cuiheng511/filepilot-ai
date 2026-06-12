@@ -180,7 +180,7 @@ python -m filepilot.cli organize ~/Downloads ~/Sorted --dry-run --rules category
 | --- | --- |
 | Search and indexing | Local full-text search with Whoosh, SQLite metadata filtering, incremental indexing, and optional semantic re-ranking. |
 | File understanding | Text extraction for PDF, DOCX, XLSX, PPTX, Markdown, code, and plain text, with optional summaries. |
-| Organization | Preview-first organization by category, date, extension, or size, with workflow stages, safety precheck, Review routing, recent history, and undo. |
+| Organization | Preview-first organization by category, date, extension, or size, with multiple source folders, workflow stages, safety precheck, target slots, Review routing, recent history, and undo. |
 | Duplicate cleanup | Duplicate grouping with size checks, partial hashing, and full SHA-256 verification. |
 | Tags and memory | File tags, saved searches, favorites, tag cloud, and tag automation rules. |
 | Desktop workflows | File browser, previews, AI chat panel, notifications, tray support, themes, and accessibility labels. |

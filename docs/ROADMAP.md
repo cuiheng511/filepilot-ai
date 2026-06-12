@@ -19,7 +19,8 @@ confidence before adding large new product areas.
 
 Version 0.8.1 started the desktop organization polish pass: the Organize panel
 now has a visible workflow pipeline, execution precheck, Review routing for
-unknown files, and a recent local history summary.
+unknown files, multiple source folders per run, stable target slots for
+destination directories, and a recent local history summary.
 
 ## Near-Term Priorities
 

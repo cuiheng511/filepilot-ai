@@ -63,6 +63,7 @@ class OrganizePanel(BasePanel):
     ):
         super().__init__(parent)
         self.source_dir: Path | None = None
+        self.source_dirs: list[Path] = []
         self.target_dir: Path | None = None
         self.files: list[FileInfo] = []
         self.organizer = organizer or FileOrganizer()
@@ -155,8 +156,11 @@ class OrganizePanel(BasePanel):
         self.src_path_label.setWordWrap(True)
         self.btn_src = QPushButton(t("browse"))
         self.btn_src.clicked.connect(self._on_select_source)
+        self.btn_add_src = QPushButton("Add Source")
+        self.btn_add_src.clicked.connect(self._on_add_source)
         src_layout.addWidget(self.src_path_label, 1)
         src_layout.addWidget(self.btn_src)
+        src_layout.addWidget(self.btn_add_src)
         dir_layout.addLayout(src_layout)
         dst_layout = QHBoxLayout()
         dst_layout.addWidget(QLabel(t("organize_dst")))
@@ -312,7 +316,7 @@ class OrganizePanel(BasePanel):
 
     def _create_results_table(self, layout):
         self.result_table = QTableWidget()
-        self.result_table.setColumnCount(5)
+        self.result_table.setColumnCount(6)
         self.result_table.setHorizontalHeaderLabels(
             [
                 t("src_path_header"),
@@ -320,6 +324,7 @@ class OrganizePanel(BasePanel):
                 t("category_header"),
                 "Size",
                 t("status_header"),
+                "Target Slot",
             ]
         )
         self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -346,25 +351,75 @@ class OrganizePanel(BasePanel):
 
     # ── Directory Selection ──
 
+    def _source_roots(self) -> list[Path]:
+        if self.source_dirs:
+            return list(self.source_dirs)
+        return [self.source_dir] if self.source_dir else []
+
+    def _set_source_roots(self, roots: list[Path]) -> None:
+        deduped: list[Path] = []
+        seen: set[str] = set()
+        for root in roots:
+            key = str(root.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(root)
+        self.source_dirs = deduped
+        self.source_dir = deduped[0] if deduped else None
+        self._refresh_source_label()
+
+    def _refresh_source_label(self) -> None:
+        roots = self._source_roots()
+        if not roots:
+            self.src_path_label.setText(t("organize_src_placeholder"))
+        elif len(roots) == 1:
+            self.src_path_label.setText(f"\U0001f4c2 {roots[0]}")
+        else:
+            self.src_path_label.setText(
+                f"\U0001f4c2 {len(roots)} sources: {roots[0]} (+{len(roots) - 1})"
+            )
+
+    def _target_root(self) -> Path:
+        if self.target_dir:
+            return self.target_dir
+        if self.source_dir:
+            return self.source_dir / "_organized"
+        return Path()
+
+    def _ensure_default_target(self) -> None:
+        if self.target_dir or not self.source_dir:
+            return
+        default_target = self.source_dir / "_organized"
+        self.target_dir = default_target
+        self.dst_path_label.setText(f"\U0001f3af {default_target}")
+        self.dst_path_label.setProperty("selected", True)
+        self.dst_path_label.style().unpolish(self.dst_path_label)
+        self.dst_path_label.style().polish(self.dst_path_label)
+
     @Slot()
     def _on_select_source(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select Source Folder")
         if dir_path:
-            self.source_dir = Path(dir_path)
-            self.src_path_label.setText(f"\U0001f4c2 {dir_path}")
+            self._set_source_roots([Path(dir_path)])
             self.src_path_label.setProperty("selected", True)
             self.src_path_label.style().unpolish(self.src_path_label)
             self.src_path_label.style().polish(self.src_path_label)
 
-            # Default target = source folder/_organized
-            if not self.target_dir:
-                default_target = self.source_dir / "_organized"
-                self.target_dir = default_target
-                self.dst_path_label.setText(f"\U0001f3af {default_target}")
-                self.dst_path_label.setProperty("selected", True)
-                self.dst_path_label.style().unpolish(self.dst_path_label)
-                self.dst_path_label.style().polish(self.dst_path_label)
+            self._ensure_default_target()
 
+            self.btn_preview.setEnabled(True)
+            self._set_stage("select")
+
+    @Slot()
+    def _on_add_source(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Add Source Folder")
+        if dir_path:
+            self._set_source_roots([*self._source_roots(), Path(dir_path)])
+            self.src_path_label.setProperty("selected", True)
+            self.src_path_label.style().unpolish(self.src_path_label)
+            self.src_path_label.style().polish(self.src_path_label)
+            self._ensure_default_target()
             self.btn_preview.setEnabled(True)
             self._set_stage("select")
 
@@ -431,9 +486,11 @@ class OrganizePanel(BasePanel):
 
     @Slot()
     def _on_preview(self):
-        if not self.source_dir:
+        source_roots = self._source_roots()
+        if not source_roots:
             self.status_message.emit("\u26a0\ufe0f Please select a source folder first")
             return
+        target_root = self._target_root()
 
         self._cancelled = False
         self._cancelling = False
@@ -446,18 +503,19 @@ class OrganizePanel(BasePanel):
         self._last_preview_operations = []
         self._last_precheck = None
         self._set_stage("scan")
-        self.status_message.emit("Scanning files...")
+        self.status_message.emit(f"Scanning files from {len(source_roots)} source(s)...")
 
         def preview_worker():
             files = []
-            for f in self.scanner.scan(
-                str(self.source_dir),
-                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
-            ):
-                if self._cancelled:
-                    self.cancel_done.emit()
-                    return
-                files.append(f)
+            for source_root in source_roots:
+                for f in self.scanner.scan(
+                    str(source_root),
+                    progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
+                ):
+                    if self._cancelled:
+                        self.cancel_done.emit()
+                        return
+                    files.append(f)
 
             if self._cancelled:
                 return
@@ -468,7 +526,7 @@ class OrganizePanel(BasePanel):
 
             operations = self.organizer.organize(
                 files,
-                target_root=str(self.target_dir or self.source_dir / "_organized"),
+                target_root=str(target_root),
                 rules=rules,
                 dry_run=True,
                 rename=rename,
@@ -503,6 +561,7 @@ class OrganizePanel(BasePanel):
             status.setTextAlignment(Qt.AlignCenter)
             status.setForeground(Qt.red if risk else Qt.gray)
             self.result_table.setItem(row, 4, status)
+            self.result_table.setItem(row, 5, QTableWidgetItem(self._target_slot_text(op)))
 
         self.result_table.setSortingEnabled(True)
         self.btn_preview.setEnabled(True)
@@ -512,9 +571,7 @@ class OrganizePanel(BasePanel):
         self._display_precheck(self._last_precheck)
         self._set_stage("precheck" if self._last_precheck["safe_to_execute"] else "blocked")
 
-        target_root = self.target_dir or (
-            (self.source_dir / "_organized") if self.source_dir else Path()
-        )
+        target_root = self._target_root()
         self.stats_label.setText(
             f"\U0001f441\ufe0f Preview: {len(operations)} files will be organized, "
             f"target: {target_root}",
@@ -535,8 +592,9 @@ class OrganizePanel(BasePanel):
 
     @Slot()
     def _on_execute(self):
-        if not self.source_dir or not self.files:
+        if not self._source_roots() or not self.files:
             return
+        target_root = self._target_root()
 
         from PySide6.QtWidgets import QMessageBox
 
@@ -556,7 +614,7 @@ class OrganizePanel(BasePanel):
             self,
             t("organize_confirm"),
             f"Organize {len(self.files)} files into\n"
-            f"{self.target_dir or self.source_dir / '_organized'}?\n\n"
+            f"{target_root}?\n\n"
             f"{precheck['summary']}\n\n"
             "This will move files. Backup recommended.",
             QMessageBox.Yes | QMessageBox.No,
@@ -586,7 +644,7 @@ class OrganizePanel(BasePanel):
 
             operations = self.organizer.organize(
                 self.files,
-                target_root=str(self.target_dir or self.source_dir / "_organized"),
+                target_root=str(target_root),
                 rules=rules,
                 dry_run=False,
                 rename=rename,
@@ -625,6 +683,7 @@ class OrganizePanel(BasePanel):
                 status_item.setForeground(Qt.green)
                 done += 1
             self.result_table.setItem(row, 4, status_item)
+            self.result_table.setItem(row, 5, QTableWidgetItem(self._target_slot_text(op)))
 
         self.result_table.setSortingEnabled(True)
         self.btn_execute.setEnabled(False)
@@ -721,6 +780,7 @@ class OrganizePanel(BasePanel):
         destination_counts: dict[str, int] = {}
         blockers: list[str] = []
         warnings: list[str] = []
+        target_slots = self._target_slot_summary(operations)
         review_count = 0
         cross_drive_count = 0
         missing_count = 0
@@ -788,15 +848,51 @@ class OrganizePanel(BasePanel):
             "existing_count": existing_count,
             "cross_drive_count": cross_drive_count,
             "duplicate_target_count": len(duplicates),
+            "target_slots": target_slots,
+            "target_slot_count": len(target_slots),
         }
 
     def _display_precheck(self, precheck: dict) -> None:
         lines = [precheck["summary"]]
+        target_slots = list(precheck.get("target_slots") or [])
+        if target_slots:
+            slot_bits = [
+                f"{slot['slot_id']} -> {slot['target_subdir']} ({slot['operation_count']})"
+                for slot in target_slots[:5]
+            ]
+            if len(target_slots) > 5:
+                slot_bits.append(f"+{len(target_slots) - 5} more")
+            lines.append("Targets: " + ", ".join(slot_bits))
         lines.extend(f"Blocker: {item}" for item in precheck["blockers"])
         lines.extend(f"Warning: {item}" for item in precheck["warnings"])
         if precheck["safe_to_execute"] and not precheck["warnings"]:
             lines.append("Ready to execute after user confirmation.")
         self.precheck_label.setText("\n".join(lines))
+
+    def _target_slot_summary(self, operations: list[dict]) -> list[dict]:
+        slots: dict[str, dict] = {}
+        for operation in operations:
+            slot_id = str(operation.get("target_slot") or "").strip()
+            if not slot_id:
+                continue
+            slot = slots.setdefault(
+                slot_id,
+                {
+                    "slot_id": slot_id,
+                    "target_dir": str(operation.get("target_dir") or ""),
+                    "target_subdir": str(operation.get("target_subdir") or "."),
+                    "operation_count": 0,
+                },
+            )
+            slot["operation_count"] += 1
+        return sorted(slots.values(), key=lambda item: item["slot_id"])
+
+    def _target_slot_text(self, operation: dict) -> str:
+        slot = str(operation.get("target_slot") or "").strip()
+        target_subdir = str(operation.get("target_subdir") or "").strip()
+        if slot and target_subdir and target_subdir != ".":
+            return f"{slot} -> {target_subdir}"
+        return slot
 
     def _history_path(self) -> Path:
         return Path.home() / ".filepilot" / "organize-history.jsonl"
@@ -806,14 +902,14 @@ class OrganizePanel(BasePanel):
         record = {
             "created_at": datetime.now(timezone.utc).isoformat(),
             "source_dir": str(self.source_dir) if self.source_dir else None,
-            "target_dir": str(self.target_dir or self.source_dir / "_organized")
-            if self.source_dir
-            else None,
+            "source_dirs": [str(root) for root in self._source_roots()],
+            "target_dir": str(self._target_root()) if self._source_roots() else None,
             "moved_count": moved_count,
             "error_count": self.organizer.stats.get("errors", 0),
             "review_count": self._last_precheck.get("review_count", 0)
             if self._last_precheck
             else 0,
+            "target_slots": self._target_slot_summary(operations),
             "undo_log": str(undo_path),
         }
         history_path = self._history_path()
@@ -839,7 +935,8 @@ class OrganizePanel(BasePanel):
             "Recent organize history: "
             f"{record.get('moved_count', 0)} moved, "
             f"{record.get('error_count', 0)} errors, "
-            f"{record.get('review_count', 0)} review item(s)"
+            f"{record.get('review_count', 0)} review item(s), "
+            f"{len(record.get('target_slots', []))} target slot(s)"
         )
 
     # ── Batch Regex Rename ──
@@ -899,7 +996,8 @@ class OrganizePanel(BasePanel):
             self.status_message.emit(f"\u274c Invalid regex: {e}")
             return
 
-        if not self.source_dir:
+        source_roots = self._source_roots()
+        if not source_roots:
             self.status_message.emit("\u26a0\ufe0f Please select a source folder first")
             return
 
@@ -914,13 +1012,14 @@ class OrganizePanel(BasePanel):
 
         def regex_preview_worker():
             files = []
-            for f in self.scanner.scan(
-                str(self.source_dir),
-                progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
-            ):
-                if self._cancelled:
-                    return
-                files.append(f)
+            for source_root in source_roots:
+                for f in self.scanner.scan(
+                    str(source_root),
+                    progress_callback=lambda i, p: self.progress_updated.emit((i % 100) + 1),
+                ):
+                    if self._cancelled:
+                        return
+                    files.append(f)
 
             if self._cancelled:
                 return
@@ -961,6 +1060,7 @@ class OrganizePanel(BasePanel):
             status.setTextAlignment(Qt.AlignCenter)
             status.setForeground(Qt.gray)
             self.result_table.setItem(row, 4, status)
+            self.result_table.setItem(row, 5, QTableWidgetItem(""))
 
         self.result_table.setSortingEnabled(True)
         self.regex_execute_btn.setEnabled(len(operations) > 0)
@@ -1084,6 +1184,7 @@ class OrganizePanel(BasePanel):
             elif "\u274c" in op.get("status", ""):
                 status.setForeground(Qt.red)
             self.result_table.setItem(row, 4, status)
+            self.result_table.setItem(row, 5, QTableWidgetItem(""))
 
         self.result_table.setSortingEnabled(True)
         self.btn_preview.setEnabled(True)

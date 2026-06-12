@@ -220,6 +220,8 @@ Saved organization plans are not trusted blindly. `list_plans` lets an agent red
 
 Before moving each file, FilePilot resolves and re-validates the source and destination against the current allowlist, checks that the source still exists, and refuses to overwrite an existing destination. If a later operation fails, successful and failed per-file results are saved back to the plan so `undo_organization_plan` can still restore successful moves.
 
+Organization plans include target slots such as `D001` and `D002` for destination directories. `propose_organization_plan` returns the full slot list, and `list_plans` includes a compact slot summary so agents can ask about a slot without repeating long filesystem paths. FilePilot still applies the exact saved paths after validation.
+
 `apply_organization_plan` refuses to apply a plan that already has `applied_at`, so repeated agent calls cannot accidentally run the same saved move plan twice.
 
 `cleanup_plans` only removes saved plan metadata, not user files. It defaults to `dry_run=True`; actual deletion requires `dry_run=False` and write mode. Use this for old proposed/applied/undone plans after reviewing the returned candidates.

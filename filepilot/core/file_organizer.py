@@ -138,6 +138,7 @@ class FileOrganizer:
         target = Path(target_root)
         operations: list[dict] = []
         reserved_destinations: set[Path] = set()
+        target_slots: dict[str, str] = {}
         self._organized_count = 0
         self._errors = []
         self._undo_log = []
@@ -152,6 +153,8 @@ class FileOrganizer:
                     review_dir=review_dir,
                 )
                 dest_dir = target / sub_dir if sub_dir else target
+                slot_key = dest_dir.resolve().as_posix()
+                target_slot = target_slots.setdefault(slot_key, f"D{len(target_slots) + 1:03d}")
 
                 # Determine target filename
                 dest_name = self._determine_filename(file_info, rename, rename_pattern)
@@ -164,6 +167,9 @@ class FileOrganizer:
                 op = {
                     "source": str(file_info.path),
                     "destination": str(dest_path),
+                    "target_slot": target_slot,
+                    "target_dir": str(dest_dir),
+                    "target_subdir": sub_dir or ".",
                     "category": file_info.category.label,
                     "size": file_info.size_str,
                     "dry_run": dry_run,

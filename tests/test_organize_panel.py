@@ -1,5 +1,6 @@
 """OrganizePanel unit tests — folder selection, rule configuration, preview, execution, results display"""
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -25,6 +26,7 @@ class TestOrganizePanelInitialState:
     def test_initial_source_none(self):
         """Test initial source folder is None"""
         assert self.panel.source_dir is None
+        assert self.panel.source_dirs == []
 
     def test_initial_target_none(self):
         """Test initial target folder is None"""
@@ -49,6 +51,7 @@ class TestOrganizePanelInitialState:
     def test_initial_table_empty(self):
         """Test initial result table is empty"""
         assert self.panel.result_table.rowCount() == 0
+        assert self.panel.result_table.columnCount() == 6
 
     def test_initial_category_rule_checked(self):
         """Test initial category rule is checked"""
@@ -99,6 +102,7 @@ class TestOrganizePanelFolderSelection:
             self.panel._on_select_source()
 
         assert self.panel.source_dir == tmp_path
+        assert self.panel.source_dirs == [tmp_path]
         assert str(tmp_path) in self.panel.src_path_label.text()
         assert self.panel.btn_preview.isEnabled()
 
@@ -130,6 +134,33 @@ class TestOrganizePanelFolderSelection:
         with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""):
             self.panel._on_select_source()
         assert self.panel.source_dir is None
+
+    def test_add_source_appends_to_source_list(self, tmp_path):
+        """Additional folders can be merged into one organize run."""
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        self.panel._set_source_roots([first])
+
+        with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(second)):
+            self.panel._on_add_source()
+
+        assert self.panel.source_dir == first
+        assert self.panel.source_dirs == [first, second]
+        assert "2 sources" in self.panel.src_path_label.text()
+        assert self.panel.btn_preview.isEnabled()
+
+    def test_add_source_deduplicates_existing_source(self, tmp_path):
+        """Adding the same source twice should not duplicate scan work."""
+        self.panel._set_source_roots([tmp_path])
+
+        with patch(
+            "PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(tmp_path)
+        ):
+            self.panel._on_add_source()
+
+        assert self.panel.source_dirs == [tmp_path]
 
     def test_select_target_updates_label(self, tmp_path):
         """Test selecting target folder updates the label"""
@@ -240,12 +271,16 @@ class TestOrganizePanelPreviewAndExecute:
             {
                 "source": "a.pdf",
                 "destination": "/organized/PDF/a.pdf",
+                "target_slot": "D001",
+                "target_subdir": "PDF",
                 "category": "PDF",
                 "size": "1 MB",
             },
             {
                 "source": "b.py",
                 "destination": "/organized/Code/b.py",
+                "target_slot": "D002",
+                "target_subdir": "Code",
                 "category": "Code",
                 "size": "2 KB",
             },
@@ -256,9 +291,11 @@ class TestOrganizePanelPreviewAndExecute:
         assert self.panel.result_table.rowCount() == 2
         assert self.panel.result_table.item(0, 0).text() == "a.pdf"
         assert self.panel.result_table.item(0, 2).text() == "PDF"
+        assert self.panel.result_table.item(0, 5).text() == "D001 -> PDF"
         assert self.panel.btn_execute.isEnabled()
         assert "2 files will be organized" in self.panel.stats_label.text()
         assert "Precheck passed" in self.panel.precheck_label.text()
+        assert "Targets: D001 -> PDF (1), D002 -> Code (1)" in self.panel.precheck_label.text()
 
     def test_display_preview_empty_operations(self):
         """Test empty preview result"""
@@ -363,6 +400,48 @@ class TestOrganizePanelPreviewAndExecute:
         self.panel._display_execution(operations)
 
         assert "1 error" in self.panel.stats_label.text()
+
+    def test_record_history_includes_multiple_sources(self, tmp_path, monkeypatch):
+        """History records keep the first source and the full merged source list."""
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        target = tmp_path / "target"
+        first.mkdir()
+        second.mkdir()
+        target.mkdir()
+        self.panel._set_source_roots([first, second])
+        self.panel.target_dir = target
+        self.panel.organizer.stats = {"errors": 0}
+        self.panel._last_precheck = {"review_count": 1}
+        history_path = tmp_path / "organize-history.jsonl"
+        monkeypatch.setattr(self.panel, "_history_path", lambda: history_path)
+
+        self.panel._record_history(
+            [
+                {
+                    "source": str(first / "a.txt"),
+                    "destination": str(target / "a.txt"),
+                    "target_slot": "D001",
+                    "target_dir": str(target / "Documents"),
+                    "target_subdir": "Documents",
+                }
+            ],
+            tmp_path / "undo.json",
+        )
+
+        record = json.loads(history_path.read_text(encoding="utf-8").splitlines()[0])
+        assert record["source_dir"] == str(first)
+        assert record["source_dirs"] == [str(first), str(second)]
+        assert record["target_dir"] == str(target)
+        assert record["review_count"] == 1
+        assert record["target_slots"] == [
+            {
+                "slot_id": "D001",
+                "target_dir": str(target / "Documents"),
+                "target_subdir": "Documents",
+                "operation_count": 1,
+            }
+        ]
 
 
 class TestOrganizePanelClear:

@@ -250,6 +250,54 @@ class TestFileOrganizerLockHandling:
         assert destinations[1].name == "same_1.txt"
         assert len(set(destinations)) == 2
 
+    def test_operations_include_target_slots(self, organizer, tmp_path):
+        """Planned operations expose stable directory slots for review."""
+        now = datetime.now()
+        files = [
+            FileInfo(
+                path=tmp_path / "a.txt",
+                name="a.txt",
+                extension=".txt",
+                size_bytes=10,
+                size_str="10 B",
+                category=FileCategory.DOCUMENT,
+                mime_type="text/plain",
+                modified_time=now,
+                created_time=now,
+            ),
+            FileInfo(
+                path=tmp_path / "b.pdf",
+                name="b.pdf",
+                extension=".pdf",
+                size_bytes=20,
+                size_str="20 B",
+                category=FileCategory.PDF,
+                mime_type="application/pdf",
+                modified_time=now,
+                created_time=now,
+            ),
+            FileInfo(
+                path=tmp_path / "c.txt",
+                name="c.txt",
+                extension=".txt",
+                size_bytes=30,
+                size_str="30 B",
+                category=FileCategory.DOCUMENT,
+                mime_type="text/plain",
+                modified_time=now,
+                created_time=now,
+            ),
+        ]
+
+        operations = organizer.organize(files, tmp_path / "dst", dry_run=True)
+
+        assert operations[0]["target_slot"] == "D001"
+        assert operations[0]["target_subdir"] == "Documents"
+        assert operations[0]["target_dir"].endswith("Documents")
+        assert operations[1]["target_slot"] == "D002"
+        assert operations[1]["target_subdir"] == "PDF"
+        assert operations[2]["target_slot"] == "D001"
+
     def test_review_unknown_routes_unknown_category_to_review(self, organizer, tmp_path):
         """Unknown files can be routed to a review directory before execution."""
         now = datetime.now()

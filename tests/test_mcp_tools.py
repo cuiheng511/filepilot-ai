@@ -82,6 +82,21 @@ def test_propose_organization_plan_is_dry_run(mcp_tools, tmp_path: Path):
     assert not target.exists()
 
 
+def test_propose_organization_plan_includes_target_slots(mcp_tools, tmp_path: Path):
+    tools, root = mcp_tools
+    target = tmp_path / "organized"
+
+    result = tools.propose_organization_plan(str(root), str(target), rules=["extension"])
+
+    assert result["target_slots"]
+    assert all(slot["slot_id"].startswith("D") for slot in result["target_slots"])
+    assert all(slot["operation_count"] >= 1 for slot in result["target_slots"])
+    assert result["operations"][0]["target_slot"]
+    plan_path = tmp_path / "plans" / f"{result['plan_id']}.json"
+    saved_plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert saved_plan["target_slots"] == result["target_slots"]
+
+
 def test_add_tags_requires_write_mode(mcp_tools):
     tools, root = mcp_tools
 
@@ -280,6 +295,8 @@ def test_list_plans_reports_status(tmp_path: Path):
     entry = listing["plans"][0]
     assert entry["plan_id"] == plan["plan_id"]
     assert entry["status"] == "proposed"
+    assert entry["target_slot_count"] == len(plan["target_slots"])
+    assert entry["target_slots"] == plan["target_slots"][:10]
 
     tools.apply_organization_plan(plan["plan_id"], confirm=True)
     listing_after = tools.list_plans()

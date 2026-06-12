@@ -117,9 +117,9 @@ class TestFileOrganizerLockHandling:
         # Source file should be gone
         assert not (src / "free.txt").exists()
         # File should be somewhere under dst (CategoryRule places .txt in Documents/)
-        assert (
-            len(list(dst.rglob("*.txt"))) == 1
-        ), f"Expected 1 .txt file under dst, found: {list(dst.rglob('*'))}"
+        assert len(list(dst.rglob("*.txt"))) == 1, (
+            f"Expected 1 .txt file under dst, found: {list(dst.rglob('*'))}"
+        )
         assert ops[0]["dry_run"] is False
         assert len(organizer._errors) == 0
 
@@ -150,9 +150,9 @@ class TestFileOrganizerLockHandling:
 
         # free.txt should have been moved somewhere under dst
         moved_files = [p for p in dst.rglob("*") if p.is_file()]
-        assert (
-            len(moved_files) == 1
-        ), f"Expected 1 file moved under dst, found {len(moved_files)}: {moved_files}"
+        assert len(moved_files) == 1, (
+            f"Expected 1 file moved under dst, found {len(moved_files)}: {moved_files}"
+        )
         # locked.pdf should still be in source
         assert (src / "locked.pdf").exists(), "Locked file was incorrectly moved"
         # Error should be recorded about the locked file

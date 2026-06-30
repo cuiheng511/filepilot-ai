@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **MCP protocol smoke test** - Added a stdio-level MCP client test that starts `filepilot-mcp`, initializes a session, and verifies that the public tool list is exposed through the protocol path used by agents and registry inspectors.
+
+### Changed
+- **MCP registry documentation** - Documented the local protocol smoke check used to verify MCP tool introspection.
+
 ## [0.8.2] - 2026-06-30
 
 ### Added

@@ -214,6 +214,16 @@ installs the MCP extra and exposes the `filepilot-mcp` entrypoint so registries
 can verify that the server starts and responds to MCP introspection without
 requiring the desktop dependencies.
 
+For a local protocol-level smoke check, run:
+
+```bash
+python -m pytest tests/test_mcp_server.py::test_stdio_protocol_lists_registered_tools -q
+```
+
+This starts `filepilot-mcp` over stdio, initializes an MCP client session, and
+verifies that the public tool list is returned through the same path used by
+Claude, Cursor, Codex, and registry inspectors.
+
 ## Safety Notes
 
 ### Directory Scope

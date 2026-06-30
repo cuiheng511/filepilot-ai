@@ -1,4 +1,7 @@
+import asyncio
 import importlib.util
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -36,6 +39,50 @@ def test_create_server_registers_expected_tools(tmp_path: Path):
         "apply_organization_plan",
         "undo_organization_plan",
     }.issubset(tools)
+
+
+@pytest.mark.skipif(importlib.util.find_spec("mcp") is None, reason="MCP SDK not installed")
+def test_stdio_protocol_lists_registered_tools(tmp_path: Path):
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    async def list_tool_names() -> dict[str, str | None]:
+        allowed = tmp_path / "workspace"
+        allowed.mkdir()
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=[
+                "-m",
+                "filepilot.mcp.server",
+                "--allow",
+                str(allowed),
+                "--plan-dir",
+                str(tmp_path / "plans"),
+                "--read-only",
+            ],
+            cwd=Path.cwd(),
+            env=os.environ.copy(),
+        )
+        with open(os.devnull, "w") as errlog:
+            async with (
+                stdio_client(params, errlog=errlog) as (
+                    read,
+                    write,
+                ),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                result = await session.list_tools()
+                return {tool.name: tool.description for tool in result.tools}
+
+    tools = asyncio.run(list_tool_names())
+
+    assert len(tools) >= 19
+    assert tools["server_status"] == "Show allowed directories, write mode, and safety limits."
+    assert tools["scan_files"] == "Scan local files under an allowed directory."
+    assert tools["propose_organization_plan"] == (
+        "Create a dry-run file organization plan. This never moves files."
+    )
 
 
 def test_read_only_flag_overrides_write_enabled_env(

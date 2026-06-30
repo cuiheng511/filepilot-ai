@@ -16,6 +16,8 @@ threads.
 | Architecture | `https://github.com/cuiheng511/filepilot-ai/blob/main/docs/ARCHITECTURE.md` |
 | Roadmap | `https://github.com/cuiheng511/filepilot-ai/blob/main/docs/ROADMAP.md` |
 | Releases | `https://github.com/cuiheng511/filepilot-ai/releases` |
+| Glama listing | `https://glama.ai/mcp/servers/cuiheng511/filepilot-ai` |
+| Glama score | `https://glama.ai/mcp/servers/cuiheng511/filepilot-ai/score` |
 
 ## One-Line Descriptions
 
@@ -106,6 +108,7 @@ Before submitting to an external list:
 - Confirm the latest `main` CI run is green.
 - Confirm README first screen shows the logo, badges, demo, and quick pitch.
 - Confirm the latest GitHub Release is published and marked as latest.
+- Confirm the Glama listing and score badge resolve.
 - Confirm screenshots render in README.
 - Confirm `docs/MCP.md`, `docs/MCP-CLIENTS.md`, and `docs/MCP-WORKFLOWS.md` match the current tool list.
 - Confirm the repository description and topics are set on GitHub.
@@ -130,6 +133,7 @@ tools require explicit `--write`, confirmation, allowlisted roots, and audit log
 
 Repository: https://github.com/cuiheng511/filepilot-ai
 Docs: https://github.com/cuiheng511/filepilot-ai/blob/main/docs/MCP.md
+Glama: https://glama.ai/mcp/servers/cuiheng511/filepilot-ai
 ```
 
 ## Example Launch Post

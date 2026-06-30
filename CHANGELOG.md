@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-06-30
+
+### Added
+- **Glama registry support** - Added Docker-based MCP verification support and linked the Glama registry score badge from the README.
+- **Promotion references** - Updated MCP and promotion docs with the current Glama listing, score page, and registry submission links.
+
+### Changed
+- **GitHub Actions dependency maintenance** - Merged Dependabot's `actions/checkout` v4 to v7 update after the full CI matrix passed.
+- **Maintenance docs** - Updated release, roadmap, and promotion notes for the 0.8.2 registry-maintenance release.
+
 ## [0.8.1] - 2026-06-12
 
 ### Added

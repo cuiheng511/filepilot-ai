@@ -11,10 +11,11 @@ FilePilot AI helps you search, understand, tag, deduplicate, summarize, and safe
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Desktop](https://img.shields.io/badge/Desktop-PySide6-41CD52?style=for-the-badge&logo=qt&logoColor=white)](https://pypi.org/project/PySide6/)
 [![MCP](https://img.shields.io/badge/MCP-Local%20Agent%20Tools-111827?style=for-the-badge)](docs/MCP.md)
+[![Glama](https://glama.ai/mcp/servers/cuiheng511/filepilot-ai/badges/score.svg)](https://glama.ai/mcp/servers/cuiheng511/filepilot-ai)
 [![Search](https://img.shields.io/badge/Search-Whoosh-2563EB?style=for-the-badge)](https://whoosh.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-Version 0.8.1
+Version 0.8.2
 
 <img src="docs/assets/filepilot-demo.gif" alt="FilePilot AI desktop demo" width="760" />
 
@@ -93,6 +94,8 @@ list_workflow_templates, get_workflow_template, mcp_client_config
 ```
 
 See [docs/MCP.md](docs/MCP.md) for the full safety model, [docs/MCP-CLIENTS.md](docs/MCP-CLIENTS.md) for Claude Desktop, Claude Code, Cursor, and Codex snippets, [docs/MCP-WORKFLOWS.md](docs/MCP-WORKFLOWS.md) for built-in agent workflow templates, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project architecture.
+
+FilePilot is listed in the [Glama MCP registry](https://glama.ai/mcp/servers/cuiheng511/filepilot-ai), and the repository includes Docker support for registry smoke checks.
 
 ## Quick Start
 

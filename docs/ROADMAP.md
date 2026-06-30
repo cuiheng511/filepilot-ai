@@ -22,6 +22,11 @@ now has a visible workflow pipeline, execution precheck, Review routing for
 unknown files, multiple source folders per run, stable target slots for
 destination directories, and a recent local history summary.
 
+Version 0.8.2 is a maintenance and registry-readiness pass: Dependabot's
+GitHub Actions update is merged, the Glama registry listing is linked from the
+project docs, and Docker-based MCP verification is documented for external
+directory checks.
+
 ## Near-Term Priorities
 
 | Priority | Goal | Why it matters |

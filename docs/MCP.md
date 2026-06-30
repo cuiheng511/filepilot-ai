@@ -202,6 +202,18 @@ persistent Claude Desktop, Claude Code, Cursor, Codex, or generic MCP config.
 
 See [MCP-WORKFLOWS.md](MCP-WORKFLOWS.md) for the full template list and examples.
 
+## Registry Verification
+
+FilePilot AI is listed in the Glama MCP registry:
+
+- Listing: <https://glama.ai/mcp/servers/cuiheng511/filepilot-ai>
+- Score page: <https://glama.ai/mcp/servers/cuiheng511/filepilot-ai/score>
+
+The repository includes a top-level `Dockerfile` for registry smoke checks. It
+installs the MCP extra and exposes the `filepilot-mcp` entrypoint so registries
+can verify that the server starts and responds to MCP introspection without
+requiring the desktop dependencies.
+
 ## Safety Notes
 
 ### Directory Scope
